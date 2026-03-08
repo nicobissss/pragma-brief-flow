@@ -14,6 +14,7 @@ import {
   ChevronDown, ChevronUp, Building2, Calendar, Globe,
 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
+import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
