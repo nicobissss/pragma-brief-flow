@@ -516,6 +516,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
   const [generating, setGenerating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [addAssetDrawer, setAddAssetDrawer] = useState<{ campaignId: string; campaignName: string } | null>(null);
+  const [newVersionDrawer, setNewVersionDrawer] = useState<{ asset: AssetRow; campaignId: string; summary: string } | null>(null);
 
   // Form state
   const [name, setName] = useState("");
