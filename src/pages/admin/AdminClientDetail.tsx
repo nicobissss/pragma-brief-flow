@@ -124,7 +124,7 @@ export default function AdminClientDetail() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
 
   // Kickoff state
-  const [checkedQuestions, setCheckedQuestions] = useState<Set<string>>(new Set());
+  // checkedQuestions removed — now in KickoffQuestionsManager
   const [transcriptText, setTranscriptText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
