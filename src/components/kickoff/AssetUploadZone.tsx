@@ -27,6 +27,7 @@ type SavedAsset = {
 interface AssetUploadZoneProps {
   clientId: string;
   assetType: "landing_page" | "email_flow" | "social_post" | "blog_article";
+  campaignId?: string;
   onAssetSaved?: () => void;
 }
 
