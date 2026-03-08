@@ -206,5 +206,5 @@ export function ProposalView({ data }: { data: ProposalData }) {
       </Card>
     </div>
   );
-
+}
 
