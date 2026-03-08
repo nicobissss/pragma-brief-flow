@@ -1149,6 +1149,105 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
           onVersionUploaded={() => onAssetsChanged?.()}
         />
       )}
+
+      {/* Notify confirmation modal */}
+      <Dialog open={!!notifyConfirm} onOpenChange={(o) => !o && setNotifyConfirm(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send campaign review to client?</DialogTitle>
+          </DialogHeader>
+          {notifyConfirm && (() => {
+            const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+            const includedAssets = notifyConfirm.assets;
+
+            return (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">Assets included in this notification:</p>
+                  <div className="space-y-1.5">
+                    {types.map((t) => {
+                      const typeAssets = includedAssets.filter((a) => a.asset_type === t);
+                      if (typeAssets.length > 0) {
+                        return typeAssets.map((a) => (
+                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                            <span>✅</span>
+                            <span className="text-foreground">{ASSET_TYPE_FULL[t]} — {a.asset_name}</span>
+                          </div>
+                        ));
+                      }
+                      return (
+                        <div key={t} className="flex items-center gap-2 text-sm">
+                          <span>⚪</span>
+                          <span className="text-muted-foreground">{ASSET_TYPE_FULL[t]} — not included (not uploaded)</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The client will be asked to review only the uploaded assets.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setNotifyConfirm(null)}>Cancel</Button>
+                  <Button
+                    disabled={notifying}
+                    onClick={async () => {
+                      setNotifying(true);
+                      try {
+                        // Set all uploaded assets to pending_review
+                        for (const a of includedAssets) {
+                          if (a.status !== "pending_review") {
+                            await supabase.from("assets").update({ status: "pending_review" } as any).eq("id", a.id);
+                          }
+                        }
+
+                        // Send notification
+                        const { data, error } = await supabase.functions.invoke("send-notification", {
+                          body: {
+                            type: "campaign_ready",
+                            client_id: clientId,
+                            campaign_name: notifyConfirm.campaign.name,
+                            asset_ids: includedAssets.map((a) => a.id),
+                          },
+                        });
+                        if (error) throw error;
+                        if (data?.error) throw new Error(data.error);
+
+                        // Update last_notified_at
+                        const now = new Date().toISOString();
+                        await (supabase.from("campaigns" as any) as any)
+                          .update({ last_notified_at: now, updated_at: now })
+                          .eq("id", notifyConfirm.campaign.id);
+
+                        onCampaignUpdated({ ...notifyConfirm.campaign, last_notified_at: now, updated_at: now } as Campaign);
+
+                        // Log activity
+                        await supabase.from("activity_log").insert({
+                          entity_type: "campaign",
+                          entity_id: notifyConfirm.campaign.id,
+                          entity_name: notifyConfirm.campaign.name,
+                          action: `Campaign '${notifyConfirm.campaign.name}' sent to client for review — ${includedAssets.length} assets included`,
+                        });
+
+                        toast.success(`Client notified about ${notifyConfirm.campaign.name}`);
+                        onAssetsChanged?.();
+                        setNotifyConfirm(null);
+                      } catch (e: any) {
+                        toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
+                      } finally {
+                        setNotifying(false);
+                      }
+                    }}
+                  >
+                    {notifying && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    <Bell className="w-4 h-4 mr-2" /> Send notification
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
