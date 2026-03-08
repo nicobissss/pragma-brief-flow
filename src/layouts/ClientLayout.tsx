@@ -9,6 +9,7 @@ export default function ClientLayout() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [pendingRequests, setPendingRequests] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
