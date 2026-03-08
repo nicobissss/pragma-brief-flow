@@ -333,10 +333,14 @@ function AddAssetDrawer({
       }
 
       if (notify) {
-        supabase.functions.invoke("send-notification", {
+        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
           body: { type: "assets_ready", client_id: clientId, asset_type: assetType, asset_name: deriveName() },
-        }).catch(console.error);
-        toast.success("Asset saved and client notified!");
+        });
+        if (notifError || data?.error) {
+          toast.error(`Asset saved but notification failed: ${data?.error || notifError?.message || "Unknown error"}`);
+        } else {
+          toast.success("Asset saved and client notified!");
+        }
       } else {
         toast.success("Asset saved as draft!");
       }
