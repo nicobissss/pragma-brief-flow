@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target } from "lucide-react";
 import { format } from "date-fns";
 
 const typeIcons: Record<string, any> = {
@@ -21,6 +22,13 @@ const typeLabels: Record<string, string> = {
   email_flow: "Email Flow",
   social_post: "Social Posts",
   blog_article: "Blog Articles",
+};
+
+const ASSET_SHORT: Record<string, string> = {
+  landing_page: "LP",
+  email_flow: "Email",
+  social_post: "Social",
+  blog_article: "Blog",
 };
 
 const briefingFields = {
@@ -63,6 +71,14 @@ type AssetItem = {
   status: string;
   version: number;
   created_at: string;
+  campaign_id: string | null;
+};
+
+type CampaignItem = {
+  id: string;
+  name: string;
+  objective: string;
+  status: string;
 };
 
 function BriefingRow({ label, value }: { label: string; value: any }) {
@@ -80,9 +96,16 @@ function BriefingRow({ label, value }: { label: string; value: any }) {
   );
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  draft: "bg-muted text-muted-foreground",
+  active: "bg-[hsl(142,71%,35%)]/10 text-[hsl(142,71%,35%)] border-[hsl(142,71%,35%)]/30",
+  completed: "bg-primary/10 text-primary border-primary/30",
+};
+
 export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
   const [allAssets, setAllAssets] = useState<AssetItem[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,14 +124,16 @@ export default function ClientDashboard() {
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);
 
-      const [assetsRes, prospectRes] = await Promise.all([
-        supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at").eq("client_id", client.id).order("created_at"),
+      const [assetsRes, campaignsRes, prospectRes] = await Promise.all([
+        supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
+        (supabase.from("campaigns" as any) as any).select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
       ]);
 
       if (assetsRes.data) setAllAssets(assetsRes.data as AssetItem[]);
+      if (campaignsRes.data) setCampaigns(campaignsRes.data as CampaignItem[]);
 
       if (prospectRes.data) {
         setProspectData(prospectRes.data);
@@ -127,9 +152,13 @@ export default function ClientDashboard() {
   const allApproved = totalAssets > 0 && approvedCount === totalAssets;
   const progressPercent = totalAssets > 0 ? Math.round((approvedCount / totalAssets) * 100) : 0;
 
-  // Group by type for pending cards
+  // Assets not in any campaign
+  const uncategorizedAssets = allAssets.filter((a) => !a.campaign_id);
+  const hasCampaigns = campaigns.length > 0;
+
+  // Group uncategorized by type for legacy cards
   const typeGroups = new Map<string, { statuses: string[]; count: number }>();
-  for (const a of allAssets) {
+  for (const a of uncategorizedAssets) {
     if (!typeGroups.has(a.asset_type)) typeGroups.set(a.asset_type, { statuses: [], count: 0 });
     const g = typeGroups.get(a.asset_type)!;
     g.statuses.push(a.status);
@@ -137,26 +166,23 @@ export default function ClientDashboard() {
   }
 
   const pendingGroups: { type: string; status: string; count: number }[] = [];
-  const approvedGroupTypes: string[] = [];
   typeGroups.forEach(({ statuses, count }, type) => {
     let displayStatus = "approved";
     if (statuses.includes("change_requested")) displayStatus = "change_requested";
     else if (statuses.includes("pending_review")) displayStatus = "pending_review";
     if (displayStatus !== "approved") pendingGroups.push({ type, status: displayStatus, count });
-    else approvedGroupTypes.push(type);
   });
 
   const approvedAssets = allAssets.filter((a) => a.status === "approved");
 
+  const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
+
   return (
     <div>
-      {/* All approved congratulations banner */}
       {allApproved && (
         <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
           <p className="text-lg font-bold">🎉 All assets approved!</p>
-          <p className="text-sm mt-1 text-white/90">
-            Your campaigns are being activated. We'll be in touch shortly.
-          </p>
+          <p className="text-sm mt-1 text-white/90">Your campaigns are being activated. We'll be in touch shortly.</p>
         </div>
       )}
 
@@ -164,7 +190,6 @@ export default function ClientDashboard() {
         <h1 className="text-2xl font-bold text-foreground">Welcome, {companyName}</h1>
         <p className="text-muted-foreground mt-1">Here you can review your assets and briefing information.</p>
 
-        {/* Progress bar */}
         {totalAssets > 0 && (
           <div className="mt-4 max-w-md">
             <div className="flex items-center justify-between mb-1.5">
@@ -183,10 +208,61 @@ export default function ClientDashboard() {
         </TabsList>
 
         <TabsContent value="assets" className="mt-6">
-          {/* Pending review cards */}
+          {/* Campaign cards */}
+          {hasCampaigns && (
+            <div className="space-y-4 mb-8">
+              <h2 className="text-lg font-semibold text-foreground">Your Campaigns</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {campaigns.map((campaign) => {
+                  const cAssets = allAssets.filter((a) => a.campaign_id === campaign.id);
+                  const assetsByType = new Map<string, string[]>();
+                  for (const a of cAssets) {
+                    if (!assetsByType.has(a.asset_type)) assetsByType.set(a.asset_type, []);
+                    assetsByType.get(a.asset_type)!.push(a.status);
+                  }
+
+                  return (
+                    <div key={campaign.id} className="bg-card rounded-lg border border-border p-5 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-semibold text-foreground">{campaign.name}</h3>
+                        <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[campaign.status] || ""}`}>
+                          {campaign.status}
+                        </Badge>
+                      </div>
+
+                      {campaign.objective && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Target className="w-3 h-3" /> {campaign.objective.length > 80 ? campaign.objective.slice(0, 80) + "…" : campaign.objective}
+                        </p>
+                      )}
+
+                      {cAssets.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.from(assetsByType.entries()).map(([type, statuses]) => {
+                            const worstStatus = statuses.includes("change_requested") ? "change_requested" : statuses.includes("pending_review") ? "pending_review" : "approved";
+                            return (
+                              <span key={type} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary font-medium">
+                                {ASSET_SHORT[type] || type} {getStatusIcon(worstStatus)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <Button asChild size="sm">
+                        <Link to={`/client/campaign/${campaign.id}`}>Review campaign assets →</Link>
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Uncategorized pending review cards */}
           {pendingGroups.length > 0 && (
             <div className="space-y-4 mb-8">
-              <h2 className="text-lg font-semibold text-foreground">Needs Your Review</h2>
+              <h2 className="text-lg font-semibold text-foreground">{hasCampaigns ? "Other Assets" : "Needs Your Review"}</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 {pendingGroups.map((g) => {
                   const Icon = typeIcons[g.type] || FileText;
@@ -214,14 +290,12 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Approved assets section */}
+          {/* Approved assets */}
           {approvedAssets.length > 0 && (
             <div className="space-y-4 mb-8">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">✅ Approved assets</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  These have been approved and are being activated by the PRAGMA team.
-                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">These have been approved and are being activated by the PRAGMA team.</p>
               </div>
               <div className="rounded-lg border-2 border-[hsl(142,71%,35%)]/30 bg-[hsl(142,71%,35%)]/5 divide-y divide-border">
                 {approvedAssets.map((asset) => {
@@ -256,9 +330,7 @@ export default function ClientDashboard() {
         <TabsContent value="briefing" className="mt-6">
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-foreground">Your briefing summary</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              This is the information you shared with us at the start of our collaboration.
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">This is the information you shared with us at the start of our collaboration.</p>
           </div>
 
           {!briefingAnswers ? (
@@ -277,9 +349,7 @@ export default function ClientDashboard() {
                     <CollapsibleContent>
                       <div className="px-6 pb-4">
                         {fields.map((f) => {
-                          const value = f.source === "prospect"
-                            ? prospectData?.[f.key]
-                            : briefingAnswers[f.key];
+                          const value = f.source === "prospect" ? prospectData?.[f.key] : briefingAnswers[f.key];
                           return <BriefingRow key={f.key} label={f.label} value={value} />;
                         })}
                       </div>

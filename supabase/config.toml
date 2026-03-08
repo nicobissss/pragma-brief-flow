@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.generate-correction-prompt]
 verify_jwt = false
+
+[functions.generate-campaign-brief]
+verify_jwt = false

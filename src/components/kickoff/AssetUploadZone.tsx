@@ -27,6 +27,7 @@ type SavedAsset = {
 interface AssetUploadZoneProps {
   clientId: string;
   assetType: "landing_page" | "email_flow" | "social_post" | "blog_article";
+  campaignId?: string;
   onAssetSaved?: () => void;
 }
 
@@ -152,7 +153,7 @@ function InlineEditableName({ value, onSave }: { value: string; onSave: (v: stri
   );
 }
 
-export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: AssetUploadZoneProps) {
+export default function AssetUploadZone({ clientId, assetType, campaignId, onAssetSaved }: AssetUploadZoneProps) {
   const cfg = config[assetType];
   const Icon = cfg.icon;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -225,7 +226,8 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
           asset_type: assetType,
           asset_name: derivedName,
           content: { url: url.trim(), notes: notes.trim() || undefined },
-        }).select("id, asset_name, file_url, status, content, version, created_at").single();
+          ...(campaignId ? { campaign_id: campaignId } : {}),
+        } as any).select("id, asset_name, file_url, status, content, version, created_at").single();
         if (error) throw error;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
         setUrl("");
@@ -245,7 +247,8 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
           asset_type: assetType,
           asset_name: derivedName,
           content: { text: pasteText.trim(), notes: notes.trim() || undefined },
-        }).select("id, asset_name, file_url, status, content, version, created_at").single();
+          ...(campaignId ? { campaign_id: campaignId } : {}),
+        } as any).select("id, asset_name, file_url, status, content, version, created_at").single();
         if (error) throw error;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
         setPasteText("");
@@ -284,7 +287,8 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
           asset_name: itemName,
           file_url: urlData.publicUrl,
           content,
-        }).select("id, asset_name, file_url, status, content, version, created_at").single();
+          ...(campaignId ? { campaign_id: campaignId } : {}),
+        } as any).select("id, asset_name, file_url, status, content, version, created_at").single();
 
         if (insertErr) throw insertErr;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);

@@ -90,6 +90,7 @@ export type Database = {
         Row: {
           asset_name: string
           asset_type: Database["public"]["Enums"]["asset_type"]
+          campaign_id: string | null
           client_comment: string | null
           client_id: string
           content: Json | null
@@ -103,6 +104,7 @@ export type Database = {
         Insert: {
           asset_name: string
           asset_type: Database["public"]["Enums"]["asset_type"]
+          campaign_id?: string | null
           client_comment?: string | null
           client_id: string
           content?: Json | null
@@ -116,6 +118,7 @@ export type Database = {
         Update: {
           asset_name?: string
           asset_type?: Database["public"]["Enums"]["asset_type"]
+          campaign_id?: string | null
           client_comment?: string | null
           client_id?: string
           content?: Json | null
@@ -128,7 +131,64 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "assets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          key_message: string | null
+          name: string
+          objective: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_audience: string | null
+          timeline: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_message?: string | null
+          name: string
+          objective?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_audience?: string | null
+          timeline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          key_message?: string | null
+          name?: string
+          objective?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_audience?: string | null
+          timeline?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -468,6 +528,7 @@ export type Database = {
         | "done_positive"
         | "done_negative"
         | "no_show"
+      campaign_status: "draft" | "active" | "completed"
       client_status: "active" | "paused" | "churned"
       market: "es" | "it" | "ar"
       prospect_status:
@@ -616,6 +677,7 @@ export const Constants = {
         "done_negative",
         "no_show",
       ],
+      campaign_status: ["draft", "active", "completed"],
       client_status: ["active", "paused", "churned"],
       market: ["es", "it", "ar"],
       prospect_status: [
