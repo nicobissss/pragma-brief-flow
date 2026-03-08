@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready";
+type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready" | "asset_collection_request";
 
 interface NotificationPayload {
   type: NotificationType;
@@ -15,6 +15,7 @@ interface NotificationPayload {
   comment?: string;
   campaign_name?: string;
   asset_ids?: string[];
+  requested_items?: { label: string; description?: string }[];
 }
 
 const ASSET_TYPE_LABELS: Record<string, string> = {
@@ -67,7 +68,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload: NotificationPayload = await req.json();
-    const { type, client_id, asset_type, asset_name, comment, campaign_name, asset_ids } = payload;
+    const { type, client_id, asset_type, asset_name, comment, campaign_name, asset_ids, requested_items } = payload;
 
     if (!type || !client_id) throw new Error("type and client_id are required");
 
@@ -229,6 +230,39 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, sent_to: adminEmails }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── asset_collection_request: ask client to upload files ──
+    if (type === "asset_collection_request") {
+      const itemsList = (requested_items || [])
+        .map(i => `<li style="margin-bottom: 8px;"><strong>${i.label}</strong>${i.description ? `<br/><span style="color: #a0aec0; font-size: 13px;">${i.description}</span>` : ""}</li>`)
+        .join("");
+
+      const subject = `We need a few things from you — ${client.company_name}`;
+      const html = emailWrapper(`
+        <h2 style="color: #1a365d;">Hi ${client.name},</h2>
+        <p style="color: #4a5568; line-height: 1.6;">
+          To prepare your campaigns, we need a few things from you.
+        </p>
+        <p style="color: #4a5568;">Please upload the following in your portal:</p>
+        <ul style="color: #4a5568; line-height: 1.8;">
+          ${itemsList}
+        </ul>
+        <p style="color: #4a5568; line-height: 1.6;">
+          This will help us create more personalized and effective marketing materials for you.
+        </p>
+        <div style="margin: 30px 0;">
+          <a href="${APP_URL}/client/collect"
+             style="background-color: #1a365d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Upload my files →
+          </a>
+        </div>
+      `);
+
+      await sendEmail(client.email, subject, html);
+      return new Response(JSON.stringify({ success: true, sent_to: client.email }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

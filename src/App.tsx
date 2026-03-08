@@ -18,6 +18,7 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAssets from "./pages/client/ClientAssets";
 import ClientAssetReview from "./pages/client/ClientAssetReview";
 import ClientCampaignReview from "./pages/client/ClientCampaignReview";
+import ClientCollect from "./pages/client/ClientCollect";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="assets" element={<ClientAssets />} />
             <Route path="assets/:type" element={<ClientAssetReview />} />
             <Route path="campaign/:id" element={<ClientCampaignReview />} />
+            <Route path="collect" element={<ClientCollect />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

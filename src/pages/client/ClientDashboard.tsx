@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle } from "lucide-react";
+import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
 const typeIcons: Record<string, any> = {
@@ -110,6 +110,7 @@ export default function ClientDashboard() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -126,12 +127,17 @@ export default function ClientDashboard() {
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);
 
-      const [assetsRes, campaignsRes, prospectRes] = await Promise.all([
+      const [assetsRes, campaignsRes, prospectRes, requestsRes] = await Promise.all([
         supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
         supabase.from("campaigns").select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
+        (supabase.from("client_asset_requests" as any) as any)
+          .select("requested_items, status")
+          .eq("client_id", client.id)
+          .in("status", ["pending", "partial"])
+          .limit(1),
       ]);
 
       if (assetsRes.data) setAllAssets(assetsRes.data as AssetItem[]);
@@ -140,6 +146,11 @@ export default function ClientDashboard() {
       if (prospectRes.data) {
         setProspectData(prospectRes.data);
         setBriefingAnswers((prospectRes.data as any).briefing_answers || {});
+      }
+
+      if (requestsRes.data && requestsRes.data.length > 0) {
+        const pending = (requestsRes.data[0].requested_items as any[]).filter((i: any) => i.status === "pending").length;
+        setPendingRequestCount(pending);
       }
 
       setLoading(false);
@@ -215,6 +226,14 @@ export default function ClientDashboard() {
         <TabsList>
           <TabsTrigger value="assets">My Assets</TabsTrigger>
           <TabsTrigger value="briefing">My Briefing</TabsTrigger>
+          {pendingRequestCount > 0 && (
+            <TabsTrigger value="collect" className="relative">
+              📎 Files requested
+              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
+                {pendingRequestCount}
+              </Badge>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="assets" className="mt-6">
@@ -379,6 +398,19 @@ export default function ClientDashboard() {
             </div>
           )}
         </TabsContent>
+
+        {pendingRequestCount > 0 && (
+          <TabsContent value="collect" className="mt-6">
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+              <Paperclip className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-foreground font-medium">PRAGMA has requested files from you</p>
+              <p className="text-sm text-muted-foreground">Please upload the requested items to help us create your campaigns.</p>
+              <Button asChild>
+                <Link to="/client/collect">Upload my files →</Link>
+              </Button>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
