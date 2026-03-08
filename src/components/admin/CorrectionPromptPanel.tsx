@@ -150,21 +150,37 @@ export function CorrectionPromptPanel({ clientId, assets, onUploadNewVersion }: 
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">What the client wants changed:</p>
                 <div className="space-y-1.5">
-                  {comments.map((c, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm">
-                      <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">{c.section_name}</Badge>
-                      <span className="text-foreground">"{c.comment_text}"</span>
-                    </div>
-                  ))}
-                  {asset.client_comment && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">General</Badge>
-                      <span className="text-foreground">"{asset.client_comment}"</span>
-                    </div>
-                  )}
-                  {comments.length === 0 && !asset.client_comment && (
-                    <p className="text-sm text-muted-foreground italic">No specific comments found</p>
-                  )}
+                  {(() => {
+                    // Deduplicate: if a section comment with "general" exists matching client_comment, skip client_comment
+                    const generalComment = comments.find(
+                      (c) => c.section_name.toLowerCase() === "general" && c.comment_text === asset.client_comment
+                    );
+                    const nonGeneralComments = comments.filter(
+                      (c) => !(c.section_name.toLowerCase() === "general" && c.comment_text === asset.client_comment)
+                    );
+
+                    return (
+                      <>
+                        {/* Show client_comment as General (only if not already in section comments) */}
+                        {asset.client_comment && (
+                          <div className="flex items-start gap-2 text-sm">
+                            <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">General</Badge>
+                            <span className="text-foreground">"{asset.client_comment}"</span>
+                          </div>
+                        )}
+                        {/* Show remaining non-duplicate section comments */}
+                        {nonGeneralComments.map((c, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm">
+                            <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">{c.section_name}</Badge>
+                            <span className="text-foreground">"{c.comment_text}"</span>
+                          </div>
+                        ))}
+                        {nonGeneralComments.length === 0 && !asset.client_comment && (
+                          <p className="text-sm text-muted-foreground italic">No specific comments found</p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 

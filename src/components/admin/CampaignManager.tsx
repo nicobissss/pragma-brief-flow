@@ -508,6 +508,208 @@ function AddAssetDrawer({
   );
 }
 
+// ─── New Version Drawer ─────────────────────────────────
+function NewVersionDrawer({
+  open,
+  onClose,
+  clientId,
+  asset,
+  campaignId,
+  summary,
+  onVersionUploaded,
+}: {
+  open: boolean;
+  onClose: () => void;
+  clientId: string;
+  asset: AssetRow;
+  campaignId: string;
+  summary: string;
+  onVersionUploaded: () => void;
+}) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [url, setUrl] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [changeNotes, setChangeNotes] = useState(`Updated based on client feedback: ${asset.client_comment || summary}`);
+  const [uploading, setUploading] = useState(false);
+
+  const typeConfig: Record<string, { accept: string; multiple: boolean; hasUrl: boolean; hasText: boolean }> = {
+    landing_page: { accept: ".png,.jpg,.jpeg,.webp,.pdf", multiple: false, hasUrl: true, hasText: false },
+    email_flow: { accept: ".png,.jpg,.jpeg,.webp,.pdf,.txt", multiple: true, hasUrl: false, hasText: false },
+    social_post: { accept: ".png,.jpg,.jpeg,.webp", multiple: true, hasUrl: false, hasText: false },
+    blog_article: { accept: ".pdf,.txt,.md", multiple: true, hasUrl: false, hasText: true },
+  };
+
+  const cfg = typeConfig[asset.asset_type] || { accept: "", multiple: false, hasUrl: false, hasText: false };
+  const hasContent = files.length > 0 || url.trim() || pasteText.trim();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setFiles(Array.from(e.target.files));
+  };
+
+  const handleClose = () => {
+    setFiles([]); setUrl(""); setPasteText(""); setChangeNotes("");
+    onClose();
+  };
+
+  const uploadNewVersion = async (notify: boolean) => {
+    setUploading(true);
+    try {
+      const newVersion = (asset.version || 1) + 1;
+      let fileUrl = asset.file_url;
+      let content = asset.content;
+
+      if (asset.asset_type === "landing_page" && url.trim()) {
+        content = { url: url.trim(), notes: changeNotes.trim() || undefined };
+        fileUrl = null;
+      } else if (asset.asset_type === "blog_article" && pasteText.trim() && files.length === 0) {
+        content = { text: pasteText.trim(), notes: changeNotes.trim() || undefined };
+        fileUrl = null;
+      } else if (files.length > 0) {
+        const file = files[0];
+        const filePath = `${clientId}/${asset.asset_type}/${Date.now()}_${file.name}`;
+        const { error: uploadErr } = await supabase.storage.from("client-assets").upload(filePath, file);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage.from("client-assets").getPublicUrl(filePath);
+        fileUrl = urlData.publicUrl;
+        content = { notes: changeNotes.trim() || undefined };
+      }
+
+      const { error } = await supabase.from("assets").update({
+        version: newVersion,
+        status: "pending_review" as any,
+        file_url: fileUrl,
+        content,
+        client_comment: null,
+        correction_prompt: null,
+      } as any).eq("id", asset.id);
+      if (error) throw error;
+
+      // Log activity
+      await supabase.from("activity_log").insert({
+        entity_type: "asset",
+        entity_id: asset.id,
+        entity_name: asset.asset_name,
+        action: `new version v${newVersion} uploaded`,
+      });
+
+      if (notify) {
+        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
+          body: { type: "assets_ready", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name },
+        });
+        if (notifError || data?.error) {
+          toast.error(`Version saved but notification failed: ${data?.error || notifError?.message}`);
+        } else {
+          toast.success(`Version v${newVersion} uploaded and client notified!`);
+        }
+      } else {
+        toast.success(`Version v${newVersion} uploaded!`);
+      }
+
+      onVersionUploaded();
+      handleClose();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to upload new version");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Upload New Version</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-5">
+          {/* Asset info */}
+          <div className="bg-secondary/30 rounded-lg p-4">
+            <p className="text-sm font-medium text-foreground">
+              New version for: {asset.asset_name} <Badge variant="outline" className="text-[10px] ml-1">currently v{asset.version}</Badge>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {ASSET_TYPE_FULL[asset.asset_type]} — Status will be set to "Pending review"
+            </p>
+          </div>
+
+          {/* Upload area */}
+          {asset.asset_type === "landing_page" ? (
+            <Tabs defaultValue="file">
+              <TabsList className="w-full">
+                <TabsTrigger value="file" className="flex-1">Upload file</TabsTrigger>
+                <TabsTrigger value="url" className="flex-1">Paste URL</TabsTrigger>
+              </TabsList>
+              <TabsContent value="file" className="mt-3">
+                <Input type="file" accept={cfg.accept} onChange={handleFileChange} />
+              </TabsContent>
+              <TabsContent value="url" className="mt-3">
+                <Input placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
+              </TabsContent>
+            </Tabs>
+          ) : asset.asset_type === "blog_article" ? (
+            <Tabs defaultValue="file">
+              <TabsList className="w-full">
+                <TabsTrigger value="file" className="flex-1">Upload file</TabsTrigger>
+                <TabsTrigger value="paste" className="flex-1">Paste text</TabsTrigger>
+              </TabsList>
+              <TabsContent value="file" className="mt-3">
+                <Input type="file" accept={cfg.accept} multiple={cfg.multiple} onChange={handleFileChange} />
+              </TabsContent>
+              <TabsContent value="paste" className="mt-3">
+                <Textarea placeholder="Paste article text..." value={pasteText} onChange={(e) => setPasteText(e.target.value)} className="min-h-[120px]" />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Upload new file(s)</p>
+              <Input type="file" accept={cfg.accept} multiple={cfg.multiple} onChange={handleFileChange} />
+            </div>
+          )}
+
+          {/* File preview */}
+          {files.length > 0 && (
+            <div className="space-y-1">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-secondary/30">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-foreground truncate flex-1">{f.name}</span>
+                  <span className="text-xs text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                  <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>
+                    <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* What changed */}
+          <div>
+            <label className="text-sm font-medium text-foreground">What changed?</label>
+            <Textarea
+              value={changeNotes}
+              onChange={(e) => setChangeNotes(e.target.value)}
+              className="mt-1 min-h-[80px]"
+              placeholder="Describe what was updated..."
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-2">
+            <Button onClick={() => uploadNewVersion(false)} disabled={uploading || !hasContent} variant="outline" className="w-full">
+              {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              <Upload className="w-4 h-4 mr-2" /> Upload new version
+            </Button>
+            <Button onClick={() => uploadNewVersion(true)} disabled={uploading || !hasContent} className="w-full">
+              {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              <Bell className="w-4 h-4 mr-2" /> Upload and notify client
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Main CampaignManager Component ─────────────────────
 export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated, onCampaignUpdated, onAssetsChanged }: CampaignManagerProps) {
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
@@ -516,6 +718,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
   const [generating, setGenerating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [addAssetDrawer, setAddAssetDrawer] = useState<{ campaignId: string; campaignName: string } | null>(null);
+  const [newVersionDrawer, setNewVersionDrawer] = useState<{ asset: AssetRow; campaignId: string; summary: string } | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -789,8 +992,11 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                       <CorrectionPromptPanel
                         clientId={clientId}
                         assets={changeRequestedAssets}
-                        onUploadNewVersion={(_, assetType, summary) => {
-                          toast.info(`Upload a new version. Changes: ${summary}`);
+                        onUploadNewVersion={(assetId, assetType, summary) => {
+                          const asset = cAssets.find((a) => a.id === assetId);
+                          if (asset) {
+                            setNewVersionDrawer({ asset, campaignId: campaign.id, summary });
+                          }
                         }}
                       />
                     </div>
@@ -923,6 +1129,19 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
           campaignId={addAssetDrawer.campaignId}
           campaignName={addAssetDrawer.campaignName}
           onAssetSaved={() => onAssetsChanged?.()}
+        />
+      )}
+
+      {/* New version drawer */}
+      {newVersionDrawer && (
+        <NewVersionDrawer
+          open={!!newVersionDrawer}
+          onClose={() => setNewVersionDrawer(null)}
+          clientId={clientId}
+          asset={newVersionDrawer.asset}
+          campaignId={newVersionDrawer.campaignId}
+          summary={newVersionDrawer.summary}
+          onVersionUploaded={() => onAssetsChanged?.()}
         />
       )}
     </div>
