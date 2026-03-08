@@ -4,17 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { SectionCommentBox } from "@/components/client/SectionCommentBox";
+import { CommentableSection } from "@/components/client/CommentableSection";
 import { toast } from "sonner";
-import { CheckCircle2, MessageSquare, ExternalLink, Send, Loader2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CheckCircle2, ExternalLink, Send, Loader2 } from "lucide-react";
 
 type Asset = {
   id: string;
@@ -35,28 +27,20 @@ const typeLabels: Record<string, string> = {
   blog_article: "Blog Articles",
 };
 
-const LANDING_PAGE_SECTIONS = [
-  "Hero (headline + subheadline + CTA)",
-  "Benefits section",
-  "Social proof section",
-  "Offer/pricing section",
-  "Footer CTA",
-];
-
-const EMAIL_SECTIONS = ["Subject line", "Body content", "CTA button"];
+const LANDING_PAGE_SECTIONS = ["Hero", "Benefits", "Social proof", "Offer/pricing", "Footer CTA"];
+const EMAIL_SECTIONS = ["Subject line", "Preview text", "Body content", "CTA button"];
 
 export default function ClientAssetReview() {
   const { type } = useParams<{ type: string }>();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
-  const [changeDialogAsset, setChangeDialogAsset] = useState<Asset | null>(null);
-  const [changeComment, setChangeComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  // Section comments: { [assetId]: { [sectionName]: commentText } }
+  // { [assetId]: { [sectionName]: commentText } }
   const [sectionComments, setSectionComments] = useState<Record<string, Record<string, string>>>({});
+  // { [assetId]: generalComment }
+  const [generalComments, setGeneralComments] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -81,6 +65,13 @@ export default function ClientAssetReview() {
 
       const assetList = (data as Asset[]) || [];
       setAssets(assetList);
+
+      // Pre-fill general comments from existing client_comment
+      const genMap: Record<string, string> = {};
+      for (const a of assetList) {
+        if (a.client_comment) genMap[a.id] = a.client_comment;
+      }
+      setGeneralComments(genMap);
 
       // Load existing section comments
       if (assetList.length > 0) {
@@ -107,10 +98,15 @@ export default function ClientAssetReview() {
   }, [type]);
 
   const updateSectionComment = useCallback((assetId: string, section: string, text: string) => {
-    setSectionComments((prev) => ({
-      ...prev,
-      [assetId]: { ...(prev[assetId] || {}), [section]: text },
-    }));
+    setSectionComments((prev) => {
+      const assetComments = { ...(prev[assetId] || {}) };
+      if (text.trim()) {
+        assetComments[section] = text;
+      } else {
+        delete assetComments[section];
+      }
+      return { ...prev, [assetId]: assetComments };
+    });
   }, []);
 
   const approveAsset = async (asset: Asset) => {
@@ -123,60 +119,6 @@ export default function ClientAssetReview() {
     toast.success(`${asset.asset_name} approved!`);
   };
 
-  const requestChanges = async () => {
-    if (!changeDialogAsset || !changeComment.trim()) {
-      toast.error("Please describe what you'd like to change.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const { error: assetErr } = await supabase
-        .from("assets")
-        .update({ status: "change_requested" as any, client_comment: changeComment })
-        .eq("id", changeDialogAsset.id);
-      if (assetErr) throw assetErr;
-
-      const { data: existingRounds } = await supabase
-        .from("revision_rounds")
-        .select("round_number")
-        .eq("asset_id", changeDialogAsset.id)
-        .order("round_number", { ascending: false })
-        .limit(1);
-
-      const nextRound = (existingRounds?.[0]?.round_number || 0) + 1;
-
-      await supabase.from("revision_rounds").insert({
-        asset_id: changeDialogAsset.id,
-        round_number: nextRound,
-        requested_by: "client" as any,
-        comment: changeComment,
-      });
-
-      if (clientId) {
-        supabase.functions.invoke("send-notification", {
-          body: {
-            type: "client_feedback",
-            client_id: clientId,
-            asset_type: type,
-            asset_name: changeDialogAsset.asset_name,
-            comment: changeComment,
-          },
-        }).catch((e) => console.error("Notification error:", e));
-      }
-
-      setAssets((prev) =>
-        prev.map((a) => a.id === changeDialogAsset.id ? { ...a, status: "change_requested", client_comment: changeComment } : a)
-      );
-      toast.success("Change request submitted! PRAGMA has been notified.");
-      setChangeDialogAsset(null);
-      setChangeComment("");
-    } catch (e: any) {
-      toast.error(e.message || "Failed to submit");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const approveAll = async () => {
     const pending = assets.filter((a) => a.status !== "approved");
     for (const asset of pending) {
@@ -187,46 +129,83 @@ export default function ClientAssetReview() {
   };
 
   const submitAllFeedback = async () => {
-    // Collect all non-empty section comments
-    const allComments: { asset_id: string; section_name: string; comment_text: string; version_number: number }[] = [];
+    const allSectionComments: { asset_id: string; section_name: string; comment_text: string; version_number: number }[] = [];
+    const affectedAssetIds = new Set<string>();
+
     for (const asset of assets) {
       const sections = sectionComments[asset.id];
-      if (!sections) continue;
-      for (const [section, text] of Object.entries(sections)) {
-        if (text.trim()) {
-          allComments.push({
-            asset_id: asset.id,
-            section_name: section,
-            comment_text: text.trim(),
-            version_number: asset.version || 1,
-          });
+      if (sections) {
+        for (const [section, text] of Object.entries(sections)) {
+          if (text.trim()) {
+            allSectionComments.push({
+              asset_id: asset.id,
+              section_name: section,
+              comment_text: text.trim(),
+              version_number: asset.version || 1,
+            });
+            affectedAssetIds.add(asset.id);
+          }
         }
       }
+      const gen = generalComments[asset.id]?.trim();
+      if (gen) affectedAssetIds.add(asset.id);
     }
 
-    if (allComments.length === 0) {
-      toast.error("No comments to submit. Add section comments first.");
+    if (affectedAssetIds.size === 0) {
+      toast.error("Add at least one comment before submitting.");
       return;
     }
 
     setSubmittingFeedback(true);
     try {
-      // Delete existing comments for these assets, then insert new ones
-      const assetIds = [...new Set(allComments.map((c) => c.asset_id))];
+      // Save section comments: delete old, insert new
+      const assetIds = [...affectedAssetIds];
       for (const id of assetIds) {
         await (supabase.from("asset_section_comments" as any) as any).delete().eq("asset_id", id).eq("client_id", clientId!);
       }
 
-      const rows = allComments.map((c) => ({ ...c, client_id: clientId! }));
-      const { error } = await (supabase.from("asset_section_comments" as any) as any).insert(rows);
-      if (error) throw error;
-
-      // Set all commented assets to change_requested
-      for (const id of assetIds) {
-        await supabase.from("assets").update({ status: "change_requested" as any }).eq("id", id);
+      if (allSectionComments.length > 0) {
+        const rows = allSectionComments.map((c) => ({ ...c, client_id: clientId! }));
+        const { error } = await (supabase.from("asset_section_comments" as any) as any).insert(rows);
+        if (error) throw error;
       }
+
+      // Update each affected asset
+      for (const id of assetIds) {
+        const gen = generalComments[id]?.trim() || null;
+        await supabase.from("assets").update({
+          status: "change_requested" as any,
+          client_comment: gen,
+        }).eq("id", id);
+      }
+
+      // Create revision rounds
+      for (const id of assetIds) {
+        const { data: existingRounds } = await supabase
+          .from("revision_rounds")
+          .select("round_number")
+          .eq("asset_id", id)
+          .order("round_number", { ascending: false })
+          .limit(1);
+        const nextRound = (existingRounds?.[0]?.round_number || 0) + 1;
+
+        const sectionTexts = Object.entries(sectionComments[id] || {})
+          .filter(([_, t]) => t.trim())
+          .map(([s, t]) => `[${s}] ${t.trim()}`)
+          .join("\n");
+        const gen = generalComments[id]?.trim();
+        const fullComment = [sectionTexts, gen ? `[General] ${gen}` : ""].filter(Boolean).join("\n");
+
+        await supabase.from("revision_rounds").insert({
+          asset_id: id,
+          round_number: nextRound,
+          requested_by: "client" as any,
+          comment: fullComment || "Feedback submitted",
+        });
+      }
+
       setAssets((prev) =>
-        prev.map((a) => assetIds.includes(a.id) ? { ...a, status: "change_requested" } : a)
+        prev.map((a) => assetIds.includes(a.id) ? { ...a, status: "change_requested", client_comment: generalComments[a.id]?.trim() || a.client_comment } : a)
       );
 
       // Notify pragma
@@ -237,12 +216,12 @@ export default function ClientAssetReview() {
             client_id: clientId,
             asset_type: type,
             asset_name: assets.filter((a) => assetIds.includes(a.id)).map((a) => a.asset_name).join(", "),
-            comment: `Section feedback submitted on ${allComments.length} section(s)`,
+            comment: `${allSectionComments.length} section comment(s) submitted`,
           },
         }).catch((e) => console.error("Notification error:", e));
       }
 
-      toast.success(`Feedback submitted on ${allComments.length} section(s)! PRAGMA has been notified.`);
+      toast.success(`Feedback submitted! PRAGMA has been notified.`);
     } catch (e: any) {
       toast.error(e.message || "Failed to submit feedback");
     } finally {
@@ -250,13 +229,18 @@ export default function ClientAssetReview() {
     }
   };
 
-  if (loading) return <div className="text-muted-foreground">Loading...</div>;
+  if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
 
   const label = typeLabels[type || ""] || type;
   const hasPending = assets.some((a) => a.status !== "approved");
-  const hasAnyComments = Object.values(sectionComments).some((sections) =>
-    Object.values(sections).some((t) => t.trim())
-  );
+
+  const totalCommentCount = Object.values(sectionComments).reduce(
+    (sum, sections) => sum + Object.values(sections).filter((t) => t.trim()).length, 0
+  ) + Object.values(generalComments).filter((t) => t.trim()).length;
+
+  // Blog paragraph splitter
+  const splitParagraphs = (text: string) =>
+    text.split(/\n\n+/).filter((p) => p.trim());
 
   return (
     <div>
@@ -270,10 +254,14 @@ export default function ClientAssetReview() {
         )}
       </div>
 
-      <div className="space-y-4">
+      <p className="text-sm text-muted-foreground mb-6">
+        Hover over any section and click 💬 to leave feedback. You can approve without commenting.
+      </p>
+
+      <div className="space-y-6">
         {assets.map((asset, idx) => (
           <div key={asset.id} className="bg-card rounded-lg border border-border overflow-hidden">
-            {/* Asset header */}
+            {/* Header */}
             <div className="p-4 flex items-center justify-between border-b border-border">
               <div className="flex items-center gap-3">
                 {assets.length > 1 && (
@@ -285,11 +273,11 @@ export default function ClientAssetReview() {
               <StatusBadge status={asset.status} />
             </div>
 
-            {/* Asset content with section comments */}
+            {/* Content with commentable sections */}
             <div className="p-4 space-y-1">
               {/* ── Landing Page ── */}
               {type === "landing_page" && (
-                <>
+                <div className="space-y-1">
                   {/* Preview */}
                   {asset.file_url && (
                     <div className="mb-4">
@@ -306,112 +294,157 @@ export default function ClientAssetReview() {
                   )}
                   {asset.content?.url && (
                     <div className="mb-4">
-                      <iframe src={asset.content.url} className="w-full h-[600px] rounded-md border border-border" />
+                      <a href={asset.content.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
+                        <ExternalLink className="w-4 h-4" /> {asset.content.url}
+                      </a>
                     </div>
                   )}
 
-                  {/* Section comments for landing page */}
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Section feedback</p>
-                    {LANDING_PAGE_SECTIONS.map((section) => (
-                      <div key={section} className="rounded-md bg-secondary/20 p-3">
-                        <p className="text-sm font-medium text-foreground">{section}</p>
-                        <SectionCommentBox
-                          sectionName={section}
-                          value={sectionComments[asset.id]?.[section] || ""}
-                          onChange={(v) => updateSectionComment(asset.id, section, v)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </>
+                  {LANDING_PAGE_SECTIONS.map((section) => (
+                    <CommentableSection
+                      key={section}
+                      name={section}
+                      comment={sectionComments[asset.id]?.[section] || ""}
+                      onComment={(t) => updateSectionComment(asset.id, section, t)}
+                    >
+                      <p className="text-sm text-muted-foreground italic">
+                        Review the {section.toLowerCase()} section above
+                      </p>
+                    </CommentableSection>
+                  ))}
+                </div>
               )}
 
               {/* ── Email Flow ── */}
               {type === "email_flow" && (
-                <div className="space-y-4">
-                  {asset.content?.subject && (
-                    <div className="rounded-md bg-secondary/20 p-3">
-                      <p className="text-xs text-muted-foreground mb-1">Subject line</p>
-                      <p className="font-semibold text-foreground">{asset.content.subject}</p>
-                      <SectionCommentBox
-                        sectionName="Subject line"
-                        value={sectionComments[asset.id]?.["Subject line"] || ""}
-                        onChange={(v) => updateSectionComment(asset.id, "Subject line", v)}
-                      />
-                    </div>
-                  )}
-                  {asset.content?.body && (
-                    <div className="rounded-md bg-secondary/20 p-3">
-                      <p className="text-xs text-muted-foreground mb-1">Body content</p>
+                <div className="space-y-1">
+                  <CommentableSection
+                    name="Subject line"
+                    comment={sectionComments[asset.id]?.["Subject line"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "Subject line", t)}
+                  >
+                    <p className="font-semibold text-foreground">{asset.content?.subject || "—"}</p>
+                  </CommentableSection>
+
+                  <CommentableSection
+                    name="Preview text"
+                    comment={sectionComments[asset.id]?.["Preview text"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "Preview text", t)}
+                  >
+                    <p className="text-sm text-muted-foreground">{asset.content?.preview_text || "—"}</p>
+                  </CommentableSection>
+
+                  <CommentableSection
+                    name="Body content"
+                    comment={sectionComments[asset.id]?.["Body content"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "Body content", t)}
+                  >
+                    {asset.content?.body ? (
                       <div className="text-sm text-foreground whitespace-pre-wrap">{asset.content.body}</div>
-                      <SectionCommentBox
-                        sectionName="Body content"
-                        value={sectionComments[asset.id]?.["Body content"] || ""}
-                        onChange={(v) => updateSectionComment(asset.id, "Body content", v)}
-                      />
-                    </div>
-                  )}
-                  <div className="rounded-md bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground mb-1">CTA button</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No body content</p>
+                    )}
+                  </CommentableSection>
+
+                  <CommentableSection
+                    name="CTA button"
+                    comment={sectionComments[asset.id]?.["CTA button"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "CTA button", t)}
+                  >
                     <p className="text-sm text-foreground">{asset.content?.cta || "—"}</p>
-                    <SectionCommentBox
-                      sectionName="CTA button"
-                      value={sectionComments[asset.id]?.["CTA button"] || ""}
-                      onChange={(v) => updateSectionComment(asset.id, "CTA button", v)}
-                    />
-                  </div>
-                  {/* General email comment */}
-                  <SectionCommentBox
-                    sectionName="General"
-                    value={sectionComments[asset.id]?.["General"] || ""}
-                    onChange={(v) => updateSectionComment(asset.id, "General", v)}
-                  />
+                  </CommentableSection>
                 </div>
               )}
 
               {/* ── Social Post ── */}
               {type === "social_post" && (
-                <div>
+                <div className="space-y-1">
                   {asset.file_url && (
-                    <img src={asset.file_url} alt={asset.asset_name} className="w-full max-w-md rounded-md border border-border mb-3" />
+                    <CommentableSection
+                      name="Image"
+                      comment={sectionComments[asset.id]?.["Image"] || ""}
+                      onComment={(t) => updateSectionComment(asset.id, "Image", t)}
+                    >
+                      <img src={asset.file_url} alt={asset.asset_name} className="w-full max-w-md rounded-md border border-border" />
+                    </CommentableSection>
                   )}
-                  {asset.content?.caption && (
-                    <p className="text-sm text-foreground mb-2">{asset.content.caption}</p>
-                  )}
-                  <SectionCommentBox
-                    sectionName="This post"
-                    value={sectionComments[asset.id]?.["This post"] || ""}
-                    onChange={(v) => updateSectionComment(asset.id, "This post", v)}
-                  />
+                  <CommentableSection
+                    name="Caption"
+                    comment={sectionComments[asset.id]?.["Caption"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "Caption", t)}
+                  >
+                    <p className="text-sm text-foreground">{asset.content?.caption || "—"}</p>
+                  </CommentableSection>
+                  <CommentableSection
+                    name="Hashtags"
+                    comment={sectionComments[asset.id]?.["Hashtags"] || ""}
+                    onComment={(t) => updateSectionComment(asset.id, "Hashtags", t)}
+                  >
+                    <p className="text-sm text-muted-foreground">{asset.content?.hashtags || "—"}</p>
+                  </CommentableSection>
                 </div>
               )}
 
               {/* ── Blog Article ── */}
               {type === "blog_article" && (
-                <div>
-                  {asset.content?.text && (
-                    <div className="text-sm text-foreground whitespace-pre-wrap max-h-[400px] overflow-y-auto bg-secondary/30 rounded-md p-4 mb-3">
-                      {asset.content.text}
-                    </div>
-                  )}
-                  {asset.file_url && (
-                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm mb-3">
+                <div className="space-y-1">
+                  {asset.content?.text ? (
+                    <>
+                      {/* Title = first line */}
+                      {(() => {
+                        const paragraphs = splitParagraphs(asset.content.text);
+                        const title = paragraphs[0] || "";
+                        const body = paragraphs.slice(1);
+                        return (
+                          <>
+                            <CommentableSection
+                              name="Title"
+                              comment={sectionComments[asset.id]?.["Title"] || ""}
+                              onComment={(t) => updateSectionComment(asset.id, "Title", t)}
+                            >
+                              <p className="font-semibold text-foreground text-lg">{title}</p>
+                            </CommentableSection>
+                            {body.map((para, i) => {
+                              const sectionKey = `Paragraph ${i + 1}`;
+                              return (
+                                <CommentableSection
+                                  key={i}
+                                  name={sectionKey}
+                                  comment={sectionComments[asset.id]?.[sectionKey] || ""}
+                                  onComment={(t) => updateSectionComment(asset.id, sectionKey, t)}
+                                >
+                                  <p className="text-sm text-foreground whitespace-pre-wrap">{para}</p>
+                                </CommentableSection>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </>
+                  ) : asset.file_url ? (
+                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
                       <ExternalLink className="w-4 h-4" /> Download file
                     </a>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No content available</p>
                   )}
-                  <SectionCommentBox
-                    sectionName="This article"
-                    value={sectionComments[asset.id]?.["This article"] || ""}
-                    onChange={(v) => updateSectionComment(asset.id, "This article", v)}
-                  />
                 </div>
               )}
 
               {/* Notes from pragma */}
               {asset.content?.notes && (
-                <p className="text-sm text-muted-foreground mt-3 italic">Note: {asset.content.notes}</p>
+                <p className="text-sm text-muted-foreground mt-3 italic">Note from PRAGMA: {asset.content.notes}</p>
               )}
+            </div>
+
+            {/* General comment */}
+            <div className="px-4 pb-4">
+              <Textarea
+                placeholder="General comments (optional)"
+                value={generalComments[asset.id] || ""}
+                onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
+                className="min-h-[60px] text-sm"
+              />
             </div>
 
             {/* Actions */}
@@ -422,29 +455,18 @@ export default function ClientAssetReview() {
                   Approved
                 </div>
               ) : (
-                <>
-                  <Button size="sm" onClick={() => approveAsset(asset)} className="bg-status-approved hover:bg-status-approved/90 text-primary-foreground">
-                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-status-change-requested text-status-change-requested hover:bg-status-change-requested/10"
-                    onClick={() => setChangeDialogAsset(asset)}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-1" />
-                    Request Changes
-                  </Button>
-                </>
+                <Button size="sm" onClick={() => approveAsset(asset)} className="bg-status-approved hover:bg-status-approved/90 text-primary-foreground">
+                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  Approve
+                </Button>
               )}
             </div>
 
-            {/* Show existing comment */}
-            {asset.client_comment && (
+            {/* Existing comment display */}
+            {asset.status === "change_requested" && asset.client_comment && (
               <div className="px-4 pb-4">
-                <div className="bg-status-change-requested/10 rounded-md p-3 text-sm">
-                  <span className="font-medium text-foreground">Your comment:</span>
+                <div className="bg-[hsl(45,100%,90%)]/50 border border-[hsl(45,100%,72%)] rounded-md p-3 text-sm">
+                  <span className="font-medium text-foreground">Your previous feedback:</span>
                   <p className="text-muted-foreground mt-1">{asset.client_comment}</p>
                 </div>
               </div>
@@ -459,45 +481,27 @@ export default function ClientAssetReview() {
         </div>
       )}
 
-      {/* Submit all feedback button */}
-      {assets.length > 0 && hasAnyComments && (
+      {/* Submit feedback */}
+      {assets.length > 0 && assets.some((a) => a.status !== "approved") && (
         <div className="mt-6 bg-card rounded-lg border border-border p-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-foreground">Ready to send your feedback?</p>
-            <p className="text-xs text-muted-foreground">All section comments will be sent to PRAGMA and assets marked for changes.</p>
+            <p className="text-sm font-medium text-foreground">
+              {totalCommentCount > 0
+                ? `${totalCommentCount} comment${totalCommentCount > 1 ? "s" : ""} ready to send`
+                : "No comments yet — you can still approve above"}
+            </p>
+            <p className="text-xs text-muted-foreground">Section comments and general feedback will be sent to PRAGMA.</p>
           </div>
-          <Button onClick={submitAllFeedback} disabled={submittingFeedback} className="gap-2">
+          <Button
+            onClick={submitAllFeedback}
+            disabled={submittingFeedback || totalCommentCount === 0}
+            className="gap-2"
+          >
             {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Submit feedback
           </Button>
         </div>
       )}
-
-      {/* Request Changes Dialog */}
-      <Dialog open={!!changeDialogAsset} onOpenChange={(open) => { if (!open) { setChangeDialogAsset(null); setChangeComment(""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Changes</DialogTitle>
-            <DialogDescription>
-              Describe what you'd like to change for <strong>{changeDialogAsset?.asset_name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            placeholder="Describe what you'd like to change..."
-            value={changeComment}
-            onChange={(e) => setChangeComment(e.target.value)}
-            className="min-h-[120px]"
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setChangeDialogAsset(null); setChangeComment(""); }}>
-              Cancel
-            </Button>
-            <Button onClick={requestChanges} disabled={submitting || !changeComment.trim()}>
-              Submit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
