@@ -15,6 +15,7 @@ import AdminClientKickoff from "./pages/admin/AdminClientKickoff";
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAssets from "./pages/client/ClientAssets";
+import ClientAssetReview from "./pages/client/ClientAssetReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
