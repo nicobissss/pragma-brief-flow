@@ -332,6 +332,27 @@ export type Database = {
           },
         ]
       }
+      connected_tools: {
+        Row: {
+          config: Json
+          id: string
+          tool_name: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          id?: string
+          tool_name: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          id?: string
+          tool_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           created_at: string
