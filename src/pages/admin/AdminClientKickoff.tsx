@@ -366,7 +366,74 @@ export default function AdminClientKickoff() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Generate Prompts Button */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    onClick={handleGeneratePrompts}
+                    disabled={generating || transcriptText.trim().length < 50}
+                    className={transcriptText.trim().length >= 50 && !generating
+                      ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white"
+                      : ""}
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Claude is analyzing the transcript...
+                      </>
+                    ) : generatedPrompts ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Regenerate Prompts
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Generate Prompts
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {transcriptText.trim().length < 50 && (
+                <TooltipContent>
+                  <p>Paste a transcript to continue (min 50 characters)</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
+
+      {/* Generated Prompts Section */}
+      {generatedPrompts && (
+        <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Generated Prompts
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(generatedPrompts);
+                toast.success("Prompts copied to clipboard!");
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy all
+            </Button>
+          </div>
+          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+            {generatedPrompts}
+          </div>
+        </div>
+      )}
 
       {/* SECTION 2.5: Client Materials */}
       <ClientMaterials
