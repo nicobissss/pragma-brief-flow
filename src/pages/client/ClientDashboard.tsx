@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target } from "lucide-react";
+import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 
 const typeIcons: Record<string, any> = {
@@ -77,7 +77,7 @@ type AssetItem = {
 type CampaignItem = {
   id: string;
   name: string;
-  objective: string;
+  objective: string | null;
   status: string;
 };
 
@@ -101,6 +101,8 @@ const STATUS_COLORS: Record<string, string> = {
   active: "bg-[hsl(142,71%,35%)]/10 text-[hsl(142,71%,35%)] border-[hsl(142,71%,35%)]/30",
   completed: "bg-primary/10 text-primary border-primary/30",
 };
+
+const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
 
 export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
@@ -126,7 +128,7 @@ export default function ClientDashboard() {
 
       const [assetsRes, campaignsRes, prospectRes] = await Promise.all([
         supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
-        (supabase.from("campaigns" as any) as any).select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
+        supabase.from("campaigns").select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
@@ -175,7 +177,15 @@ export default function ClientDashboard() {
 
   const approvedAssets = allAssets.filter((a) => a.status === "approved");
 
-  const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
+  // Campaign card helpers
+  const getCampaignCardStyle = (campaignAssets: AssetItem[]) => {
+    if (campaignAssets.length === 0) return { border: "border-border", label: null };
+    const allCampaignApproved = campaignAssets.every((a) => a.status === "approved");
+    const hasChangeRequested = campaignAssets.some((a) => a.status === "change_requested");
+    if (allCampaignApproved) return { border: "border-l-4 border-l-[hsl(var(--status-approved))] border-border", label: "✅ Approved" };
+    if (hasChangeRequested) return { border: "border-l-4 border-l-[hsl(var(--status-pending-review))] border-border", label: "Action needed — we uploaded a new version" };
+    return { border: "border-border", label: null };
+  };
 
   return (
     <div>
@@ -220,9 +230,10 @@ export default function ClientDashboard() {
                     if (!assetsByType.has(a.asset_type)) assetsByType.set(a.asset_type, []);
                     assetsByType.get(a.asset_type)!.push(a.status);
                   }
+                  const { border, label } = getCampaignCardStyle(cAssets);
 
                   return (
-                    <div key={campaign.id} className="bg-card rounded-lg border border-border p-5 space-y-3">
+                    <div key={campaign.id} className={`bg-card rounded-lg border ${border} p-5 space-y-3`}>
                       <div className="flex items-start justify-between">
                         <h3 className="font-semibold text-foreground">{campaign.name}</h3>
                         <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[campaign.status] || ""}`}>
@@ -230,9 +241,16 @@ export default function ClientDashboard() {
                         </Badge>
                       </div>
 
+                      {label && (
+                        <p className={`text-xs font-medium flex items-center gap-1 ${label.startsWith("✅") ? "text-[hsl(var(--status-approved))]" : "text-[hsl(var(--status-pending-review))]"}`}>
+                          {!label.startsWith("✅") && <AlertCircle className="w-3 h-3" />}
+                          {label}
+                        </p>
+                      )}
+
                       {campaign.objective && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Target className="w-3 h-3" /> {campaign.objective.length > 80 ? campaign.objective.slice(0, 80) + "…" : campaign.objective}
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
+                          <Target className="w-3 h-3 shrink-0" /> {campaign.objective}
                         </p>
                       )}
 
@@ -256,6 +274,14 @@ export default function ClientDashboard() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* No campaigns empty state */}
+          {!hasCampaigns && allAssets.length === 0 && (
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
+              <p className="text-muted-foreground">Your campaigns are being prepared.</p>
+              <p className="text-sm text-muted-foreground">We'll notify you when assets are ready for review.</p>
             </div>
           )}
 
@@ -316,13 +342,6 @@ export default function ClientDashboard() {
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {allAssets.length === 0 && (
-            <div className="bg-card rounded-lg border border-border p-8 text-center">
-              <p className="text-muted-foreground">No assets to review right now.</p>
-              <p className="text-muted-foreground text-sm mt-1">We'll notify you by email when something is ready.</p>
             </div>
           )}
         </TabsContent>
