@@ -698,13 +698,36 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
+          {/* Client feedback on existing assets */}
+          {assets.filter((a) => a.status === "change_requested" || a.client_comment).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground text-lg">Client Feedback</h3>
+              {assets
+                .filter((a) => a.status === "change_requested" || a.client_comment)
+                .map((asset) => (
+                  <div key={asset.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{asset.asset_name}</span>
+                      <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
+                    </div>
+                    <AssetFeedbackPanel
+                      assetId={asset.id}
+                      clientComment={asset.client_comment}
+                      status={asset.status}
+                      version={asset.version || 1}
+                    />
+                  </div>
+                ))}
+            </div>
+          )}
+
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
             <div className="grid gap-4 lg:grid-cols-2">
-              <AssetUploadZone clientId={client.id} assetType="landing_page" />
-              <AssetUploadZone clientId={client.id} assetType="email_flow" />
-              <AssetUploadZone clientId={client.id} assetType="social_post" />
-              <AssetUploadZone clientId={client.id} assetType="blog_article" />
+              <AssetUploadZone clientId={client.id} assetType="landing_page" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="email_flow" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="social_post" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="blog_article" onAssetSaved={() => {}} />
             </div>
           </div>
         </TabsContent>
