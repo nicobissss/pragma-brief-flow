@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Image, Mail, PenTool } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, Image, Mail, PenTool, ChevronDown } from "lucide-react";
 
 const typeIcons: Record<string, any> = {
   landing_page: FileText,
