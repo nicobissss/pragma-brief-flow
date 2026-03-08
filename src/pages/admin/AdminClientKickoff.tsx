@@ -410,10 +410,41 @@ export default function AdminClientKickoff() {
               )}
             </Tooltip>
           </TooltipProvider>
+          {/* Context sources collapsible */}
+          {contextSources && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowContextSources(!showContextSources)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showContextSources ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                Context used for generation
+              </button>
+              {showContextSources && (
+                <div className="mt-2 p-3 rounded-md bg-secondary/50 text-xs space-y-1">
+                  <ContextLine label="Transcript" included={contextSources.transcript} />
+                  <ContextLine label="Briefing answers" included={contextSources.briefing_answers} />
+                  <ContextLine label="Proposal" included={contextSources.proposal} />
+                  <ContextLine label="Brand colors" included={contextSources.brand_colors} />
+                  <ContextLine label="Brand personality" included={contextSources.brand_tags} />
+                  <ContextLine label="Website analysis" included={contextSources.website_context} />
+                  <ContextLine label="Pricing PDF" included={contextSources.pricing_pdf} />
+                  <ContextLine
+                    label={`Photos${contextSources.photos?.count ? ` (${contextSources.photos.count} assets)` : ""}`}
+                    included={contextSources.photos?.included}
+                  />
+                  <ContextLine label="Existing emails" included={contextSources.emails} />
+                  <ContextLine
+                    label={`Social posts${contextSources.social_posts?.count ? ` (${contextSources.social_posts.count} posts)` : ""}`}
+                    included={contextSources.social_posts?.included}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Generated Prompts Section */}
       {generatedPrompts && (
         <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
