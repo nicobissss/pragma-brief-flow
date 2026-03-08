@@ -72,6 +72,7 @@ type AssetRow = {
   content: any;
   version: number;
   client_comment: string | null;
+  correction_prompt: string | null;
   created_at: string;
 };
 
