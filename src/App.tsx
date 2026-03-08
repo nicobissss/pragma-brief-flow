@@ -12,6 +12,7 @@ import AdminProspectDetail from "./pages/admin/AdminProspectDetail";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminClientKickoff from "./pages/admin/AdminClientKickoff";
+import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAssets from "./pages/client/ClientAssets";
@@ -36,7 +37,8 @@ const App = () => (
             <Route path="prospects" element={<AdminProspects />} />
             <Route path="prospect/:id" element={<AdminProspectDetail />} />
             <Route path="clients" element={<AdminClients />} />
-            <Route path="client/:id/kickoff" element={<AdminClientKickoff />} />
+            <Route path="client/:id" element={<AdminClientDetail />} />
+            <Route path="client/:id/kickoff" element={<AdminClientDetail />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
 
