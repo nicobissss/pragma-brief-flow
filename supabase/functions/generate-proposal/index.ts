@@ -6,6 +6,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function fetchKnowledgeBase(supabaseAdmin: any): Promise<string> {
+  const { data: kbRows } = await supabaseAdmin
+    .from("knowledge_base")
+    .select("category, content")
+    .order("category");
+
+  const categoryTitles: Record<string, string> = {
+    flows_processes: "Flows & Processes",
+    pitch_guidelines: "Pitch Guidelines",
+    pricing: "Pricing",
+    suite_tools: "Suite Tools",
+  };
+
+  let kbText = "";
+  if (kbRows) {
+    for (const row of kbRows) {
+      if (row.content?.trim()) {
+        kbText += `\n### ${categoryTitles[row.category] || row.category}\n${row.content}\n`;
+      }
+    }
+  }
+
+  const { data: docs } = await supabaseAdmin
+    .from("documents")
+    .select("filename, extracted_text")
+    .eq("is_active", true);
+
+  let docsText = "";
+  if (docs) {
+    for (const doc of docs) {
+      if (doc.extracted_text?.trim()) {
+        docsText += `\n### Document: ${doc.filename}\n${doc.extracted_text}\n`;
+      }
+    }
+  }
+
+  if (!kbText && !docsText) return "";
+
+  return `\n\n--- PRAGMA KNOWLEDGE BASE (use this as primary reference) ---\n${kbText}${docsText}\n--- END KNOWLEDGE BASE ---\n\n`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -18,19 +59,22 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: prospect, error: pErr } = await supabaseAdmin
-      .from("prospects")
-      .select("*")
-      .eq("id", prospect_id)
-      .single();
+    const [prospectRes, knowledgeBase] = await Promise.all([
+      supabaseAdmin.from("prospects").select("*").eq("id", prospect_id).single(),
+      fetchKnowledgeBase(supabaseAdmin),
+    ]);
 
+    const { data: prospect, error: pErr } = prospectRes;
     if (pErr || !prospect) throw new Error("Prospect not found");
 
     const answers = prospect.briefing_answers || {};
     const market = prospect.market;
     const currency = market === "ar" ? "USD" : "EUR";
 
-    const systemPrompt = `You are PRAGMA's internal AI proposal engine. PRAGMA is a marketing automation agency serving three verticals: Salud & Estética, E-Learning, and Deporte Offline, in Spain, Italy, and Argentina.
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+
+    const systemPrompt = `${knowledgeBase}You are PRAGMA's internal AI proposal engine. PRAGMA is a marketing automation agency serving three verticals: Salud & Estética, E-Learning, and Deporte Offline, in Spain, Italy, and Argentina.
 
 You will receive a prospect's briefing answers and must generate a complete, structured proposal.
 
@@ -67,154 +111,139 @@ Sub-niche: ${prospect.sub_niche}
 Briefing answers:
 ${JSON.stringify(answers, null, 2)}`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const toolDef = {
+      name: "create_proposal",
+      description: "Create a structured proposal for the prospect",
+      input_schema: {
+        type: "object",
+        properties: {
+          recommended_flow: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              steps: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    number: { type: "number" },
+                    name: { type: "string" },
+                    description: { type: "string" },
+                    critical: { type: "boolean" },
+                  },
+                  required: ["number", "name", "description", "critical"],
+                },
+              },
+            },
+            required: ["title", "steps"],
+          },
+          recommended_tools: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                recommended: { type: "boolean" },
+                reason: { type: "string" },
+              },
+              required: ["name", "recommended", "reason"],
+            },
+          },
+          pricing: {
+            type: "object",
+            properties: {
+              contract_type: { type: "string", enum: ["Tipo A", "Tipo B"] },
+              contract_type_reason: { type: "string" },
+              currency: { type: "string" },
+              retainer_min: { type: "number" },
+              retainer_max: { type: "number" },
+              has_ad_fee: { type: "boolean" },
+              declared_ad_budget: { type: "number" },
+              ad_fee: { type: "number" },
+              commission_percentage: { type: "number" },
+              commission_window_days: { type: "number" },
+              commission_description: { type: "string" },
+              setup_fee_min: { type: "number" },
+              setup_fee_max: { type: "number" },
+              setup_fee_note: { type: "string" },
+              total_month_1_min: { type: "number" },
+              total_month_1_max: { type: "number" },
+              total_month_3_note: { type: "string" },
+            },
+            required: ["contract_type", "contract_type_reason", "currency", "retainer_min", "retainer_max"],
+          },
+          timeline: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                period: { type: "string" },
+                title: { type: "string" },
+                description: { type: "string" },
+              },
+              required: ["period", "title", "description"],
+            },
+          },
+          pitch_suggestions: {
+            type: "object",
+            properties: {
+              key_arguments: { type: "array", items: { type: "string" } },
+              objections: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    objection: { type: "string" },
+                    response: { type: "string" },
+                  },
+                  required: ["objection", "response"],
+                },
+              },
+              opening_line: { type: "string" },
+            },
+            required: ["key_arguments", "objections", "opening_line"],
+          },
+        },
+        required: ["recommended_flow", "recommended_tools", "pricing", "timeline", "pitch_suggestions"],
+      },
+    };
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "create_proposal",
-              description: "Create a structured proposal for the prospect",
-              parameters: {
-                type: "object",
-                properties: {
-                  recommended_flow: {
-                    type: "object",
-                    properties: {
-                      title: { type: "string" },
-                      steps: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            number: { type: "number" },
-                            name: { type: "string" },
-                            description: { type: "string" },
-                            critical: { type: "boolean" },
-                          },
-                          required: ["number", "name", "description", "critical"],
-                        },
-                      },
-                    },
-                    required: ["title", "steps"],
-                  },
-                  recommended_tools: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        recommended: { type: "boolean" },
-                        reason: { type: "string" },
-                      },
-                      required: ["name", "recommended", "reason"],
-                    },
-                  },
-                  pricing: {
-                    type: "object",
-                    properties: {
-                      contract_type: { type: "string", enum: ["Tipo A", "Tipo B"] },
-                      contract_type_reason: { type: "string" },
-                      currency: { type: "string" },
-                      retainer_min: { type: "number" },
-                      retainer_max: { type: "number" },
-                      has_ad_fee: { type: "boolean" },
-                      declared_ad_budget: { type: "number" },
-                      ad_fee: { type: "number" },
-                      commission_percentage: { type: "number" },
-                      commission_window_days: { type: "number" },
-                      commission_description: { type: "string" },
-                      setup_fee_min: { type: "number" },
-                      setup_fee_max: { type: "number" },
-                      setup_fee_note: { type: "string" },
-                      total_month_1_min: { type: "number" },
-                      total_month_1_max: { type: "number" },
-                      total_month_3_note: { type: "string" },
-                    },
-                    required: ["contract_type", "contract_type_reason", "currency", "retainer_min", "retainer_max"],
-                  },
-                  timeline: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        period: { type: "string" },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                      },
-                      required: ["period", "title", "description"],
-                    },
-                  },
-                  pitch_suggestions: {
-                    type: "object",
-                    properties: {
-                      key_arguments: {
-                        type: "array",
-                        items: { type: "string" },
-                      },
-                      objections: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            objection: { type: "string" },
-                            response: { type: "string" },
-                          },
-                          required: ["objection", "response"],
-                        },
-                      },
-                      opening_line: { type: "string" },
-                    },
-                    required: ["key_arguments", "objections", "opening_line"],
-                  },
-                },
-                required: ["recommended_flow", "recommended_tools", "pricing", "timeline", "pitch_suggestions"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "create_proposal" } },
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        tools: [toolDef],
+        tool_choice: { type: "tool", name: "create_proposal" },
       }),
     });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
+      console.error("Claude API error:", aiResponse.status, errText);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI error: ${aiResponse.status}`);
+      throw new Error(`Claude error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) throw new Error("No tool call in AI response");
+    const toolUseBlock = aiData.content?.find((b: any) => b.type === "tool_use");
+    if (!toolUseBlock) throw new Error("No tool_use block in Claude response");
 
-    const proposal = JSON.parse(toolCall.function.arguments);
+    const proposal = toolUseBlock.input;
 
     // Save to proposals table
-    const { data: saved, error: saveErr } = await supabaseAdmin.from("proposals").upsert({
+    const { error: saveErr } = await supabaseAdmin.from("proposals").upsert({
       prospect_id,
       recommended_flow: JSON.stringify(proposal.recommended_flow),
       recommended_tools: proposal.recommended_tools,
@@ -226,7 +255,6 @@ ${JSON.stringify(answers, null, 2)}`;
 
     if (saveErr) {
       console.error("Save error:", saveErr);
-      // Try insert instead if upsert failed
       const { error: insertErr } = await supabaseAdmin.from("proposals").insert({
         prospect_id,
         recommended_flow: JSON.stringify(proposal.recommended_flow),
