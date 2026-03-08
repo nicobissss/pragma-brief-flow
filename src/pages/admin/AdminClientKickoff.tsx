@@ -128,6 +128,7 @@ export default function AdminClientKickoff() {
           const gp = kickoffData.generated_prompts as any;
           if (gp?.raw_text) {
             setGeneratedPrompts(gp.raw_text);
+            if (gp.context_sources) setContextSources(gp.context_sources);
           }
         }
       }
