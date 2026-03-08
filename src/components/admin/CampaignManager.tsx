@@ -799,11 +799,16 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                       variant="outline"
                       onClick={async () => {
                         try {
-                          await supabase.functions.invoke("send-notification", {
+                          const { data, error } = await supabase.functions.invoke("send-notification", {
                             body: { type: "campaign_ready", client_id: clientId, campaign_name: campaign.name },
                           });
+                          if (error) throw error;
+                          if (data?.error) throw new Error(data.error);
                           toast.success("Client notified about this campaign!");
-                        } catch { toast.error("Failed to notify"); }
+                        } catch (e: any) {
+                          toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
+                        }
+                      }}
                       }}
                     >
                       <Bell className="w-3.5 h-3.5 mr-1" /> Notify client about this campaign
