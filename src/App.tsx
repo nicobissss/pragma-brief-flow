@@ -34,6 +34,7 @@ const App = () => (
             <Route path="prospects" element={<AdminProspects />} />
             <Route path="prospect/:id" element={<AdminProspectDetail />} />
             <Route path="clients" element={<AdminClients />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           <Route path="/client" element={<ClientLayout />}>

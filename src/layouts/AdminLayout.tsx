@@ -42,6 +42,7 @@ export default function AdminLayout() {
     { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/admin/prospects", icon: Users, label: "Prospects" },
     { to: "/admin/clients", icon: FileText, label: "Clients" },
+    { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 
   const handleLogout = async () => {
