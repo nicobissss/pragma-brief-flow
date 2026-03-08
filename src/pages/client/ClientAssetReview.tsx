@@ -110,10 +110,29 @@ export default function ClientAssetReview() {
         comment: changeComment,
       });
 
+      // Send email notification to pragma admins
+      const { data: clientData } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("user_id", (await supabase.auth.getSession()).data.session?.user.id || "")
+        .single();
+
+      if (clientData) {
+        supabase.functions.invoke("send-notification", {
+          body: {
+            type: "client_feedback",
+            client_id: clientData.id,
+            asset_type: type,
+            asset_name: changeDialogAsset.asset_name,
+            comment: changeComment,
+          },
+        }).catch((e) => console.error("Notification error:", e));
+      }
+
       setAssets((prev) =>
         prev.map((a) => a.id === changeDialogAsset.id ? { ...a, status: "change_requested", client_comment: changeComment } : a)
       );
-      toast.success("Change request submitted!");
+      toast.success("Change request submitted! PRAGMA has been notified.");
       setChangeDialogAsset(null);
       setChangeComment("");
     } catch (e: any) {
