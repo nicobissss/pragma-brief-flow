@@ -688,9 +688,10 @@ export default function AdminClientDetail() {
         {/* TAB 4 — Assets                                */}
         {/* ═══════════════════════════════════════════════ */}
         <TabsContent value="assets" className="mt-6 space-y-6">
+          {/* Asset status summary */}
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">Asset Status</h3>
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-4 gap-3">
               {(["landing_page", "email_flow", "social_post", "blog_article"] as const).map((type) => {
                 const status = getAssetStatus(type);
                 const labels: Record<string, string> = { landing_page: "LP", email_flow: "Email", social_post: "Social", blog_article: "Blog" };
@@ -704,58 +705,14 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
-          {/* Client feedback on existing assets */}
-          {assets.filter((a) => a.status === "change_requested" || a.client_comment).length > 0 && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-foreground text-lg">Client Feedback</h3>
-              {assets
-                .filter((a) => a.status === "change_requested" || a.client_comment)
-                .map((asset) => (
-                  <div key={asset.id} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{asset.asset_name}</span>
-                      <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
-                    </div>
-                    <AssetFeedbackPanel
-                      assetId={asset.id}
-                      clientComment={asset.client_comment}
-                      status={asset.status}
-                      version={asset.version || 1}
-                    />
-                  </div>
-                ))}
-            </div>
-          )}
-
-          {/* Correction Prompts */}
-          <CorrectionPromptPanel
+          {/* Campaign Manager */}
+          <CampaignManager
             clientId={client.id}
-            assets={assets.map((a) => ({
-              id: a.id,
-              asset_name: a.asset_name,
-              asset_type: a.asset_type,
-              version: a.version,
-              client_comment: a.client_comment,
-              correction_prompt: a.correction_prompt,
-              status: a.status,
-              created_at: a.created_at,
-            }))}
-            onUploadNewVersion={(assetId, assetType, summary) => {
-              const el = document.querySelector(`[data-asset-type="${assetType}"]`);
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-              toast.info(`Upload a new version for ${assetType}. Changes requested: ${summary}`);
-            }}
+            campaigns={campaigns}
+            assets={assets.map((a: any) => ({ ...a, campaign_id: a.campaign_id || null }))}
+            onCampaignCreated={(c) => setCampaigns((prev) => [c, ...prev])}
+            onCampaignUpdated={(c) => setCampaigns((prev) => prev.map((p) => p.id === c.id ? c : p))}
           />
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <AssetUploadZone clientId={client.id} assetType="landing_page" onAssetSaved={() => {}} />
-              <AssetUploadZone clientId={client.id} assetType="email_flow" onAssetSaved={() => {}} />
-              <AssetUploadZone clientId={client.id} assetType="social_post" onAssetSaved={() => {}} />
-              <AssetUploadZone clientId={client.id} assetType="blog_article" onAssetSaved={() => {}} />
-            </div>
-          </div>
         </TabsContent>
       </Tabs>
     </div>
