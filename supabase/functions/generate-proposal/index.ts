@@ -242,7 +242,7 @@ ${JSON.stringify(answers, null, 2)}`;
 
     const proposal = toolUseBlock.input;
 
-    // Save to proposals table
+    // Save to proposals table (upsert on unique prospect_id)
     const { error: saveErr } = await supabaseAdmin.from("proposals").upsert({
       prospect_id,
       recommended_flow: JSON.stringify(proposal.recommended_flow),
@@ -251,21 +251,9 @@ ${JSON.stringify(answers, null, 2)}`;
       timeline: JSON.stringify(proposal.timeline),
       pitch_suggestions: JSON.stringify(proposal.pitch_suggestions),
       full_proposal_content: proposal,
-    }, { onConflict: "prospect_id" }).select().single();
+    }, { onConflict: "prospect_id" });
 
-    if (saveErr) {
-      console.error("Save error:", saveErr);
-      const { error: insertErr } = await supabaseAdmin.from("proposals").insert({
-        prospect_id,
-        recommended_flow: JSON.stringify(proposal.recommended_flow),
-        recommended_tools: proposal.recommended_tools,
-        pricing: proposal.pricing,
-        timeline: JSON.stringify(proposal.timeline),
-        pitch_suggestions: JSON.stringify(proposal.pitch_suggestions),
-        full_proposal_content: proposal,
-      });
-      if (insertErr) throw insertErr;
-    }
+    if (saveErr) throw saveErr;
 
     return new Response(JSON.stringify({ success: true, proposal }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
