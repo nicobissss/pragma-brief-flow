@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import SalesCallCard from "@/components/prospect/SalesCallCard";
 
 type Prospect = {
   id: string;
@@ -30,6 +31,10 @@ type Prospect = {
   status: string;
   briefing_answers: Record<string, any>;
   created_at: string;
+  call_status: string;
+  call_scheduled_at: string | null;
+  call_notes: string | null;
+  follow_up_date: string | null;
 };
 
 function InfoRow({ label, value }: { label: string; value: any }) {
@@ -123,7 +128,6 @@ export default function AdminProspectDetail() {
       toast.success("Prospect accepted! Client account created and invite sent.");
       setAcceptDialogOpen(false);
 
-      // Redirect to kickoff page
       if (data?.client_id) {
         navigate(`/admin/client/${data.client_id}/kickoff`);
       }
@@ -175,6 +179,11 @@ export default function AdminProspectDetail() {
     }
     setProposal(updatedData);
     toast.success("Proposal changes saved");
+  };
+
+  const handleCallUpdate = (fields: Record<string, any>) => {
+    if (!prospect) return;
+    setProspect({ ...prospect, ...fields });
   };
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
@@ -268,6 +277,17 @@ export default function AdminProspectDetail() {
                 </p>
               )}
               <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
+
+              {/* Sales Call Card — between proposal and action buttons */}
+              <SalesCallCard
+                prospectId={prospect.id}
+                callStatus={prospect.call_status as any}
+                callScheduledAt={prospect.call_scheduled_at}
+                callNotes={prospect.call_notes}
+                followUpDate={prospect.follow_up_date}
+                onUpdate={handleCallUpdate}
+              />
+
               <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
                 <Button onClick={handleMarkReady} disabled={prospect.status === "proposal_ready"}>
