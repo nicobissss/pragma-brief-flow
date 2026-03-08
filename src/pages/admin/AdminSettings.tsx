@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
+import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Processes" },
