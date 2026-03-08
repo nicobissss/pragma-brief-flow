@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, FileText, LogOut, LayoutDashboard, Settings } from "lucide-react";
+import { Users, FileText, LogOut, LayoutDashboard, Settings, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLayout() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [brieferUrl, setBrieferUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,6 +23,12 @@ export default function AdminLayout() {
 
       if (roles?.some((r) => r.role === "pragma_admin")) {
         setAuthorized(true);
+        // Fetch briefer URL
+        const { data } = await (supabase.from("connected_tools" as any) as any)
+          .select("config")
+          .eq("tool_name", "briefer")
+          .maybeSingle();
+        if (data?.config?.url) setBrieferUrl(data.config.url);
       } else {
         navigate("/login");
       }
@@ -52,10 +59,9 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-card flex flex-col">
         <div className="p-6 border-b border-border">
-          <h1 className="text-lg font-bold text-foreground">PRAGMA</h1>
+          <h1 className="text-lg font-bold text-foreground">CRM by PRAGMA</h1>
           <p className="text-xs text-muted-foreground">Admin Panel</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
@@ -76,6 +82,17 @@ export default function AdminLayout() {
               </Link>
             );
           })}
+          {brieferUrl && (
+            <a
+              href={brieferUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Briefer →
+            </a>
+          )}
         </nav>
         <div className="p-4 border-t border-border">
           <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>
@@ -85,7 +102,6 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>

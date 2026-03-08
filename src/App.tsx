@@ -11,14 +11,7 @@ import AdminProspects from "./pages/admin/AdminProspects";
 import AdminProspectDetail from "./pages/admin/AdminProspectDetail";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminSettings from "./pages/admin/AdminSettings";
-import AdminClientKickoff from "./pages/admin/AdminClientKickoff";
 import AdminClientDetail from "./pages/admin/AdminClientDetail";
-import ClientLayout from "./layouts/ClientLayout";
-import ClientDashboard from "./pages/client/ClientDashboard";
-import ClientAssets from "./pages/client/ClientAssets";
-import ClientAssetReview from "./pages/client/ClientAssetReview";
-import ClientCampaignReview from "./pages/client/ClientCampaignReview";
-import ClientCollect from "./pages/client/ClientCollect";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,16 +33,7 @@ const App = () => (
             <Route path="prospect/:id" element={<AdminProspectDetail />} />
             <Route path="clients" element={<AdminClients />} />
             <Route path="client/:id" element={<AdminClientDetail />} />
-            <Route path="client/:id/kickoff" element={<AdminClientDetail />} />
             <Route path="settings" element={<AdminSettings />} />
-          </Route>
-
-          <Route path="/client" element={<ClientLayout />}>
-            <Route path="dashboard" element={<ClientDashboard />} />
-            <Route path="assets" element={<ClientAssets />} />
-            <Route path="assets/:type" element={<ClientAssetReview />} />
-            <Route path="campaign/:id" element={<ClientCampaignReview />} />
-            <Route path="collect" element={<ClientCollect />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

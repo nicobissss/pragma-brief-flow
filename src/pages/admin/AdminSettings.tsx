@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
+import { Loader2, Upload, Trash2, Pencil, Save, FileText, Eye, EyeOff, Link as LinkIcon } from "lucide-react";
 import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
 
 const CATEGORIES = [
@@ -68,6 +69,74 @@ function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
   );
 }
 
+function ConnectedToolsSection() {
+  const [brieferUrl, setBrieferUrl] = useState("");
+  const [brieferSecret, setBrieferSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await (supabase.from("connected_tools" as any) as any)
+        .select("config")
+        .eq("tool_name", "briefer")
+        .maybeSingle();
+      if (data?.config) {
+        setBrieferUrl(data.config.url || "");
+        setBrieferSecret(data.config.webhook_secret || "");
+      }
+      setLoaded(true);
+    };
+    fetch();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const config = { url: brieferUrl.replace(/\/$/, ""), webhook_secret: brieferSecret };
+    const { error } = await (supabase.from("connected_tools" as any) as any)
+      .upsert({ tool_name: "briefer", config, updated_at: new Date().toISOString() }, { onConflict: "tool_name" });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Briefer connection saved");
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium text-foreground block mb-1">Briefer URL</label>
+        <Input
+          value={brieferUrl}
+          onChange={(e) => setBrieferUrl(e.target.value)}
+          placeholder="https://briefer-app.lovable.app"
+        />
+        <p className="text-xs text-muted-foreground mt-1">The published URL of your Briefer by PRAGMA app</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-foreground block mb-1">Briefer Webhook Secret</label>
+        <div className="flex gap-2">
+          <Input
+            type={showSecret ? "text" : "password"}
+            value={brieferSecret}
+            onChange={(e) => setBrieferSecret(e.target.value)}
+            placeholder="Enter webhook secret"
+          />
+          <Button variant="outline" size="icon" onClick={() => setShowSecret(!showSecret)}>
+            {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">Used to authenticate webhook calls to Briefer</p>
+      </div>
+      <Button onClick={handleSave} disabled={saving}>
+        {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+        Save Connection
+      </Button>
+    </div>
+  );
+}
+
 export default function AdminSettings() {
   const [kbRows, setKbRows] = useState<KBRow[]>([]);
   const [docs, setDocs] = useState<DocRow[]>([]);
@@ -90,34 +159,20 @@ export default function AdminSettings() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["pdf", "txt", "md"].includes(ext || "")) {
       toast.error("Only PDF, TXT, and MD files are accepted.");
       return;
     }
-
     setUploading(true);
     const path = `${crypto.randomUUID()}_${file.name}`;
-
     const { error: uploadErr } = await supabase.storage.from("kb-documents").upload(path, file);
     if (uploadErr) { toast.error(uploadErr.message); setUploading(false); return; }
-
-    const { data: urlData } = supabase.storage.from("kb-documents").getPublicUrl(path);
-
-    // Extract text for txt/md
     let extractedText: string | null = null;
-    if (ext === "txt" || ext === "md") {
-      extractedText = await file.text();
-    }
-
+    if (ext === "txt" || ext === "md") extractedText = await file.text();
     const { error: insertErr } = await supabase.from("documents").insert({
-      filename: file.name,
-      file_url: path,
-      is_active: true,
-      extracted_text: extractedText,
+      filename: file.name, file_url: path, is_active: true, extracted_text: extractedText,
     });
-
     if (insertErr) { toast.error(insertErr.message); setUploading(false); return; }
     toast.success("Document uploaded");
     setUploading(false);
@@ -144,11 +199,18 @@ export default function AdminSettings() {
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
-      <p className="text-muted-foreground mb-8">
-        Manage the knowledge base that powers AI proposal generation.
-      </p>
+      <p className="text-muted-foreground mb-8">Manage knowledge base and connected tools.</p>
 
-      {/* PART 1: Text blocks */}
+      {/* Connected Tools */}
+      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+        <LinkIcon className="w-5 h-5" /> Connected Tools
+      </h2>
+      <div className="bg-card rounded-lg border border-border p-6 mb-10">
+        <h3 className="font-semibold text-foreground mb-4">Briefer by PRAGMA</h3>
+        <ConnectedToolsSection />
+      </div>
+
+      {/* Knowledge Base */}
       <h2 className="text-lg font-semibold text-foreground mb-4">Knowledge Base</h2>
       <div className="space-y-4 mb-10">
         {kbRows.map((row) => (
@@ -156,17 +218,11 @@ export default function AdminSettings() {
         ))}
       </div>
 
-      {/* PART 2: Document upload */}
+      {/* Documents */}
       <h2 className="text-lg font-semibold text-foreground mb-4">Documents</h2>
       <div className="bg-card rounded-lg border border-border p-6 mb-4">
         <div className="flex items-center gap-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.txt,.md"
-            onChange={handleUpload}
-            className="hidden"
-          />
+          <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" />
           <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline">
             {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
             Upload Document
@@ -174,7 +230,6 @@ export default function AdminSettings() {
           <span className="text-xs text-muted-foreground">PDF, TXT, MD accepted</span>
         </div>
       </div>
-
       {docs.length === 0 ? (
         <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
       ) : (
@@ -185,9 +240,7 @@ export default function AdminSettings() {
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium text-foreground">{doc.filename}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Uploaded {new Date(doc.created_at).toLocaleDateString()}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Uploaded {new Date(doc.created_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -204,7 +257,7 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {/* PART 3: Briefing Questions */}
+      {/* Briefing Questions */}
       <div className="mt-10 border-t border-border pt-8">
         <BriefingQuestionsManager />
       </div>
