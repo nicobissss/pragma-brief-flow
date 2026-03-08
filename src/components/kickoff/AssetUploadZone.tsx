@@ -226,7 +226,8 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
           asset_type: assetType,
           asset_name: derivedName,
           content: { url: url.trim(), notes: notes.trim() || undefined },
-        }).select("id, asset_name, file_url, status, content, version, created_at").single();
+          ...(campaignId ? { campaign_id: campaignId } : {}),
+        } as any).select("id, asset_name, file_url, status, content, version, created_at").single();
         if (error) throw error;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
         setUrl("");
