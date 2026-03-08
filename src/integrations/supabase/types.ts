@@ -93,6 +93,7 @@ export type Database = {
           client_comment: string | null
           client_id: string
           content: Json | null
+          correction_prompt: string | null
           created_at: string
           file_url: string | null
           id: string
@@ -105,6 +106,7 @@ export type Database = {
           client_comment?: string | null
           client_id: string
           content?: Json | null
+          correction_prompt?: string | null
           created_at?: string
           file_url?: string | null
           id?: string
@@ -117,6 +119,7 @@ export type Database = {
           client_comment?: string | null
           client_id?: string
           content?: Json | null
+          correction_prompt?: string | null
           created_at?: string
           file_url?: string | null
           id?: string
