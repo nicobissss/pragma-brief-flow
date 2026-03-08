@@ -970,26 +970,63 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                     </div>
                   )}
 
-                  {/* Notify client */}
-                  <div className="p-4 flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const { data, error } = await supabase.functions.invoke("send-notification", {
-                            body: { type: "campaign_ready", client_id: clientId, campaign_name: campaign.name },
-                          });
-                          if (error) throw error;
-                          if (data?.error) throw new Error(data.error);
-                          toast.success("Client notified about this campaign!");
-                        } catch (e: any) {
-                          toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
-                        }
-                      }}
-                    >
-                      <Bell className="w-3.5 h-3.5 mr-1" /> Notify client about this campaign
-                    </Button>
+                  {/* Campaign notification status bar */}
+                  <div className="p-4">
+                    {(() => {
+                      const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+                      const uploadedTypes = types.filter((t) => cAssets.some((a) => a.asset_type === t));
+                      const missingTypes = types.filter((t) => !cAssets.some((a) => a.asset_type === t));
+                      const hasAnyAsset = cAssets.length > 0;
+                      const lastNotified = (campaign as any).last_notified_at;
+                      const hasNewSinceNotify = lastNotified && cAssets.some(
+                        (a) => new Date(a.created_at) > new Date(lastNotified)
+                      );
+
+                      return (
+                        <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign assets status</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {types.map((t) => {
+                              const uploaded = cAssets.some((a) => a.asset_type === t);
+                              return (
+                                <span key={t} className={`text-xs ${uploaded ? "text-foreground" : "text-muted-foreground"}`}>
+                                  {ASSET_TYPE_FULL[t]} {uploaded ? "✅ uploaded" : "⚪ missing"}
+                                </span>
+                              );
+                            })}
+                          </div>
+
+                          {missingTypes.length > 0 && hasAnyAsset && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-pending-review))]" />
+                              {missingTypes.map((t) => ASSET_TYPE_FULL[t]).join(" and ")} not uploaded yet. You can still notify client with available assets.
+                            </p>
+                          )}
+
+                          {lastNotified && !hasNewSinceNotify && (
+                            <p className="text-xs text-muted-foreground">
+                              Client notified on {format(new Date(lastNotified), "dd MMM yyyy")} at {format(new Date(lastNotified), "HH:mm")}
+                            </p>
+                          )}
+
+                          {lastNotified && hasNewSinceNotify && (
+                            <p className="text-xs text-[hsl(var(--status-pending-review))] flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> New assets added since last notification.
+                            </p>
+                          )}
+
+                          {hasAnyAsset && (
+                            <Button
+                              size="sm"
+                              onClick={() => setNotifyConfirm({ campaign, assets: cAssets })}
+                            >
+                              <Bell className="w-3.5 h-3.5 mr-1" />
+                              {lastNotified && hasNewSinceNotify ? "Notify client again" : "Notify client about this campaign"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
