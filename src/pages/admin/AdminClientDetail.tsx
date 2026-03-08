@@ -219,11 +219,9 @@ export default function AdminClientDetail() {
         }
       }
 
-      // Auto-select tab 3 if pending feedback
-      const hasPending = assetsData.some(
-        (a: any) => a.status === "pending_review" || a.status === "change_requested"
-      );
-      if (hasPending) setDefaultTab("prompts");
+      // Auto-select assets tab if pending feedback
+      const hasChangeRequested = assetsData.some((a: any) => a.status === "change_requested");
+      if (hasChangeRequested) setDefaultTab("assets");
 
       setLoading(false);
     };
