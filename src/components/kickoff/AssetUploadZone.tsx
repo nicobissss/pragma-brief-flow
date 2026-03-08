@@ -287,7 +287,8 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
           asset_name: itemName,
           file_url: urlData.publicUrl,
           content,
-        }).select("id, asset_name, file_url, status, content, version, created_at").single();
+          ...(campaignId ? { campaign_id: campaignId } : {}),
+        } as any).select("id, asset_name, file_url, status, content, version, created_at").single();
 
         if (insertErr) throw insertErr;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);

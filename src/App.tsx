@@ -47,6 +47,7 @@ const App = () => (
             <Route path="dashboard" element={<ClientDashboard />} />
             <Route path="assets" element={<ClientAssets />} />
             <Route path="assets/:type" element={<ClientAssetReview />} />
+            <Route path="campaign/:id" element={<ClientCampaignReview />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
