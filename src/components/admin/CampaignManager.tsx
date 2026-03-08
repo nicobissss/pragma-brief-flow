@@ -30,6 +30,7 @@ type Campaign = {
   status: string;
   created_at: string;
   updated_at: string;
+  last_notified_at: string | null;
 };
 
 type AssetRow = {
