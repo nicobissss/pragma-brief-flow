@@ -150,10 +150,20 @@ export default function ClientCampaignReview() {
 
     setSubmitting(true);
     try {
-      await supabase.from("assets").update({
+      const { error: updateError } = await supabase.from("assets").update({
         status: "change_requested" as any,
         client_comment: text,
       }).eq("id", asset.id);
+      if (updateError) throw updateError;
+
+      // Save to asset_section_comments for admin visibility
+      await supabase.from("asset_section_comments").insert({
+        asset_id: asset.id,
+        client_id: clientId!,
+        section_name: "general",
+        comment_text: text,
+        version_number: asset.version || 1,
+      });
 
       const { data: existingRounds } = await supabase.from("revision_rounds")
         .select("round_number").eq("asset_id", asset.id)
@@ -195,7 +205,7 @@ export default function ClientCampaignReview() {
   if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
   if (!campaign) return <div className="text-muted-foreground p-8">Campaign not found.</div>;
 
-  const reviewedCount = assets.filter((a) => a.status === "approved" || a.status === "change_requested").length;
+  const reviewedCount = assets.filter((a) => a.status === "approved").length;
   const allDone = assets.length > 0 && reviewedCount === assets.length;
   const progressPct = assets.length > 0 ? (reviewedCount / assets.length) * 100 : 0;
 
@@ -273,7 +283,8 @@ export default function ClientCampaignReview() {
             const isExpanded = expandedAsset === asset.id;
             const feedbackText = feedbackTexts[asset.id] || "";
             const canSubmitFeedback = feedbackText.trim().length >= 20;
-            const isReviewed = asset.status === "approved" || asset.status === "change_requested";
+            const isApproved = asset.status === "approved";
+            const canReview = asset.status === "pending_review" || asset.status === "change_requested";
 
             return (
               <div key={asset.id} className="bg-card rounded-lg border border-border overflow-hidden">
@@ -314,8 +325,8 @@ export default function ClientCampaignReview() {
                       />
                     </div>
 
-                    {/* Feedback area (only if not already approved) */}
-                    {!isReviewed && (
+                    {/* Feedback area — show for pending_review and change_requested */}
+                    {canReview && (
                       <div className="p-4 border-t border-border space-y-4">
                         {/* Previous feedback */}
                         {asset.client_comment && (
@@ -363,8 +374,8 @@ export default function ClientCampaignReview() {
                       </div>
                     )}
 
-                    {/* Already reviewed — show status */}
-                    {isReviewed && asset.client_comment && (
+                    {/* Approved — show read-only feedback if any */}
+                    {isApproved && asset.client_comment && (
                       <div className="p-4 border-t border-border">
                         <div className="bg-muted/50 rounded-md p-3">
                           <p className="text-xs font-medium text-muted-foreground mb-1">Your feedback:</p>
