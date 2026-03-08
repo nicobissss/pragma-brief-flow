@@ -74,65 +74,127 @@ function ConnectedToolsSection() {
   const [brieferSecret, setBrieferSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await (supabase.from("connected_tools" as any) as any)
-        .select("config")
-        .eq("tool_name", "briefer")
-        .maybeSingle();
-      if (data?.config) {
-        setBrieferUrl(data.config.url || "");
-        setBrieferSecret(data.config.webhook_secret || "");
+    const fetchSettings = async () => {
+      const { data } = await (supabase.from("app_settings" as any) as any)
+        .select("key, value")
+        .in("key", ["briefer_url", "briefer_webhook_secret"]);
+      if (data) {
+        for (const row of data) {
+          if (row.key === "briefer_url") setBrieferUrl(row.value || "");
+          if (row.key === "briefer_webhook_secret") setBrieferSecret(row.value || "");
+        }
       }
       setLoaded(true);
     };
-    fetch();
+    fetchSettings();
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    const config = { url: brieferUrl.replace(/\/$/, ""), webhook_secret: brieferSecret };
-    const { error } = await (supabase.from("connected_tools" as any) as any)
-      .upsert({ tool_name: "briefer", config, updated_at: new Date().toISOString() }, { onConflict: "tool_name" });
+    const now = new Date().toISOString();
+    const urlClean = brieferUrl.replace(/\/$/, "");
+    const { error: e1 } = await (supabase.from("app_settings" as any) as any)
+      .upsert({ key: "briefer_url", value: urlClean, updated_at: now }, { onConflict: "key" });
+    const { error: e2 } = await (supabase.from("app_settings" as any) as any)
+      .upsert({ key: "briefer_webhook_secret", value: brieferSecret, updated_at: now }, { onConflict: "key" });
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Briefer connection saved");
+    if (e1 || e2) { toast.error((e1 || e2)!.message); return; }
+    toast.success("Connection settings saved");
+  };
+
+  const handleTest = async () => {
+    if (!brieferUrl.trim()) {
+      setTestResult({ ok: false, message: "Enter a Briefer URL first" });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${brieferUrl.replace(/\/$/, "")}/functions/v1/receive-client`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(brieferSecret ? { "Authorization": `Bearer ${brieferSecret}` } : {}),
+        },
+        body: JSON.stringify({
+          client_id: "test-connection-ping",
+          name: "Test Connection",
+          company_name: "PRAGMA CRM Test",
+          email: "test@pragma.test",
+          vertical: "Test",
+          sub_niche: "test",
+          market: "es",
+          contract_type: "A",
+          activated_tools: [],
+          briefing_answers: {},
+          recommended_flow: "",
+          retainer: "",
+          commission: "",
+          _test: true,
+        }),
+      });
+      if (res.ok) {
+        setTestResult({ ok: true, message: "✅ Connection successful" });
+      } else {
+        const body = await res.text();
+        setTestResult({ ok: false, message: `❌ Connection failed: ${res.status} — ${body.slice(0, 200)}` });
+      }
+    } catch (err: any) {
+      setTestResult({ ok: false, message: `❌ Connection failed: ${err.message}` });
+    } finally {
+      setTesting(false);
+    }
   };
 
   if (!loaded) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <label className="text-sm font-medium text-foreground block mb-1">Briefer URL</label>
+        <label className="text-sm font-medium text-foreground block mb-1">Briefer app URL</label>
         <Input
+          type="url"
           value={brieferUrl}
           onChange={(e) => setBrieferUrl(e.target.value)}
-          placeholder="https://briefer-app.lovable.app"
+          placeholder="https://pragma-briefer.lovable.app"
         />
-        <p className="text-xs text-muted-foreground mt-1">The published URL of your Briefer by PRAGMA app</p>
+        <p className="text-xs text-muted-foreground mt-1">The URL of your Briefer by PRAGMA application</p>
       </div>
       <div>
-        <label className="text-sm font-medium text-foreground block mb-1">Briefer Webhook Secret</label>
+        <label className="text-sm font-medium text-foreground block mb-1">Webhook secret</label>
         <div className="flex gap-2">
           <Input
             type={showSecret ? "text" : "password"}
             value={brieferSecret}
             onChange={(e) => setBrieferSecret(e.target.value)}
-            placeholder="Enter webhook secret"
+            placeholder="pragma_webhook_2026"
           />
           <Button variant="outline" size="icon" onClick={() => setShowSecret(!showSecret)}>
             {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">Used to authenticate webhook calls to Briefer</p>
+        <p className="text-xs text-muted-foreground mt-1">Must match the BRIEFER_WEBHOOK_SECRET secret configured in Briefer's backend vault</p>
       </div>
-      <Button onClick={handleSave} disabled={saving}>
-        {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-        Save Connection
-      </Button>
+      <div className="flex items-center gap-3">
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+          Save
+        </Button>
+        <Button variant="outline" onClick={handleTest} disabled={testing}>
+          {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+          Test connection
+        </Button>
+      </div>
+      {testResult && (
+        <p className={`text-sm font-medium ${testResult.ok ? "text-status-accepted" : "text-destructive"}`}>
+          {testResult.message}
+        </p>
+      )}
     </div>
   );
 }
