@@ -597,6 +597,9 @@ export default function AdminClientDetail() {
               }
             }}
           />
+
+          {/* Section 4: Request assets from client */}
+          <AssetCollectionRequest clientId={client.id} clientName={client.name} />
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════ */}

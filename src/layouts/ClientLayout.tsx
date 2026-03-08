@@ -85,6 +85,17 @@ export default function ClientLayout() {
           >
             <FileText className="w-5 h-5" />
           </Link>
+          <Link
+            to="/client/collect"
+            className={`p-2 rounded-md relative ${location.pathname === "/client/collect" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+          >
+            <Paperclip className="w-5 h-5" />
+            {pendingRequests > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                {pendingRequests}
+              </span>
+            )}
+          </Link>
           <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="w-5 h-5 text-muted-foreground" />
           </Button>
