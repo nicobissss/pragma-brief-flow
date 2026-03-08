@@ -39,6 +39,7 @@ export default function AdminProspectDetail() {
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<any>(null);
+  const [proposalDate, setProposalDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loadingProposal, setLoadingProposal] = useState(true);
 
