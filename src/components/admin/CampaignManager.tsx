@@ -929,6 +929,19 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
           onAssetSaved={() => onAssetsChanged?.()}
         />
       )}
+
+      {/* New version drawer */}
+      {newVersionDrawer && (
+        <NewVersionDrawer
+          open={!!newVersionDrawer}
+          onClose={() => setNewVersionDrawer(null)}
+          clientId={clientId}
+          asset={newVersionDrawer.asset}
+          campaignId={newVersionDrawer.campaignId}
+          summary={newVersionDrawer.summary}
+          onVersionUploaded={() => onAssetsChanged?.()}
+        />
+      )}
     </div>
   );
 }
