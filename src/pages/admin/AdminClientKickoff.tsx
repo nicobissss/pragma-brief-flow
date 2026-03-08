@@ -186,6 +186,38 @@ export default function AdminClientKickoff() {
     }
   };
 
+  const handleGeneratePrompts = async () => {
+    if (!client) return;
+    setGenerating(true);
+    try {
+      // Save transcript first if not saved yet
+      if (transcriptText.trim().length >= 50 && !kickoff) {
+        await saveTranscript();
+      } else if (kickoff && transcriptText !== (kickoff.transcript_text || "")) {
+        await supabase
+          .from("kickoff_briefs")
+          .update({ transcript_text: transcriptText, transcript_status: "ready" as any })
+          .eq("id", kickoff.id);
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-kickoff-prompts", {
+        body: { client_id: client.id },
+      });
+      if (error) throw error;
+      if (data?.prompts) {
+        setGeneratedPrompts(data.prompts);
+        toast.success("Prompts generated successfully!");
+        setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      } else {
+        throw new Error(data?.error || "No prompts returned");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate prompts");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !client) return;
