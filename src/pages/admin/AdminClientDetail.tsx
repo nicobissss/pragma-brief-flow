@@ -723,6 +723,26 @@ export default function AdminClientDetail() {
             </div>
           )}
 
+          {/* Correction Prompts */}
+          <CorrectionPromptPanel
+            clientId={client.id}
+            assets={assets.map((a) => ({
+              id: a.id,
+              asset_name: a.asset_name,
+              asset_type: a.asset_type,
+              version: a.version,
+              client_comment: a.client_comment,
+              correction_prompt: a.correction_prompt,
+              status: a.status,
+              created_at: a.created_at,
+            }))}
+            onUploadNewVersion={(assetId, assetType, summary) => {
+              const el = document.querySelector(`[data-asset-type="${assetType}"]`);
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              toast.info(`Upload a new version for ${assetType}. Changes requested: ${summary}`);
+            }}
+          />
+
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
             <div className="grid gap-4 lg:grid-cols-2">
