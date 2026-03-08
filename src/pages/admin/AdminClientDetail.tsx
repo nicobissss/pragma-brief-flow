@@ -194,27 +194,7 @@ export default function AdminClientDetail() {
     fetchAll();
   }, [id]);
 
-  const questions = useMemo(
-    () => client ? generateQuestions(client.vertical, client.sub_niche) : {},
-    [client]
-  );
-
-  // ─── Kickoff handlers (same as before) ─────────────────
-  const copyAllQuestions = () => {
-    const text = Object.entries(questions)
-      .map(([cat, qs]) => `## ${cat}\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}`)
-      .join("\n\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Questions copied to clipboard!");
-  };
-
-  const toggleQuestion = (q: string) => {
-    setCheckedQuestions((prev) => {
-      const next = new Set(prev);
-      next.has(q) ? next.delete(q) : next.add(q);
-      return next;
-    });
-  };
+  // questions/copyAllQuestions/toggleQuestion removed — now in KickoffQuestionsManager
 
   const saveTranscript = async () => {
     if (!client) return;
