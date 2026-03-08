@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
+import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
@@ -71,6 +72,7 @@ type AssetRow = {
   content: any;
   version: number;
   client_comment: string | null;
+  correction_prompt: string | null;
   created_at: string;
 };
 
@@ -191,7 +193,7 @@ export default function AdminClientDetail() {
 
       // Parallel fetches
       const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
-      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, created_at").eq("client_id", id!);
+      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at").eq("client_id", id!);
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
@@ -720,6 +722,26 @@ export default function AdminClientDetail() {
                 ))}
             </div>
           )}
+
+          {/* Correction Prompts */}
+          <CorrectionPromptPanel
+            clientId={client.id}
+            assets={assets.map((a) => ({
+              id: a.id,
+              asset_name: a.asset_name,
+              asset_type: a.asset_type,
+              version: a.version,
+              client_comment: a.client_comment,
+              correction_prompt: a.correction_prompt,
+              status: a.status,
+              created_at: a.created_at,
+            }))}
+            onUploadNewVersion={(assetId, assetType, summary) => {
+              const el = document.querySelector(`[data-asset-type="${assetType}"]`);
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              toast.info(`Upload a new version for ${assetType}. Changes requested: ${summary}`);
+            }}
+          />
 
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>

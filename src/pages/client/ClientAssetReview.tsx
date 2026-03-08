@@ -208,7 +208,7 @@ export default function ClientAssetReview() {
         prev.map((a) => assetIds.includes(a.id) ? { ...a, status: "change_requested", client_comment: generalComments[a.id]?.trim() || a.client_comment } : a)
       );
 
-      // Notify pragma
+      // Notify pragma and trigger correction prompt generation
       if (clientId) {
         supabase.functions.invoke("send-notification", {
           body: {
@@ -219,6 +219,13 @@ export default function ClientAssetReview() {
             comment: `${allSectionComments.length} section comment(s) submitted`,
           },
         }).catch((e) => console.error("Notification error:", e));
+
+        // Auto-generate correction prompts for each affected asset
+        for (const assetId of assetIds) {
+          supabase.functions.invoke("generate-correction-prompt", {
+            body: { asset_id: assetId },
+          }).catch((e) => console.error("Correction prompt generation error:", e));
+        }
       }
 
       toast.success(`Feedback submitted! PRAGMA has been notified.`);
