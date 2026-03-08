@@ -96,6 +96,7 @@ export default function AdminClientKickoff() {
   const [transcriptText, setTranscriptText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [materials, setMaterials] = useState<ClientMaterialsData>({});
 
   useEffect(() => {
     const fetchData = async () => {
