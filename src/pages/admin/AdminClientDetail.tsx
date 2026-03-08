@@ -206,9 +206,10 @@ export default function AdminClientDetail() {
         proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
       }
 
-      const [kickoffRes, assetsRes] = await Promise.all([kickoffPromise, assetsPromise]);
+      const [kickoffRes, assetsRes, campaignsRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise]);
       const kickoffData = kickoffRes.data;
       const assetsData = (assetsRes.data || []) as AssetRow[];
+      setCampaigns((campaignsRes.data || []) as any[]);
 
       if (kickoffData) {
         setKickoff(kickoffData as KickoffBrief);
