@@ -198,6 +198,7 @@ export type Database = {
           description: string | null
           id: string
           key_message: string | null
+          last_notified_at: string | null
           name: string
           objective: string | null
           status: Database["public"]["Enums"]["campaign_status"]
@@ -211,6 +212,7 @@ export type Database = {
           description?: string | null
           id?: string
           key_message?: string | null
+          last_notified_at?: string | null
           name: string
           objective?: string | null
           status?: Database["public"]["Enums"]["campaign_status"]
@@ -224,6 +226,7 @@ export type Database = {
           description?: string | null
           id?: string
           key_message?: string | null
+          last_notified_at?: string | null
           name?: string
           objective?: string | null
           status?: Database["public"]["Enums"]["campaign_status"]

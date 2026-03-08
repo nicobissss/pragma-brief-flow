@@ -30,6 +30,7 @@ type Campaign = {
   status: string;
   created_at: string;
   updated_at: string;
+  last_notified_at: string | null;
 };
 
 type AssetRow = {
@@ -283,7 +284,7 @@ function AddAssetDrawer({
     return ASSET_TYPE_FULL[assetType] || "Asset";
   };
 
-  const saveAsset = async (notify: boolean) => {
+  const saveAsset = async () => {
     setUploading(true);
     try {
       // URL-based
@@ -294,7 +295,6 @@ function AddAssetDrawer({
           asset_name: deriveName(),
           content: { url: url.trim(), notes: notes.trim() || undefined },
           campaign_id: campaignId,
-          status: notify ? "pending_review" : "pending_review",
         } as any);
         if (error) throw error;
       }
@@ -306,7 +306,6 @@ function AddAssetDrawer({
           asset_name: deriveName(),
           content: { text: pasteText.trim(), notes: notes.trim() || undefined },
           campaign_id: campaignId,
-          status: notify ? "pending_review" : "pending_review",
         } as any);
         if (error) throw error;
       }
@@ -326,25 +325,12 @@ function AddAssetDrawer({
             file_url: urlData.publicUrl,
             content: { notes: notes.trim() || undefined },
             campaign_id: campaignId,
-            status: notify ? "pending_review" : "pending_review",
           } as any);
           if (error) throw error;
         }
       }
 
-      if (notify) {
-        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
-          body: { type: "assets_ready", client_id: clientId, asset_type: assetType, asset_name: deriveName() },
-        });
-        if (notifError || data?.error) {
-          toast.error(`Asset saved but notification failed: ${data?.error || notifError?.message || "Unknown error"}`);
-        } else {
-          toast.success("Asset saved and client notified!");
-        }
-      } else {
-        toast.success("Asset saved as draft!");
-      }
-
+      toast.success("Asset saved!");
       onAssetSaved();
       handleClose();
     } catch (e: any) {
@@ -491,13 +477,9 @@ function AddAssetDrawer({
               </div>
 
               <div className="space-y-2">
-                <Button onClick={() => saveAsset(false)} disabled={uploading} variant="outline" className="w-full">
+                <Button onClick={() => saveAsset()} disabled={uploading} className="w-full">
                   {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  Save as draft
-                </Button>
-                <Button onClick={() => saveAsset(true)} disabled={uploading} className="w-full">
-                  {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  <Bell className="w-4 h-4 mr-2" /> Save and notify client
+                  Save asset
                 </Button>
               </div>
             </div>
@@ -551,7 +533,7 @@ function NewVersionDrawer({
     onClose();
   };
 
-  const uploadNewVersion = async (notify: boolean) => {
+  const uploadNewVersion = async () => {
     setUploading(true);
     try {
       const newVersion = (asset.version || 1) + 1;
@@ -592,19 +574,7 @@ function NewVersionDrawer({
         action: `new version v${newVersion} uploaded`,
       });
 
-      if (notify) {
-        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
-          body: { type: "assets_ready", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name },
-        });
-        if (notifError || data?.error) {
-          toast.error(`Version saved but notification failed: ${data?.error || notifError?.message}`);
-        } else {
-          toast.success(`Version v${newVersion} uploaded and client notified!`);
-        }
-      } else {
-        toast.success(`Version v${newVersion} uploaded!`);
-      }
-
+      toast.success(`Version v${newVersion} uploaded!`);
       onVersionUploaded();
       handleClose();
     } catch (e: any) {
@@ -695,13 +665,9 @@ function NewVersionDrawer({
 
           {/* Action buttons */}
           <div className="space-y-2">
-            <Button onClick={() => uploadNewVersion(false)} disabled={uploading || !hasContent} variant="outline" className="w-full">
+            <Button onClick={() => uploadNewVersion()} disabled={uploading || !hasContent} className="w-full">
               {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Upload className="w-4 h-4 mr-2" /> Upload new version
-            </Button>
-            <Button onClick={() => uploadNewVersion(true)} disabled={uploading || !hasContent} className="w-full">
-              {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              <Bell className="w-4 h-4 mr-2" /> Upload and notify client
             </Button>
           </div>
         </div>
@@ -719,6 +685,8 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
   const [editing, setEditing] = useState(false);
   const [addAssetDrawer, setAddAssetDrawer] = useState<{ campaignId: string; campaignName: string } | null>(null);
   const [newVersionDrawer, setNewVersionDrawer] = useState<{ asset: AssetRow; campaignId: string; summary: string } | null>(null);
+  const [notifyConfirm, setNotifyConfirm] = useState<{ campaign: Campaign; assets: AssetRow[] } | null>(null);
+  const [notifying, setNotifying] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -1002,26 +970,63 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                     </div>
                   )}
 
-                  {/* Notify client */}
-                  <div className="p-4 flex items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const { data, error } = await supabase.functions.invoke("send-notification", {
-                            body: { type: "campaign_ready", client_id: clientId, campaign_name: campaign.name },
-                          });
-                          if (error) throw error;
-                          if (data?.error) throw new Error(data.error);
-                          toast.success("Client notified about this campaign!");
-                        } catch (e: any) {
-                          toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
-                        }
-                      }}
-                    >
-                      <Bell className="w-3.5 h-3.5 mr-1" /> Notify client about this campaign
-                    </Button>
+                  {/* Campaign notification status bar */}
+                  <div className="p-4">
+                    {(() => {
+                      const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+                      const uploadedTypes = types.filter((t) => cAssets.some((a) => a.asset_type === t));
+                      const missingTypes = types.filter((t) => !cAssets.some((a) => a.asset_type === t));
+                      const hasAnyAsset = cAssets.length > 0;
+                      const lastNotified = (campaign as any).last_notified_at;
+                      const hasNewSinceNotify = lastNotified && cAssets.some(
+                        (a) => new Date(a.created_at) > new Date(lastNotified)
+                      );
+
+                      return (
+                        <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign assets status</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {types.map((t) => {
+                              const uploaded = cAssets.some((a) => a.asset_type === t);
+                              return (
+                                <span key={t} className={`text-xs ${uploaded ? "text-foreground" : "text-muted-foreground"}`}>
+                                  {ASSET_TYPE_FULL[t]} {uploaded ? "✅ uploaded" : "⚪ missing"}
+                                </span>
+                              );
+                            })}
+                          </div>
+
+                          {missingTypes.length > 0 && hasAnyAsset && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-pending-review))]" />
+                              {missingTypes.map((t) => ASSET_TYPE_FULL[t]).join(" and ")} not uploaded yet. You can still notify client with available assets.
+                            </p>
+                          )}
+
+                          {lastNotified && !hasNewSinceNotify && (
+                            <p className="text-xs text-muted-foreground">
+                              Client notified on {format(new Date(lastNotified), "dd MMM yyyy")} at {format(new Date(lastNotified), "HH:mm")}
+                            </p>
+                          )}
+
+                          {lastNotified && hasNewSinceNotify && (
+                            <p className="text-xs text-[hsl(var(--status-pending-review))] flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> New assets added since last notification.
+                            </p>
+                          )}
+
+                          {hasAnyAsset && (
+                            <Button
+                              size="sm"
+                              onClick={() => setNotifyConfirm({ campaign, assets: cAssets })}
+                            >
+                              <Bell className="w-3.5 h-3.5 mr-1" />
+                              {lastNotified && hasNewSinceNotify ? "Notify client again" : "Notify client about this campaign"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
@@ -1144,6 +1149,105 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
           onVersionUploaded={() => onAssetsChanged?.()}
         />
       )}
+
+      {/* Notify confirmation modal */}
+      <Dialog open={!!notifyConfirm} onOpenChange={(o) => !o && setNotifyConfirm(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send campaign review to client?</DialogTitle>
+          </DialogHeader>
+          {notifyConfirm && (() => {
+            const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+            const includedAssets = notifyConfirm.assets;
+
+            return (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">Assets included in this notification:</p>
+                  <div className="space-y-1.5">
+                    {types.map((t) => {
+                      const typeAssets = includedAssets.filter((a) => a.asset_type === t);
+                      if (typeAssets.length > 0) {
+                        return typeAssets.map((a) => (
+                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                            <span>✅</span>
+                            <span className="text-foreground">{ASSET_TYPE_FULL[t]} — {a.asset_name}</span>
+                          </div>
+                        ));
+                      }
+                      return (
+                        <div key={t} className="flex items-center gap-2 text-sm">
+                          <span>⚪</span>
+                          <span className="text-muted-foreground">{ASSET_TYPE_FULL[t]} — not included (not uploaded)</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The client will be asked to review only the uploaded assets.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setNotifyConfirm(null)}>Cancel</Button>
+                  <Button
+                    disabled={notifying}
+                    onClick={async () => {
+                      setNotifying(true);
+                      try {
+                        // Set all uploaded assets to pending_review
+                        for (const a of includedAssets) {
+                          if (a.status !== "pending_review") {
+                            await supabase.from("assets").update({ status: "pending_review" } as any).eq("id", a.id);
+                          }
+                        }
+
+                        // Send notification
+                        const { data, error } = await supabase.functions.invoke("send-notification", {
+                          body: {
+                            type: "campaign_ready",
+                            client_id: clientId,
+                            campaign_name: notifyConfirm.campaign.name,
+                            asset_ids: includedAssets.map((a) => a.id),
+                          },
+                        });
+                        if (error) throw error;
+                        if (data?.error) throw new Error(data.error);
+
+                        // Update last_notified_at
+                        const now = new Date().toISOString();
+                        await (supabase.from("campaigns" as any) as any)
+                          .update({ last_notified_at: now, updated_at: now })
+                          .eq("id", notifyConfirm.campaign.id);
+
+                        onCampaignUpdated({ ...notifyConfirm.campaign, last_notified_at: now, updated_at: now } as Campaign);
+
+                        // Log activity
+                        await supabase.from("activity_log").insert({
+                          entity_type: "campaign",
+                          entity_id: notifyConfirm.campaign.id,
+                          entity_name: notifyConfirm.campaign.name,
+                          action: `Campaign '${notifyConfirm.campaign.name}' sent to client for review — ${includedAssets.length} assets included`,
+                        });
+
+                        toast.success(`Client notified about ${notifyConfirm.campaign.name}`);
+                        onAssetsChanged?.();
+                        setNotifyConfirm(null);
+                      } catch (e: any) {
+                        toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
+                      } finally {
+                        setNotifying(false);
+                      }
+                    }}
+                  >
+                    {notifying && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                    <Bell className="w-4 h-4 mr-2" /> Send notification
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
