@@ -41,6 +41,51 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_section_comments: {
+        Row: {
+          asset_id: string
+          client_id: string
+          comment_text: string
+          created_at: string
+          id: string
+          section_name: string
+          version_number: number
+        }
+        Insert: {
+          asset_id: string
+          client_id: string
+          comment_text: string
+          created_at?: string
+          id?: string
+          section_name: string
+          version_number?: number
+        }
+        Update: {
+          asset_id?: string
+          client_id?: string
+          comment_text?: string
+          created_at?: string
+          id?: string
+          section_name?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_section_comments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_section_comments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           asset_name: string
