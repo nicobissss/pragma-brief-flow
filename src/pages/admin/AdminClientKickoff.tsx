@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
+import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 
