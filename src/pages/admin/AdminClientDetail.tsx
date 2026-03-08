@@ -337,9 +337,7 @@ export default function AdminClientDetail() {
 
   // ─── Badge counts ──────────────────────────────────────
   const kickoffBadge = !kickoff?.transcript_text;
-  const assetsPendingCount = assets.filter(
-    (a) => a.status === "pending_review" || a.status === "change_requested"
-  ).length;
+  const changeRequestedCount = assets.filter((a) => a.status === "change_requested").length;
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!client) return <div className="p-8 text-muted-foreground">Client not found.</div>;
