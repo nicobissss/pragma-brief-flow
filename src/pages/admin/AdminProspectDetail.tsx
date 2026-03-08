@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ProposalView } from "@/components/proposal/ProposalView";
+import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MARKETS } from "@/lib/briefing-data";
@@ -163,6 +163,20 @@ export default function AdminProspectDetail() {
     if (ok) toast.success("Prospect archived");
   };
 
+  const handleSaveProposal = async (updatedData: ProposalData) => {
+    if (!prospect) return;
+    const { error } = await supabase
+      .from("proposals")
+      .update({ full_proposal_content: updatedData as any })
+      .eq("prospect_id", prospect.id);
+    if (error) {
+      toast.error("Failed to save proposal changes");
+      return;
+    }
+    setProposal(updatedData);
+    toast.success("Proposal changes saved");
+  };
+
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!prospect) return <div className="p-8 text-muted-foreground">Prospect not found.</div>;
 
@@ -253,7 +267,7 @@ export default function AdminProspectDetail() {
                   Last generated: {new Date(proposalDate).toLocaleString()}
                 </p>
               )}
-              <ProposalView data={proposal} />
+              <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
               <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
                 <Button onClick={handleMarkReady} disabled={prospect.status === "proposal_ready"}>
