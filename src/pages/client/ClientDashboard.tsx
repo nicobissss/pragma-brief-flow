@@ -127,12 +127,17 @@ export default function ClientDashboard() {
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);
 
-      const [assetsRes, campaignsRes, prospectRes] = await Promise.all([
+      const [assetsRes, campaignsRes, prospectRes, requestsRes] = await Promise.all([
         supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
         supabase.from("campaigns").select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
+        (supabase.from("client_asset_requests" as any) as any)
+          .select("requested_items, status")
+          .eq("client_id", client.id)
+          .in("status", ["pending", "partial"])
+          .limit(1),
       ]);
 
       if (assetsRes.data) setAllAssets(assetsRes.data as AssetItem[]);
@@ -141,6 +146,11 @@ export default function ClientDashboard() {
       if (prospectRes.data) {
         setProspectData(prospectRes.data);
         setBriefingAnswers((prospectRes.data as any).briefing_answers || {});
+      }
+
+      if (requestsRes.data && requestsRes.data.length > 0) {
+        const pending = (requestsRes.data[0].requested_items as any[]).filter((i: any) => i.status === "pending").length;
+        setPendingRequestCount(pending);
       }
 
       setLoading(false);
