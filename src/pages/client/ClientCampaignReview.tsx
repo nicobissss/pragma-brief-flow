@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { CommentableSection } from "@/components/client/CommentableSection";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Send, Loader2, ArrowLeft, Target, Users, MessageSquare, Calendar } from "lucide-react";
+import { CheckCircle2, Send, Loader2, ArrowLeft, Target, Users, MessageSquare, Calendar } from "lucide-react";
+import { AssetPreview } from "@/components/client/AssetPreview";
 
 type Asset = {
   id: string;
