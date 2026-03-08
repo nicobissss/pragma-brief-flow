@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, LogOut, LayoutDashboard } from "lucide-react";
+import { FileText, LogOut, LayoutDashboard, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function ClientLayout() {
   const [loading, setLoading] = useState(true);
