@@ -100,6 +100,8 @@ export default function AdminClientKickoff() {
   const [materials, setMaterials] = useState<ClientMaterialsData>({});
   const [generating, setGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
+  const [contextSources, setContextSources] = useState<any>(null);
+  const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
