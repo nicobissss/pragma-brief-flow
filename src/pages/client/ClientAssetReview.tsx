@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentableSection } from "@/components/client/CommentableSection";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, Send, Loader2 } from "lucide-react";
+import { AssetPreview } from "@/components/client/AssetPreview";
 
 type Asset = {
   id: string;
