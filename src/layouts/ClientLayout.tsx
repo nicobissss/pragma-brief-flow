@@ -27,10 +27,22 @@ export default function ClientLayout() {
         setAuthorized(true);
         const { data: client } = await supabase
           .from("clients")
-          .select("company_name")
+          .select("id, company_name")
           .eq("user_id", session.user.id)
           .single();
-        if (client) setCompanyName(client.company_name);
+        if (client) {
+          setCompanyName(client.company_name);
+          // Check for pending asset requests
+          const { data: requests } = await (supabase.from("client_asset_requests" as any) as any)
+            .select("requested_items")
+            .eq("client_id", client.id)
+            .in("status", ["pending", "partial"])
+            .limit(1);
+          if (requests && requests.length > 0) {
+            const pending = (requests[0].requested_items as any[]).filter((i: any) => i.status === "pending").length;
+            setPendingRequests(pending);
+          }
+        }
       } else {
         navigate("/login");
       }
