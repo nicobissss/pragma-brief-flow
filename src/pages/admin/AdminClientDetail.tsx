@@ -14,6 +14,7 @@ import {
   ChevronDown, ChevronUp, Building2, Calendar, Globe,
 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
+import KickoffQuestionsManager from "@/components/kickoff/KickoffQuestionsManager";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { AssetCollectionRequest } from "@/components/admin/AssetCollectionRequest";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
