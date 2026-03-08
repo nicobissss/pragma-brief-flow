@@ -315,8 +315,8 @@ export default function ClientCampaignReview() {
                       />
                     </div>
 
-                    {/* Feedback area (only if not already approved) */}
-                    {!isReviewed && (
+                    {/* Feedback area — show for pending_review and change_requested */}
+                    {canReview && (
                       <div className="p-4 border-t border-border space-y-4">
                         {/* Previous feedback */}
                         {asset.client_comment && (
@@ -364,8 +364,8 @@ export default function ClientCampaignReview() {
                       </div>
                     )}
 
-                    {/* Already reviewed — show status */}
-                    {isReviewed && asset.client_comment && (
+                    {/* Approved — show read-only feedback if any */}
+                    {isApproved && asset.client_comment && (
                       <div className="p-4 border-t border-border">
                         <div className="bg-muted/50 rounded-md p-3">
                           <p className="text-xs font-medium text-muted-foreground mb-1">Your feedback:</p>
