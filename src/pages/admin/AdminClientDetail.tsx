@@ -186,8 +186,8 @@ export default function AdminClientDetail() {
       const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
       const assetsPromise = supabase.from("assets").select("id, asset_type, status").eq("client_id", id!);
 
-      let prospectPromise: ReturnType<typeof supabase.from<"prospects">["select"]> | null = null;
-      let proposalPromise: ReturnType<typeof supabase.from<"proposals">["select"]> | null = null;
+      let prospectPromise: any = null;
+      let proposalPromise: any = null;
 
       if (clientData.prospect_id) {
         prospectPromise = supabase.from("prospects").select("*").eq("id", clientData.prospect_id).single();
