@@ -77,10 +77,6 @@ export default function AdminClientDetail() {
           supabase.from("prospects").select("briefing_answers").eq("id", clientData.prospect_id).single(),
         ]);
 
-        const proposalData = proposalRes as any;
-        const prospectData = prospectRes as any;
-        const proposalRes = results[1] as any;
-        const prospectRes = results[2] as any;
         if (proposalRes?.data?.full_proposal_content) {
           setProposal(proposalRes.data.full_proposal_content as ProposalData);
         }
