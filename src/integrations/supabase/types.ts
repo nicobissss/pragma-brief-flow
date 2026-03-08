@@ -412,6 +412,44 @@ export type Database = {
           },
         ]
       }
+      kickoff_questions: {
+        Row: {
+          category: string
+          client_id: string
+          created_at: string
+          id: string
+          is_checked: boolean
+          order_index: number
+          question_text: string
+        }
+        Insert: {
+          category?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          order_index?: number
+          question_text: string
+        }
+        Update: {
+          category?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          order_index?: number
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kickoff_questions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_base: {
         Row: {
           category: string
