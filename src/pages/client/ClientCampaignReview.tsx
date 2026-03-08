@@ -195,7 +195,7 @@ export default function ClientCampaignReview() {
   if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
   if (!campaign) return <div className="text-muted-foreground p-8">Campaign not found.</div>;
 
-  const reviewedCount = assets.filter((a) => a.status === "approved" || a.status === "change_requested").length;
+  const reviewedCount = assets.filter((a) => a.status === "approved").length;
   const allDone = assets.length > 0 && reviewedCount === assets.length;
   const progressPct = assets.length > 0 ? (reviewedCount / assets.length) * 100 : 0;
 
