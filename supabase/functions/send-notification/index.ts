@@ -123,9 +123,26 @@ Deno.serve(async (req) => {
 
     // ── campaign_ready: notify client about a full campaign ready for review ──
     if (type === "campaign_ready") {
-      // Fetch campaign assets for the email body
       let assetListHtml = "";
-      if (campaign_name) {
+      let assetCount = 0;
+
+      // If asset_ids provided, fetch those specific assets
+      if (asset_ids && asset_ids.length > 0) {
+        const { data: assets } = await supabaseAdmin
+          .from("assets")
+          .select("asset_name, asset_type")
+          .in("id", asset_ids);
+
+        if (assets && assets.length > 0) {
+          assetCount = assets.length;
+          assetListHtml = `
+            <ul style="color: #4a5568; line-height: 1.8;">
+              ${assets.map(a => `<li>${ASSET_TYPE_LABELS[a.asset_type] || a.asset_type}: ${a.asset_name}</li>`).join("")}
+            </ul>
+          `;
+        }
+      } else if (campaign_name) {
+        // Fallback: fetch by campaign name
         const { data: campaigns } = await supabaseAdmin
           .from("campaigns")
           .select("id")
@@ -141,43 +158,34 @@ Deno.serve(async (req) => {
             .eq("status", "pending_review");
 
           if (assets && assets.length > 0) {
+            assetCount = assets.length;
             assetListHtml = `
               <ul style="color: #4a5568; line-height: 1.8;">
-                ${assets.map(a => `<li>${a.asset_name} (${ASSET_TYPE_LABELS[a.asset_type] || a.asset_type})</li>`).join("")}
+                ${assets.map(a => `<li>${ASSET_TYPE_LABELS[a.asset_type] || a.asset_type}: ${a.asset_name}</li>`).join("")}
               </ul>
             `;
           }
         }
       }
 
-      const subject = `PRAGMA — Campaign "${campaign_name || "New campaign"}" is ready for review`;
+      const subject = `New campaign ready for your review — ${campaign_name || "New campaign"}`;
       const html = emailWrapper(`
         <h2 style="color: #1a365d;">Hi ${client.name},</h2>
         <p style="color: #4a5568; line-height: 1.6;">
-          Your campaign <strong>"${campaign_name || "New campaign"}"</strong> has assets ready for your review.
+          Your <strong>${campaign_name || "New campaign"}</strong> campaign assets are ready for your review.
         </p>
-        ${assetListHtml ? `<p style="color: #4a5568;">Assets to review:</p>${assetListHtml}` : ""}
-        <p style="color: #4a5568; line-height: 1.6;">
-          Please log in to your dashboard to review and approve or request changes.
-        </p>
+        ${assetListHtml ? `<p style="color: #4a5568;">Please review and approve the following:</p>${assetListHtml}` : ""}
         <div style="margin: 30px 0;">
           <a href="${APP_URL}/client/dashboard"
              style="background-color: #1a365d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
-            Review Campaign
+            Review Campaign →
           </a>
         </div>
       `);
 
       await sendEmail(client.email, subject, html);
 
-      await supabaseAdmin.from("activity_log").insert({
-        entity_type: "client",
-        entity_id: client_id,
-        entity_name: client.name,
-        action: `notified about campaign "${campaign_name}"`,
-      });
-
-      return new Response(JSON.stringify({ success: true, sent_to: client.email }), {
+      return new Response(JSON.stringify({ success: true, sent_to: client.email, assets_included: assetCount }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
