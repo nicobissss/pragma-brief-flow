@@ -123,8 +123,9 @@ export default function AdminClientKickoff() {
           setKickoff(kickoffData as KickoffBrief);
           setTranscriptText(kickoffData.transcript_text || "");
           setMaterials((kickoffData as any).client_materials || {});
-          if (kickoffData.generated_prompts?.raw_text) {
-            setGeneratedPrompts(kickoffData.generated_prompts.raw_text);
+          const gp = kickoffData.generated_prompts as any;
+          if (gp?.raw_text) {
+            setGeneratedPrompts(gp.raw_text);
           }
         }
       }
