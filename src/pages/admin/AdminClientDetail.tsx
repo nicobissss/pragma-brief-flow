@@ -195,7 +195,8 @@ export default function AdminClientDetail() {
 
       // Parallel fetches
       const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
-      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at").eq("client_id", id!);
+      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id").eq("client_id", id!);
+      const campaignsPromise = (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false });
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
