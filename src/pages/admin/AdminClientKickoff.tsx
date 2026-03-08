@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
+import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 
@@ -88,6 +88,17 @@ function generateQuestions(vertical: string, subNiche: string): Record<string, s
   return base;
 }
 
+function ContextLine({ label, included }: { label: string; included: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span>{included ? "✅" : "⚪"}</span>
+      <span className={included ? "text-foreground" : "text-muted-foreground"}>
+        {label}{!included && " (not provided)"}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminClientKickoff() {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<Client | null>(null);
@@ -100,6 +111,8 @@ export default function AdminClientKickoff() {
   const [materials, setMaterials] = useState<ClientMaterialsData>({});
   const [generating, setGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
+  const [contextSources, setContextSources] = useState<any>(null);
+  const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -126,6 +139,7 @@ export default function AdminClientKickoff() {
           const gp = kickoffData.generated_prompts as any;
           if (gp?.raw_text) {
             setGeneratedPrompts(gp.raw_text);
+            if (gp.context_sources) setContextSources(gp.context_sources);
           }
         }
       }
@@ -206,6 +220,7 @@ export default function AdminClientKickoff() {
       if (error) throw error;
       if (data?.prompts) {
         setGeneratedPrompts(data.prompts);
+        if (data.context_sources) setContextSources(data.context_sources);
         toast.success("Prompts generated successfully!");
         setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       } else {
@@ -406,10 +421,41 @@ export default function AdminClientKickoff() {
               )}
             </Tooltip>
           </TooltipProvider>
+          {/* Context sources collapsible */}
+          {contextSources && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowContextSources(!showContextSources)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showContextSources ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                Context used for generation
+              </button>
+              {showContextSources && (
+                <div className="mt-2 p-3 rounded-md bg-secondary/50 text-xs space-y-1">
+                  <ContextLine label="Transcript" included={contextSources.transcript} />
+                  <ContextLine label="Briefing answers" included={contextSources.briefing_answers} />
+                  <ContextLine label="Proposal" included={contextSources.proposal} />
+                  <ContextLine label="Brand colors" included={contextSources.brand_colors} />
+                  <ContextLine label="Brand personality" included={contextSources.brand_tags} />
+                  <ContextLine label="Website analysis" included={contextSources.website_context} />
+                  <ContextLine label="Pricing PDF" included={contextSources.pricing_pdf} />
+                  <ContextLine
+                    label={`Photos${contextSources.photos?.count ? ` (${contextSources.photos.count} assets)` : ""}`}
+                    included={contextSources.photos?.included}
+                  />
+                  <ContextLine label="Existing emails" included={contextSources.emails} />
+                  <ContextLine
+                    label={`Social posts${contextSources.social_posts?.count ? ` (${contextSources.social_posts.count} posts)` : ""}`}
+                    included={contextSources.social_posts?.included}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Generated Prompts Section */}
       {generatedPrompts && (
         <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
