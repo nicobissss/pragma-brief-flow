@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +60,25 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        vertical: {
+          salud: "hsl(var(--vertical-salud))",
+          elearning: "hsl(var(--vertical-elearning))",
+          deporte: "hsl(var(--vertical-deporte))",
+        },
+        pitch: {
+          bg: "hsl(var(--pitch-bg))",
+          border: "hsl(var(--pitch-border))",
+        },
+        status: {
+          new: "hsl(var(--status-new))",
+          "proposal-ready": "hsl(var(--status-proposal-ready))",
+          "call-scheduled": "hsl(var(--status-call-scheduled))",
+          accepted: "hsl(var(--status-accepted))",
+          rejected: "hsl(var(--status-rejected))",
+          "pending-review": "hsl(var(--status-pending-review))",
+          "change-requested": "hsl(var(--status-change-requested))",
+          approved: "hsl(var(--status-approved))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,20 +87,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
