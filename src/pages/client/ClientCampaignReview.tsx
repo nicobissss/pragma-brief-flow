@@ -1,14 +1,27 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { CommentableSection } from "@/components/client/CommentableSection";
+import { Progress } from "@/components/ui/progress";
 import { AssetPreview } from "@/components/client/AssetPreview";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { CheckCircle2, Send, Loader2, ArrowLeft, Target, Users, MessageSquare, Calendar, FileText, Mail, Image, PenTool, Eye } from "lucide-react";
+import {
+  CheckCircle2, Send, Loader2, ArrowLeft, Target, Users,
+  MessageSquare, Calendar, FileText, Mail, Image, PenTool,
+  ChevronDown, ChevronUp, Clock, RotateCcw, CheckCheck,
+} from "lucide-react";
 
 type Asset = {
   id: string;
@@ -32,13 +45,6 @@ type Campaign = {
   status: string;
 };
 
-const typeLabels: Record<string, string> = {
-  landing_page: "Landing Page",
-  email_flow: "Email Flow",
-  social_post: "Social Posts",
-  blog_article: "Blog Articles",
-};
-
 const typeIcons: Record<string, any> = {
   landing_page: FileText,
   email_flow: Mail,
@@ -46,20 +52,50 @@ const typeIcons: Record<string, any> = {
   blog_article: PenTool,
 };
 
-const LANDING_PAGE_SECTIONS = ["Hero", "Benefits", "Social proof", "Offer/pricing", "Footer CTA"];
+function AssetStatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case "pending_review":
+      return (
+        <Badge className="bg-[hsl(var(--status-pending-review))]/15 text-[hsl(var(--status-pending-review))] border-[hsl(var(--status-pending-review))]/30 gap-1">
+          <Clock className="w-3 h-3" /> Pending your review
+        </Badge>
+      );
+    case "approved":
+      return (
+        <Badge className="bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30 gap-1">
+          <CheckCircle2 className="w-3 h-3" /> Approved
+        </Badge>
+      );
+    case "change_requested":
+      return (
+        <Badge className="bg-[hsl(var(--status-change-requested))]/15 text-[hsl(var(--status-change-requested))] border-[hsl(var(--status-change-requested))]/30 gap-1">
+          <RotateCcw className="w-3 h-3" /> New version ready
+        </Badge>
+      );
+    default:
+      return (
+        <Badge variant="outline" className="gap-1">
+          <CheckCheck className="w-3 h-3" /> Feedback submitted
+        </Badge>
+      );
+  }
+}
 
 export default function ClientCampaignReview() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
+  const [feedbackTexts, setFeedbackTexts] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
-  const [sectionComments, setSectionComments] = useState<Record<string, Record<string, string>>>({});
-  const [generalComments, setGeneralComments] = useState<Record<string, string>>({});
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: "approve" | "feedback";
+    asset: Asset;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,130 +107,100 @@ export default function ClientCampaignReview() {
       if (!client) { setLoading(false); return; }
       setClientId(client.id);
 
-      // Fetch campaign
       const { data: campaignData } = await supabase.from("campaigns")
         .select("*").eq("id", id!).single();
       if (campaignData) setCampaign(campaignData as unknown as Campaign);
 
-      // Fetch assets for this campaign
       const { data: assetsData } = await supabase.from("assets")
         .select("*").eq("client_id", client.id).eq("campaign_id", id!).order("created_at");
       const assetList = (assetsData as unknown as Asset[]) || [];
       setAssets(assetList);
-
-      // Pre-fill general comments
-      const genMap: Record<string, string> = {};
-      for (const a of assetList) {
-        if (a.client_comment) genMap[a.id] = a.client_comment;
-      }
-      setGeneralComments(genMap);
-
-      // Load existing section comments
-      if (assetList.length > 0) {
-        const assetIds = assetList.map((a) => a.id);
-        const { data: comments } = await supabase.from("asset_section_comments")
-          .select("*").in("asset_id", assetIds).eq("client_id", client.id);
-        if (comments && Array.isArray(comments)) {
-          const map: Record<string, Record<string, string>> = {};
-          for (const c of comments) {
-            if (!map[c.asset_id]) map[c.asset_id] = {};
-            map[c.asset_id][c.section_name] = c.comment_text;
-          }
-          setSectionComments(map);
-        }
-      }
       setLoading(false);
     };
     fetchData();
   }, [id]);
 
-  const updateSectionComment = (assetId: string, section: string, text: string) => {
-    setSectionComments((prev) => {
-      const assetComments = { ...(prev[assetId] || {}) };
-      if (text.trim()) assetComments[section] = text;
-      else delete assetComments[section];
-      return { ...prev, [assetId]: assetComments };
-    });
-  };
-
   const approveAsset = async (asset: Asset) => {
-    const { error } = await supabase.from("assets").update({ status: "approved" as any }).eq("id", asset.id);
-    if (error) { toast.error(error.message); return; }
-    setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
-    toast.success(`${asset.asset_name} approved!`);
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from("assets")
+        .update({ status: "approved" as any }).eq("id", asset.id);
+      if (error) throw error;
+      setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
+      setExpandedAsset(null);
+      toast.success(`${asset.asset_name} approved!`);
+
+      supabase.functions.invoke("send-notification", {
+        body: { type: "client_feedback", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name, comment: "Asset approved" },
+      }).catch(console.error);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to approve");
+    } finally {
+      setSubmitting(false);
+      setConfirmDialog(null);
+    }
   };
 
-  const submitFeedbackForAsset = async (asset: Asset) => {
-    const sections = sectionComments[asset.id] || {};
-    const sectionEntries = Object.entries(sections).filter(([_, t]) => t.trim());
-    const gen = generalComments[asset.id]?.trim();
-    if (sectionEntries.length === 0 && !gen) {
-      toast.error("Add at least one comment before submitting.");
+  const submitFeedback = async (asset: Asset) => {
+    const text = feedbackTexts[asset.id]?.trim() || "";
+    if (text.length < 20) {
+      toast.error("Please write at least 20 characters of feedback.");
       return;
     }
 
-    setSubmittingFeedback(true);
+    setSubmitting(true);
     try {
-      // Delete old section comments for this asset
-      await supabase.from("asset_section_comments").delete().eq("asset_id", asset.id).eq("client_id", clientId!);
+      await supabase.from("assets").update({
+        status: "change_requested" as any,
+        client_comment: text,
+      }).eq("id", asset.id);
 
-      // Insert new section comments
-      if (sectionEntries.length > 0) {
-        const rows = sectionEntries.map(([section, text]) => ({
-          asset_id: asset.id, client_id: clientId!, section_name: section, comment_text: text.trim(), version_number: asset.version || 1,
-        }));
-        await supabase.from("asset_section_comments").insert(rows);
-      }
-
-      // Update asset
-      await supabase.from("assets").update({ status: "change_requested" as any, client_comment: gen || null }).eq("id", asset.id);
-
-      // Create revision round
       const { data: existingRounds } = await supabase.from("revision_rounds")
-        .select("round_number").eq("asset_id", asset.id).order("round_number", { ascending: false }).limit(1);
+        .select("round_number").eq("asset_id", asset.id)
+        .order("round_number", { ascending: false }).limit(1);
       const nextRound = (existingRounds?.[0]?.round_number || 0) + 1;
-      const sectionTexts = sectionEntries.map(([s, t]) => `[${s}] ${t.trim()}`).join("\n");
-      const fullComment = [sectionTexts, gen ? `[General] ${gen}` : ""].filter(Boolean).join("\n");
+
       await supabase.from("revision_rounds").insert({
-        asset_id: asset.id, round_number: nextRound, requested_by: "client" as any, comment: fullComment || "Feedback submitted",
+        asset_id: asset.id,
+        round_number: nextRound,
+        requested_by: "client" as any,
+        comment: text,
       });
 
-      setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "change_requested", client_comment: gen || a.client_comment } : a));
+      setAssets((prev) => prev.map((a) =>
+        a.id === asset.id ? { ...a, status: "change_requested", client_comment: text } : a
+      ));
       setExpandedAsset(null);
 
-      // Trigger correction prompt
       supabase.functions.invoke("generate-correction-prompt", { body: { asset_id: asset.id } }).catch(console.error);
       supabase.functions.invoke("send-notification", {
-        body: { type: "client_feedback", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name, comment: `${sectionEntries.length} section comment(s)` },
+        body: { type: "client_feedback", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name, comment: text },
       }).catch(console.error);
 
       toast.success("Feedback submitted!");
     } catch (e: any) {
       toast.error(e.message || "Failed to submit");
     } finally {
-      setSubmittingFeedback(false);
+      setSubmitting(false);
+      setConfirmDialog(null);
     }
+  };
+
+  const handleConfirm = () => {
+    if (!confirmDialog) return;
+    if (confirmDialog.type === "approve") approveAsset(confirmDialog.asset);
+    else submitFeedback(confirmDialog.asset);
   };
 
   if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
   if (!campaign) return <div className="text-muted-foreground p-8">Campaign not found.</div>;
 
-  const allApproved = assets.length > 0 && assets.every((a) => a.status === "approved");
-  const getSectionsForType = (type: string) => {
-    if (type === "landing_page") return LANDING_PAGE_SECTIONS;
-    if (type === "email_flow") return ["Subject line", "Preview text", "Body content", "CTA button"];
-    if (type === "social_post") return ["Image", "Caption", "Hashtags"];
-    return [];
-  };
-
-  const getAssetActionLabel = (status: string) => {
-    if (status === "approved") return "View approved version →";
-    if (status === "change_requested") return "New version available →";
-    return "Review →";
-  };
+  const reviewedCount = assets.filter((a) => a.status === "approved" || a.status === "change_requested").length;
+  const allDone = assets.length > 0 && reviewedCount === assets.length;
+  const progressPct = assets.length > 0 ? (reviewedCount / assets.length) * 100 : 0;
 
   return (
-    <div>
+    <div className="pb-24 md:pb-8">
       <Button variant="ghost" size="sm" asChild className="mb-4">
         <Link to="/client/dashboard"><ArrowLeft className="w-4 h-4 mr-1" /> Back to dashboard</Link>
       </Button>
@@ -205,13 +211,23 @@ export default function ClientCampaignReview() {
         <Badge variant="outline" className="text-xs">{campaign.status}</Badge>
       </div>
 
-      {/* Campaign approved banner */}
-      {allApproved && (
-        <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
-          <p className="text-lg font-bold">✅ Campaign approved!</p>
-          <p className="text-sm mt-1 text-white/90">PRAGMA will now activate these assets.</p>
+      {/* Progress summary — sticky on desktop */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border -mx-4 px-4 py-3 mb-4 md:-mx-6 md:px-6">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-sm font-medium text-foreground">
+            {reviewedCount} of {assets.length} assets reviewed
+          </span>
+          <span className="text-xs text-muted-foreground">{Math.round(progressPct)}%</span>
         </div>
-      )}
+        <Progress value={progressPct} className="h-2" />
+        {allDone && (
+          <div className="mt-3 rounded-lg p-3 bg-[hsl(var(--status-approved))]/10 border border-[hsl(var(--status-approved))]/30">
+            <p className="text-sm font-medium text-[hsl(var(--status-approved))] flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> All done! PRAGMA has been notified.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Campaign brief */}
       <p className="text-sm text-muted-foreground mb-3">Here is the strategy behind this campaign.</p>
@@ -251,45 +267,41 @@ export default function ClientCampaignReview() {
           No assets in this campaign yet. We'll notify you when they're ready.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {assets.map((asset) => {
             const Icon = typeIcons[asset.asset_type] || FileText;
             const isExpanded = expandedAsset === asset.id;
-            const sections = getSectionsForType(asset.asset_type);
+            const feedbackText = feedbackTexts[asset.id] || "";
+            const canSubmitFeedback = feedbackText.trim().length >= 20;
+            const isReviewed = asset.status === "approved" || asset.status === "change_requested";
 
             return (
               <div key={asset.id} className="bg-card rounded-lg border border-border overflow-hidden">
-                {/* Asset summary row */}
-                <div className="p-4 flex items-center justify-between">
+                {/* Collapsed header */}
+                <button
+                  className="w-full p-4 flex items-center justify-between text-left hover:bg-secondary/30 transition-colors"
+                  onClick={() => setExpandedAsset(isExpanded ? null : asset.id)}
+                >
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-md bg-secondary">
                       <Icon className="w-4 h-4 text-foreground" />
                     </div>
                     <div>
                       <h3 className="font-medium text-foreground text-sm">{asset.asset_name}</h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="outline" className="text-[10px]">{typeLabels[asset.asset_type] || asset.asset_type}</Badge>
-                        <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
-                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <StatusBadge status={asset.status} />
-                    <Button
-                      size="sm"
-                      variant={isExpanded ? "secondary" : "default"}
-                      onClick={() => setExpandedAsset(isExpanded ? null : asset.id)}
-                    >
-                      {asset.status === "approved" ? (
-                        <><Eye className="w-4 h-4 mr-1" /> View</>
-                      ) : (
-                        <>{getAssetActionLabel(asset.status)}</>
-                      )}
-                    </Button>
+                    <AssetStatusBadge status={asset.status} />
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    )}
                   </div>
-                </div>
+                </button>
 
-                {/* Expanded review panel */}
+                {/* Expanded content */}
                 {isExpanded && (
                   <div className="border-t border-border">
                     {/* Asset preview */}
@@ -302,56 +314,63 @@ export default function ClientCampaignReview() {
                       />
                     </div>
 
-                    {/* Commentable sections */}
-                    {asset.status !== "approved" && (
-                      <>
-                        <div className="p-4 space-y-1 border-t border-border">
-                          {sections.map((section) => (
-                            <CommentableSection
-                              key={section}
-                              name={section}
-                              comment={sectionComments[asset.id]?.[section] || ""}
-                              onComment={(t) => updateSectionComment(asset.id, section, t)}
-                            >
-                              <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()} section</p>
-                            </CommentableSection>
-                          ))}
+                    {/* Feedback area (only if not already approved) */}
+                    {!isReviewed && (
+                      <div className="p-4 border-t border-border space-y-4">
+                        {/* Previous feedback */}
+                        {asset.client_comment && (
+                          <div className="bg-muted/50 rounded-md p-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                              Your previous feedback (v{Math.max(1, (asset.version || 1) - 1)}):
+                            </p>
+                            <p className="text-sm text-muted-foreground italic">{asset.client_comment}</p>
+                          </div>
+                        )}
 
-                          {/* Blog: split paragraphs */}
-                          {asset.asset_type === "blog_article" && asset.content?.text && (() => {
-                            const paragraphs = asset.content.text.split(/\n\n+/).filter((p: string) => p.trim());
-                            return paragraphs.map((para: string, i: number) => {
-                              const key = i === 0 ? "Title" : `Paragraph ${i}`;
-                              return (
-                                <CommentableSection key={key} name={key} comment={sectionComments[asset.id]?.[key] || ""} onComment={(t) => updateSectionComment(asset.id, key, t)}>
-                                  <p className={`text-sm ${i === 0 ? "font-semibold text-foreground text-lg" : "text-foreground whitespace-pre-wrap"}`}>{para}</p>
-                                </CommentableSection>
-                              );
-                            });
-                          })()}
-                        </div>
-
-                        {/* General comment */}
-                        <div className="px-4 pb-4">
+                        <div>
+                          <label className="text-sm font-medium text-foreground mb-1.5 block">Your feedback:</label>
                           <Textarea
-                            placeholder="General comments (optional)"
-                            value={generalComments[asset.id] || ""}
-                            onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
-                            className="min-h-[60px] text-sm"
+                            placeholder="What would you like to change? (optional for approval, min 20 chars for feedback)"
+                            value={feedbackText}
+                            onChange={(e) => setFeedbackTexts((prev) => ({ ...prev, [asset.id]: e.target.value }))}
+                            className="min-h-[80px] text-sm"
                           />
+                          {feedbackText.trim().length > 0 && feedbackText.trim().length < 20 && (
+                            <p className="text-xs text-destructive mt-1">
+                              {20 - feedbackText.trim().length} more characters needed
+                            </p>
+                          )}
                         </div>
 
-                        {/* Actions */}
-                        <div className="p-4 border-t border-border flex gap-3">
-                          <Button size="sm" onClick={() => approveAsset(asset)} className="bg-[hsl(var(--status-approved))] hover:bg-[hsl(var(--status-approved))]/90 text-primary-foreground">
+                        <div className="flex items-center gap-3">
+                          <Button
+                            size="sm"
+                            onClick={() => setConfirmDialog({ type: "approve", asset })}
+                            disabled={submitting}
+                            className="bg-[hsl(var(--status-approved))] hover:bg-[hsl(var(--status-approved))]/90 text-primary-foreground"
+                          >
                             <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => submitFeedbackForAsset(asset)} disabled={submittingFeedback}>
-                            {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                            Submit feedback
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirmDialog({ type: "feedback", asset })}
+                            disabled={submitting || !canSubmitFeedback}
+                          >
+                            <Send className="w-4 h-4 mr-1" /> Submit feedback
                           </Button>
                         </div>
-                      </>
+                      </div>
+                    )}
+
+                    {/* Already reviewed — show status */}
+                    {isReviewed && asset.client_comment && (
+                      <div className="p-4 border-t border-border">
+                        <div className="bg-muted/50 rounded-md p-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Your feedback:</p>
+                          <p className="text-sm text-muted-foreground italic">{asset.client_comment}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -360,6 +379,40 @@ export default function ClientCampaignReview() {
           })}
         </div>
       )}
+
+      {/* Mobile sticky bottom progress */}
+      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-card border-t border-border p-3 z-20">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-medium text-foreground">{reviewedCount}/{assets.length} reviewed</span>
+          {allDone && <span className="text-xs text-[hsl(var(--status-approved))] font-medium">✅ All done!</span>}
+        </div>
+        <Progress value={progressPct} className="h-1.5" />
+      </div>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={!!confirmDialog} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog?.type === "approve"
+                ? `Confirm approval of ${confirmDialog?.asset.asset_name}?`
+                : `Submit feedback for ${confirmDialog?.asset.asset_name}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog?.type === "approve"
+                ? "This asset will be marked as approved and PRAGMA will proceed with activation."
+                : "PRAGMA will be notified and will upload a revised version."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm} disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+              {confirmDialog?.type === "approve" ? "Approve" : "Submit"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
