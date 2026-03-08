@@ -110,6 +110,7 @@ export default function ClientDashboard() {
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
