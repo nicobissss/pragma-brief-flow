@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Copy, Upload, CheckCircle2 } from "lucide-react";
+import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 
 type Client = {
   id: string;
