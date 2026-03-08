@@ -142,6 +142,7 @@ export type Database = {
         Row: {
           audio_file_url: string | null
           client_id: string
+          client_materials: Json | null
           created_at: string
           generated_prompts: Json | null
           id: string
@@ -155,6 +156,7 @@ export type Database = {
         Insert: {
           audio_file_url?: string | null
           client_id: string
+          client_materials?: Json | null
           created_at?: string
           generated_prompts?: Json | null
           id?: string
@@ -168,6 +170,7 @@ export type Database = {
         Update: {
           audio_file_url?: string | null
           client_id?: string
+          client_materials?: Json | null
           created_at?: string
           generated_prompts?: Json | null
           id?: string

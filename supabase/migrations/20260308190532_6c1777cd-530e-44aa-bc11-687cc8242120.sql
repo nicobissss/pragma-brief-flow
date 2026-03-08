@@ -1,0 +1,1 @@
+ALTER TABLE public.kickoff_briefs ADD COLUMN IF NOT EXISTS client_materials jsonb DEFAULT '{}'::jsonb;

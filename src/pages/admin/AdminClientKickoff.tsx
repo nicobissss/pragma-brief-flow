@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Copy, Upload, CheckCircle2 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
+import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 
 type Client = {
   id: string;
@@ -95,6 +96,7 @@ export default function AdminClientKickoff() {
   const [transcriptText, setTranscriptText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [materials, setMaterials] = useState<ClientMaterialsData>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,6 +118,7 @@ export default function AdminClientKickoff() {
         if (kickoffData) {
           setKickoff(kickoffData as KickoffBrief);
           setTranscriptText(kickoffData.transcript_text || "");
+          setMaterials((kickoffData as any).client_materials || {});
         }
       }
 
@@ -324,6 +327,26 @@ export default function AdminClientKickoff() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* SECTION 2.5: Client Materials */}
+      <ClientMaterials
+        clientId={client.id}
+        kickoffId={kickoff?.id || null}
+        materials={materials}
+        onMaterialsChange={setMaterials}
+        onSave={async (m) => {
+          if (kickoff) {
+            await supabase.from("kickoff_briefs").update({ client_materials: m } as any).eq("id", kickoff.id);
+          } else {
+            const { data } = await supabase.from("kickoff_briefs").insert({
+              client_id: client.id,
+              suggested_questions: questions,
+              client_materials: m,
+            } as any).select().single();
+            if (data) setKickoff(data as KickoffBrief);
+          }
+        }}
+      />
 
       {/* SECTION 3: Asset Upload Zones */}
       <div className="space-y-4">
