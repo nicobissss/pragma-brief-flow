@@ -215,20 +215,29 @@ export default function ClientDashboard() {
 
           {!briefingAnswers ? (
             <div className="bg-card rounded-lg border border-border p-8 text-center">
-              <p className="text-muted-foreground">No briefing data available.</p>
+              <p className="text-muted-foreground">Briefing information not available yet.</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {Object.entries(briefingFields).map(([section, fields]) => (
-                <div key={section} className="bg-card rounded-lg border border-border p-6">
-                  <h3 className="font-semibold text-foreground mb-3">{section}</h3>
-                  {fields.map((f) => {
-                    const value = f.source === "prospect"
-                      ? prospectData?.[f.key]
-                      : briefingAnswers[f.key];
-                    return <BriefingRow key={f.key} label={f.label} value={value} />;
-                  })}
-                </div>
+                <Collapsible key={section} defaultOpen>
+                  <div className="bg-card rounded-lg border border-border overflow-hidden">
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
+                      <h3 className="font-semibold text-foreground">{section}</h3>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-6 pb-4">
+                        {fields.map((f) => {
+                          const value = f.source === "prospect"
+                            ? prospectData?.[f.key]
+                            : briefingAnswers[f.key];
+                          return <BriefingRow key={f.key} label={f.label} value={value} />;
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
               ))}
             </div>
           )}
