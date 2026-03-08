@@ -5,22 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format, formatDistanceToNow, isToday, isBefore, startOfDay, differenceInDays, startOfWeek } from "date-fns";
+import { format, formatDistanceToNow, isToday, isBefore, startOfDay, differenceInDays, startOfWeek, startOfMonth } from "date-fns";
 import {
-  Users, Building2, FileWarning, CalendarClock, Eye,
-  FileText, Phone, UserCheck, UserX, Archive, MessageSquare, CheckCircle2, Clock, AlertTriangle
+  Users, FileText, Phone, UserCheck, UserX, Archive,
+  CheckCircle2, Clock, AlertTriangle, CalendarClock, Eye, ExternalLink
 } from "lucide-react";
-
-type KPIData = {
-  totalProspects: number;
-  newThisWeek: number;
-  activeClients: number;
-  verticalsCount: number;
-  pendingAssets: number;
-  waitingClientApproval: number;
-  followUpsDue: number;
-  overdueCount: number;
-};
 
 type ProspectCard = {
   id: string;
@@ -38,7 +27,6 @@ type ClientRow = {
   company_name: string;
   vertical: string;
   created_at: string;
-  assets: { asset_type: string; status: string; created_at: string }[];
 };
 
 type FollowUp = {
@@ -81,86 +69,67 @@ const CALL_ICONS: Record<string, string> = {
   no_show: "👻",
 };
 
-const ASSET_TYPES = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
-const ASSET_LABELS: Record<string, string> = {
-  landing_page: "LP",
-  email_flow: "Email",
-  social_post: "Social",
-  blog_article: "Blog",
-};
-
 function getActivityIcon(action: string) {
   if (action.includes("briefing")) return <FileText className="w-3.5 h-3.5 text-primary" />;
   if (action.includes("proposal")) return <FileText className="w-3.5 h-3.5 text-status-proposal-ready" />;
   if (action.includes("call")) return <Phone className="w-3.5 h-3.5 text-status-call-scheduled" />;
-  if (action.includes("accepted")) return <UserCheck className="w-3.5 h-3.5 text-status-accepted" />;
+  if (action.includes("accepted") || action.includes("Briefer")) return <UserCheck className="w-3.5 h-3.5 text-status-accepted" />;
   if (action.includes("rejected")) return <UserX className="w-3.5 h-3.5 text-status-rejected" />;
   if (action.includes("archived")) return <Archive className="w-3.5 h-3.5 text-muted-foreground" />;
-  if (action.includes("approved")) return <CheckCircle2 className="w-3.5 h-3.5 text-status-accepted" />;
-  if (action.includes("changes")) return <MessageSquare className="w-3.5 h-3.5 text-status-change-requested" />;
   return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0 });
   const [prospects, setProspects] = useState<ProspectCard[]>([]);
-  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [recentClients, setRecentClients] = useState<ClientRow[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brieferUrl, setBrieferUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
       const today = format(new Date(), "yyyy-MM-dd");
-      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
+      const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
 
-      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes] = await Promise.all([
+      const [prospectsRes, clientsRes, followUpsRes, activityRes, brieferRes] = await Promise.all([
         supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, status, follow_up_date"),
         supabase.from("clients").select("id, name, company_name, vertical, created_at, status").eq("status", "active"),
-        supabase.from("assets").select("id, client_id, asset_type, status, created_at"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
+        supabase.from("connected_tools" as any).select("config").eq("tool_name", "briefer").maybeSingle(),
       ]);
 
-      const allProspects = (prospectsRes.data || []) as any[];
-      const allClients = (clientsRes.data || []) as any[];
-      const allAssets = (assetsRes.data || []) as any[];
-      const allFollowUps = (followUpsRes.data || []) as FollowUp[];
-      const allActivity = (activityRes.data || []) as ActivityItem[];
+      const allProspects = (prospectsRes.data || []) as ProspectCard[];
+      const allClients = (clientsRes.data || []) as ClientRow[];
 
-      const newThisWeek = allProspects.filter(p => p.created_at >= weekStart).length;
-      const verticals = new Set(allClients.map((c: any) => c.vertical));
-      const pendingAssets = allAssets.filter((a: any) => a.status === "pending_review" || a.status === "change_requested").length;
-      const waitingClient = allAssets.filter((a: any) => a.status === "pending_review").length;
-      const overdueCount = allFollowUps.filter(f => isBefore(new Date(f.follow_up_date), startOfDay(new Date())) && !isToday(new Date(f.follow_up_date))).length;
+      // Filter clients accepted this month
+      const thisMonthClients = allClients.filter(c => c.created_at >= monthStart);
 
-      // Build client rows with assets
-      const clientRows: ClientRow[] = allClients.map((c: any) => ({
-        ...c,
-        assets: allAssets.filter((a: any) => a.client_id === c.id),
-      }));
-
-      setKpis({
-        totalProspects: allProspects.length,
-        newThisWeek,
-        activeClients: allClients.length,
-        verticalsCount: verticals.size,
-        pendingAssets,
-        waitingClientApproval: waitingClient,
-        followUpsDue: allFollowUps.length,
-        overdueCount,
-      });
       setProspects(allProspects);
-      setClients(clientRows);
-      setFollowUps(allFollowUps);
-      setActivity(allActivity);
+      setRecentClients(thisMonthClients);
+      setFollowUps((followUpsRes.data || []) as FollowUp[]);
+      setActivity((activityRes.data || []) as ActivityItem[]);
+
+      const brieferConfig = (brieferRes as any)?.data?.config;
+      if (brieferConfig?.url) setBrieferUrl(brieferConfig.url);
+
       setLoading(false);
     };
     fetchAll();
   }, []);
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading dashboard...</div>;
+
+  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
+  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd'T'HH:mm:ss");
+
+  const totalProspects = prospects.length;
+  const proposalsReady = prospects.filter(p => p.status === "proposal_ready").length;
+  const callsScheduled = prospects.filter(p => p.status === "call_scheduled").length;
+  const acceptedThisMonth = prospects.filter(p => p.status === "accepted" && p.created_at >= monthStart).length;
+  const rejectedThisMonth = prospects.filter(p => p.status === "rejected" && p.created_at >= monthStart).length;
 
   const pipelineGroups = PIPELINE_STATUSES.reduce((acc, status) => {
     acc[status] = prospects.filter(p => p.status === status);
@@ -172,46 +141,21 @@ export default function AdminDashboard() {
   return (
     <div className="p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
-      <p className="text-muted-foreground text-sm mb-6">PRAGMA operations overview</p>
+      <p className="text-muted-foreground text-sm mb-6">CRM by PRAGMA — operations overview</p>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Main content (70%) */}
         <div className="flex-1 min-w-0 space-y-8">
 
-          {/* SECTION 1 — KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard
-              icon={<Users className="w-5 h-5" />}
-              label="Total Prospects"
-              value={kpis.totalProspects}
-              subtitle={`+${kpis.newThisWeek} this week`}
-              color="hsl(216 72% 22%)"
-            />
-            <KPICard
-              icon={<Building2 className="w-5 h-5" />}
-              label="Active Clients"
-              value={kpis.activeClients}
-              subtitle={`${kpis.verticalsCount} verticals covered`}
-              color="hsl(153 54% 16%)"
-            />
-            <KPICard
-              icon={<FileWarning className="w-5 h-5" />}
-              label="Assets Pending"
-              value={kpis.pendingAssets}
-              subtitle={`${kpis.waitingClientApproval} waiting client approval`}
-              color="hsl(25 95% 53%)"
-              pulse={kpis.pendingAssets > 0}
-            />
-            <KPICard
-              icon={<CalendarClock className="w-5 h-5" />}
-              label="Follow Ups Due"
-              value={kpis.followUpsDue}
-              subtitle={`${kpis.overdueCount} overdue`}
-              color={kpis.overdueCount > 0 ? "hsl(0 84% 60%)" : "hsl(215 16% 47%)"}
-            />
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <KPICard icon={<Users className="w-5 h-5" />} label="Total Prospects" value={totalProspects} color="hsl(216 72% 22%)" />
+            <KPICard icon={<FileText className="w-5 h-5" />} label="Proposals Ready" value={proposalsReady} color="hsl(25 95% 53%)" />
+            <KPICard icon={<CalendarClock className="w-5 h-5" />} label="Calls Scheduled" value={callsScheduled} color="hsl(215 16% 47%)" />
+            <KPICard icon={<UserCheck className="w-5 h-5" />} label="Accepted (month)" value={acceptedThisMonth} color="hsl(153 54% 16%)" />
+            <KPICard icon={<UserX className="w-5 h-5" />} label="Rejected (month)" value={rejectedThisMonth} color="hsl(0 84% 60%)" />
           </div>
 
-          {/* SECTION 4 — Follow ups alert (above pipeline if any) */}
+          {/* Follow ups */}
           {followUps.length > 0 && (
             <div className="bg-[hsl(54,100%,89%)] border border-[hsl(45,100%,72%)] rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -228,10 +172,8 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-3">
                         <span className="font-medium text-foreground">{fu.name}</span>
                         <span className="text-muted-foreground">{fu.company_name}</span>
-                        <Badge className={`${VERTICAL_COLORS[fu.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px]`}>{fu.vertical}</Badge>
                       </div>
                       <div className="flex items-center gap-3">
-                        {fu.call_status !== "not_scheduled" && <span className="text-xs">{CALL_ICONS[fu.call_status] || ""}</span>}
                         <span className={`text-xs font-medium ${overdue ? "text-destructive" : "text-muted-foreground"}`}>
                           {overdue ? `Overdue ${daysOverdue}d` : format(new Date(fu.follow_up_date), "dd MMM")}
                         </span>
@@ -246,7 +188,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* SECTION 2 — Prospect Pipeline */}
+          {/* Prospect Pipeline */}
           <div>
             <h2 className="text-lg font-bold text-foreground mb-4">Prospect Pipeline</h2>
             <div className="grid grid-cols-5 gap-3">
@@ -262,11 +204,7 @@ export default function AdminDashboard() {
                         <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">Empty</div>
                       ) : (
                         pipelineGroups[status].map(p => (
-                          <div
-                            key={p.id}
-                            onClick={() => navigate(`/admin/prospect/${p.id}`)}
-                            className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow"
-                          >
+                          <div key={p.id} onClick={() => navigate(`/admin/prospect/${p.id}`)} className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow">
                             <p className="text-sm font-semibold text-foreground leading-tight">{p.name}</p>
                             <p className="text-xs text-muted-foreground">{p.company_name}</p>
                             <div className="flex items-center gap-1.5 mt-2">
@@ -284,10 +222,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SECTION 3 — Active Clients */}
-          {clients.length > 0 && (
+          {/* Active Clients */}
+          {recentClients.length > 0 && (
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-4">Active Clients</h2>
+              <h2 className="text-lg font-bold text-foreground mb-4">Clients Accepted This Month</h2>
               <div className="border border-border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -295,46 +233,33 @@ export default function AdminDashboard() {
                       <TableHead>Client</TableHead>
                       <TableHead>Vertical</TableHead>
                       <TableHead>Since</TableHead>
-                      <TableHead>Assets Status</TableHead>
-                      <TableHead>Last Activity</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {clients.map(c => {
-                      const lastAssetDate = c.assets.length > 0
-                        ? c.assets.reduce((latest, a) => a.created_at > latest ? a.created_at : latest, c.assets[0].created_at)
-                        : null;
-                      return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}/kickoff`)}>
-                          <TableCell>
-                            <p className="font-medium text-foreground">{c.name}</p>
-                            <p className="text-xs text-muted-foreground">{c.company_name}</p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${VERTICAL_COLORS[c.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px]`}>{c.vertical}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{format(new Date(c.created_at), "dd MMM yyyy")}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1.5">
-                              {ASSET_TYPES.map(type => {
-                                const asset = c.assets.find(a => a.asset_type === type);
-                                const icon = asset
-                                  ? asset.status === "approved" ? "✅" : asset.status === "change_requested" ? "💬" : "⏳"
-                                  : null;
-                                return (
-                                  <span key={type} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${asset ? "bg-secondary" : "bg-muted/50 text-muted-foreground"}`}>
-                                    {ASSET_LABELS[type]} {icon || "—"}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {lastAssetDate ? formatDistanceToNow(new Date(lastAssetDate), { addSuffix: true }) : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {recentClients.map(c => (
+                      <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}`)}>
+                        <TableCell>
+                          <p className="font-medium text-foreground">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">{c.company_name}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${VERTICAL_COLORS[c.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px]`}>{c.vertical}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{format(new Date(c.created_at), "dd MMM yyyy")}</TableCell>
+                        <TableCell>
+                          {brieferUrl ? (
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); window.open(`${brieferUrl}/admin/client/${c.id}`, "_blank"); }}>
+                              <ExternalLink className="w-3 h-3 mr-1" /> View in Briefer
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); navigate(`/admin/client/${c.id}`); }}>
+                              View
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -342,7 +267,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* SECTION 5 — Activity Feed (right sidebar) */}
+        {/* Activity Feed */}
         <div className="w-full lg:w-[30%] lg:min-w-[280px] hidden lg:block">
           <div className="bg-card rounded-lg border border-border p-4 sticky top-6">
             <h3 className="font-semibold text-foreground text-sm mb-4">Recent Activity</h3>
@@ -356,12 +281,6 @@ export default function AdminDashboard() {
                     className="flex items-start gap-2.5 cursor-pointer hover:bg-secondary/30 rounded p-1.5 -mx-1.5 transition-colors"
                     onClick={() => {
                       if (item.entity_type === "prospect") navigate(`/admin/prospect/${item.entity_id}`);
-                      else if (item.entity_type === "asset") {
-                        // Find the client that owns this asset and navigate to their Assets tab
-                        supabase.from("assets").select("client_id").eq("id", item.entity_id).single().then(({ data }) => {
-                          if (data?.client_id) navigate(`/admin/client/${data.client_id}/kickoff?tab=assets`);
-                        });
-                      }
                     }}
                   >
                     <div className="mt-0.5">{getActivityIcon(item.action)}</div>
@@ -385,16 +304,14 @@ export default function AdminDashboard() {
   );
 }
 
-function KPICard({ icon, label, value, subtitle, color, pulse }: {
+function KPICard({ icon, label, value, color }: {
   icon: React.ReactNode;
   label: string;
   value: number;
-  subtitle: string;
   color: string;
-  pulse?: boolean;
 }) {
   return (
-    <div className={`bg-card rounded-lg border border-border p-4 shadow-sm ${pulse ? "animate-pulse-subtle" : ""}`}>
+    <div className="bg-card rounded-lg border border-border p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-md" style={{ backgroundColor: color, color: "white" }}>
           {icon}
@@ -402,7 +319,6 @@ function KPICard({ icon, label, value, subtitle, color, pulse }: {
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
       </div>
       <p className="text-3xl font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
     </div>
   );
 }
