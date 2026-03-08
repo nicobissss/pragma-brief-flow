@@ -533,7 +533,7 @@ function NewVersionDrawer({
     onClose();
   };
 
-  const uploadNewVersion = async (notify: boolean) => {
+  const uploadNewVersion = async () => {
     setUploading(true);
     try {
       const newVersion = (asset.version || 1) + 1;
@@ -574,19 +574,7 @@ function NewVersionDrawer({
         action: `new version v${newVersion} uploaded`,
       });
 
-      if (notify) {
-        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
-          body: { type: "assets_ready", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name },
-        });
-        if (notifError || data?.error) {
-          toast.error(`Version saved but notification failed: ${data?.error || notifError?.message}`);
-        } else {
-          toast.success(`Version v${newVersion} uploaded and client notified!`);
-        }
-      } else {
-        toast.success(`Version v${newVersion} uploaded!`);
-      }
-
+      toast.success(`Version v${newVersion} uploaded!`);
       onVersionUploaded();
       handleClose();
     } catch (e: any) {
