@@ -55,12 +55,18 @@ const briefingFields = {
 };
 
 function BriefingRow({ label, value }: { label: string; value: any }) {
-  if (value === null || value === undefined || value === "") return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
+  const isEmpty = value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
+  const display = isEmpty
+    ? null
+    : Array.isArray(value) ? value.join(", ") : String(value);
   return (
     <div className="py-3 border-b border-border last:border-0">
       <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      <p className="text-sm text-foreground">{display}</p>
+      {isEmpty ? (
+        <p className="text-sm text-muted-foreground italic">Not provided</p>
+      ) : (
+        <p className="text-sm text-foreground">{display}</p>
+      )}
     </div>
   );
 }
