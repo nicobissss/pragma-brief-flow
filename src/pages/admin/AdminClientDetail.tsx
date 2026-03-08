@@ -63,8 +63,14 @@ type KickoffBrief = {
 
 type AssetRow = {
   id: string;
+  asset_name: string;
   asset_type: string;
   status: string;
+  file_url: string | null;
+  content: any;
+  version: number;
+  client_comment: string | null;
+  created_at: string;
 };
 
 // ─── Helpers ─────────────────────────────────────────────
