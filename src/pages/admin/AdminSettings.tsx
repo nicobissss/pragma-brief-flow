@@ -203,6 +203,11 @@ export default function AdminSettings() {
           ))}
         </div>
       )}
+
+      {/* PART 3: Briefing Questions */}
+      <div className="mt-10 border-t border-border pt-8">
+        <BriefingQuestionsManager />
+      </div>
     </div>
   );
 }
