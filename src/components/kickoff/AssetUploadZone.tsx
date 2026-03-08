@@ -238,8 +238,19 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
         .in("id", ids);
       if (error) throw error;
 
+      // Send email notification
+      const { error: notifErr } = await supabase.functions.invoke("send-notification", {
+        body: {
+          type: "assets_ready",
+          client_id: clientId,
+          asset_type: assetType,
+          asset_name: savedAssets.map((a) => a.asset_name).join(", "),
+        },
+      });
+      if (notifErr) console.error("Notification error:", notifErr);
+
       setSavedAssets((prev) => prev.map((a) => ({ ...a, status: "pending_review" })));
-      toast.success("Client notified! Assets are now pending review.");
+      toast.success("Client notified by email! Assets are now pending review.");
     } catch (e: any) {
       toast.error(e.message || "Failed to notify");
     } finally {
