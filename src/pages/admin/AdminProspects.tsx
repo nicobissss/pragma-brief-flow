@@ -30,7 +30,7 @@ export default function AdminProspects() {
   useEffect(() => {
     const fetch = async () => {
       let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
-      if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
       if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
 
       const { data } = await query;

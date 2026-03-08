@@ -46,7 +46,7 @@ export default function AdminProspectDetail() {
     fetch();
   }, [id]);
 
-  const updateStatus = async (status: string) => {
+  const updateStatus = async (status: "new" | "proposal_ready" | "call_scheduled" | "accepted" | "rejected" | "archived") => {
     if (!prospect) return;
     const { error } = await supabase.from("prospects").update({ status }).eq("id", prospect.id);
     if (error) { toast.error(error.message); return; }
