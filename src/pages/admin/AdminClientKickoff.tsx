@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Loader2, Copy, Upload, CheckCircle2 } from "lucide-react";
+import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 
@@ -97,6 +98,9 @@ export default function AdminClientKickoff() {
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [materials, setMaterials] = useState<ClientMaterialsData>({});
+  const [generating, setGenerating] = useState(false);
+  const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
+  const promptsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -119,6 +123,10 @@ export default function AdminClientKickoff() {
           setKickoff(kickoffData as KickoffBrief);
           setTranscriptText(kickoffData.transcript_text || "");
           setMaterials((kickoffData as any).client_materials || {});
+          const gp = kickoffData.generated_prompts as any;
+          if (gp?.raw_text) {
+            setGeneratedPrompts(gp.raw_text);
+          }
         }
       }
 
@@ -175,6 +183,38 @@ export default function AdminClientKickoff() {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGeneratePrompts = async () => {
+    if (!client) return;
+    setGenerating(true);
+    try {
+      // Save transcript first if not saved yet
+      if (transcriptText.trim().length >= 50 && !kickoff) {
+        await saveTranscript();
+      } else if (kickoff && transcriptText !== (kickoff.transcript_text || "")) {
+        await supabase
+          .from("kickoff_briefs")
+          .update({ transcript_text: transcriptText, transcript_status: "ready" as any })
+          .eq("id", kickoff.id);
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-kickoff-prompts", {
+        body: { client_id: client.id },
+      });
+      if (error) throw error;
+      if (data?.prompts) {
+        setGeneratedPrompts(data.prompts);
+        toast.success("Prompts generated successfully!");
+        setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      } else {
+        throw new Error(data?.error || "No prompts returned");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate prompts");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -326,7 +366,74 @@ export default function AdminClientKickoff() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Generate Prompts Button */}
+        <div className="mt-6 pt-4 border-t border-border">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-block">
+                  <Button
+                    onClick={handleGeneratePrompts}
+                    disabled={generating || transcriptText.trim().length < 50}
+                    className={transcriptText.trim().length >= 50 && !generating
+                      ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white"
+                      : ""}
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Claude is analyzing the transcript...
+                      </>
+                    ) : generatedPrompts ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Regenerate Prompts
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Generate Prompts
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {transcriptText.trim().length < 50 && (
+                <TooltipContent>
+                  <p>Paste a transcript to continue (min 50 characters)</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
+
+      {/* Generated Prompts Section */}
+      {generatedPrompts && (
+        <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Generated Prompts
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(generatedPrompts);
+                toast.success("Prompts copied to clipboard!");
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy all
+            </Button>
+          </div>
+          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+            {generatedPrompts}
+          </div>
+        </div>
+      )}
 
       {/* SECTION 2.5: Client Materials */}
       <ClientMaterials
