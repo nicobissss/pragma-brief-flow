@@ -108,56 +108,7 @@ function ContextLine({ label, included }: { label: string; included: boolean }) 
   );
 }
 
-function generateQuestions(vertical: string, subNiche: string): Record<string, string[]> {
-  const base: Record<string, string[]> = {
-    "Business & Offer Details": [
-      "Describe your main service/product in one sentence.",
-      "What's your unique selling proposition vs competitors?",
-      "What's your average ticket / price point?",
-      "Do you offer packages or individual services?",
-      `What makes ${subNiche} your focus area?`,
-    ],
-    "Current Assets": [
-      "Do you have existing brand guidelines (logo, colors, fonts)?",
-      "Do you have professional photos of your team/space/products?",
-      "Do you have any existing copy (website text, brochures)?",
-      "Do you have existing email templates or sequences?",
-      "What's your current website URL (if any)?",
-    ],
-    "Technical Setup": [
-      "Do you have domain access for landing pages?",
-      "What CRM or booking system do you currently use?",
-      "Do you have a checkout or payment system?",
-      "Do you have a WhatsApp Business number?",
-      "Do you have Google Business Profile set up?",
-    ],
-    "Goals & KPIs": [
-      "What's your primary goal for the first 3 months?",
-      "How many new clients/sales do you want per month?",
-      "What's your target revenue increase?",
-      "What metrics are most important to you?",
-      "Any seasonal peaks or events to plan around?",
-    ],
-    "Communication Preferences": [
-      "What language/tone should we use in marketing materials?",
-      "Who will be the main point of contact for approvals?",
-      "How quickly can you review and approve assets?",
-      "Do you prefer formal or casual communication?",
-      "Any words or phrases you want us to always use or avoid?",
-    ],
-  };
-  if (vertical.toLowerCase().includes("salud") || vertical.toLowerCase().includes("estética")) {
-    base["Business & Offer Details"].push("What certifications or licenses do your practitioners hold?");
-    base["Business & Offer Details"].push("Do you offer before/after consultations?");
-  } else if (vertical.toLowerCase().includes("learning") || vertical.toLowerCase().includes("curso")) {
-    base["Business & Offer Details"].push("What format are your courses (live, recorded, hybrid)?");
-    base["Business & Offer Details"].push("Do you offer certifications or diplomas?");
-  } else if (vertical.toLowerCase().includes("deporte") || vertical.toLowerCase().includes("sport")) {
-    base["Business & Offer Details"].push("What sports/activities do you offer?");
-    base["Business & Offer Details"].push("Do you have membership plans or pay-per-session?");
-  }
-  return base;
-}
+// generateQuestions removed — now handled by KickoffQuestionsManager
 
 // ─── Main Component ──────────────────────────────────────
 export default function AdminClientDetail() {
