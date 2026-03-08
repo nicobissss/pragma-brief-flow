@@ -264,9 +264,10 @@ export default function AdminSettings() {
       <p className="text-muted-foreground mb-8">Manage knowledge base and connected tools.</p>
 
       {/* Connected Tools */}
-      <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+      <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
         <LinkIcon className="w-5 h-5" /> Connected Tools
       </h2>
+      <p className="text-sm text-muted-foreground mb-4">Connect Briefer by PRAGMA to automatically send accepted clients.</p>
       <div className="bg-card rounded-lg border border-border p-6 mb-10">
         <h3 className="font-semibold text-foreground mb-4">Briefer by PRAGMA</h3>
         <ConnectedToolsSection />
