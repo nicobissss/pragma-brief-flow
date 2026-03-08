@@ -219,11 +219,9 @@ export default function AdminClientDetail() {
         }
       }
 
-      // Auto-select tab 3 if pending feedback
-      const hasPending = assetsData.some(
-        (a: any) => a.status === "pending_review" || a.status === "change_requested"
-      );
-      if (hasPending) setDefaultTab("prompts");
+      // Auto-select assets tab if pending feedback
+      const hasChangeRequested = assetsData.some((a: any) => a.status === "change_requested");
+      if (hasChangeRequested) setDefaultTab("assets");
 
       setLoading(false);
     };
@@ -339,9 +337,7 @@ export default function AdminClientDetail() {
 
   // ─── Badge counts ──────────────────────────────────────
   const kickoffBadge = !kickoff?.transcript_text;
-  const assetsPendingCount = assets.filter(
-    (a) => a.status === "pending_review" || a.status === "change_requested"
-  ).length;
+  const changeRequestedCount = assets.filter((a) => a.status === "change_requested").length;
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!client) return <div className="p-8 text-muted-foreground">Client not found.</div>;
@@ -409,12 +405,18 @@ export default function AdminClientDetail() {
           </TabsTrigger>
           <TabsTrigger
             value="prompts"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5"
+          >
+            Prompts
+          </TabsTrigger>
+          <TabsTrigger
+            value="assets"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5 relative"
           >
-            Prompts & Assets
-            {assetsPendingCount > 0 && (
+            Assets
+            {changeRequestedCount > 0 && (
               <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
-                {assetsPendingCount}
+                {changeRequestedCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -584,10 +586,9 @@ export default function AdminClientDetail() {
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════ */}
-        {/* TAB 3 — Prompts & Assets                      */}
+        {/* TAB 3 — Prompts                               */}
         {/* ═══════════════════════════════════════════════ */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
-          {/* Generate Prompts */}
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
@@ -624,7 +625,6 @@ export default function AdminClientDetail() {
                 </Tooltip>
               </TooltipProvider>
 
-              {/* Context sources */}
               {contextSources && (
                 <div className="mt-3">
                   <button
@@ -669,8 +669,12 @@ export default function AdminClientDetail() {
               <p className="text-sm text-muted-foreground">No prompts generated yet. Add a transcript in the Kickoff tab and click Generate.</p>
             )}
           </div>
+        </TabsContent>
 
-          {/* Asset status overview */}
+        {/* ═══════════════════════════════════════════════ */}
+        {/* TAB 4 — Assets                                */}
+        {/* ═══════════════════════════════════════════════ */}
+        <TabsContent value="assets" className="mt-6 space-y-6">
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">Asset Status</h3>
             <div className="grid grid-cols-4 gap-3 mb-6">
@@ -687,7 +691,6 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
-          {/* Asset upload zones */}
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
             <div className="grid gap-4 lg:grid-cols-2">
