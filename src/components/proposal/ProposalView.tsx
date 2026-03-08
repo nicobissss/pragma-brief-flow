@@ -160,7 +160,53 @@ export function ProposalView({ data }: { data: ProposalData }) {
       </Card>
 
       {/* SECTION 5 — PITCH SUGGESTIONS (internal, yellow bg) */}
-      <Card className="p-6 bg-pitch border-pitch/30">
+      <Card className="p-6 bg-pitch-bg border-pitch-border">
+        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-pitch-border" /> Pitch Suggestions for the Call
+        </h3>
+        <p className="text-[10px] uppercase tracking-wider text-pitch-border font-semibold mb-4">⚠ Internal only — never share with client</p>
+
+        <div className="space-y-6">
+          <div>
+            <h4 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-1">
+              <Lightbulb className="w-4 h-4" /> Key Arguments
+            </h4>
+            <ul className="space-y-2">
+              {pitch_suggestions.key_arguments.map((arg, i) => (
+                <li key={i} className="text-sm text-foreground flex gap-2">
+                  <span className="text-pitch-border font-bold">→</span> {arg}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-1">
+              <MessageSquare className="w-4 h-4" /> Likely Objections & Responses
+            </h4>
+            <div className="space-y-3">
+              {pitch_suggestions.objections.map((obj, i) => (
+                <div key={i} className="p-3 rounded-lg bg-card/50 border border-pitch-border">
+                  <p className="text-sm font-medium text-foreground">❝ {obj.objection}</p>
+                  <p className="text-sm text-muted-foreground mt-1">→ {obj.response}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-1">
+              <Mic className="w-4 h-4" /> Recommended Opening Line
+            </h4>
+            <div className="p-3 rounded-lg bg-card/50 border border-pitch-border italic text-sm text-foreground">
+              "{pitch_suggestions.opening_line}"
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
         <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
           <Lightbulb className="w-5 h-5 text-amber-600" /> Pitch Suggestions for the Call
         </h3>
