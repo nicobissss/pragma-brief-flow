@@ -665,13 +665,9 @@ function NewVersionDrawer({
 
           {/* Action buttons */}
           <div className="space-y-2">
-            <Button onClick={() => uploadNewVersion(false)} disabled={uploading || !hasContent} variant="outline" className="w-full">
+            <Button onClick={() => uploadNewVersion()} disabled={uploading || !hasContent} className="w-full">
               {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               <Upload className="w-4 h-4 mr-2" /> Upload new version
-            </Button>
-            <Button onClick={() => uploadNewVersion(true)} disabled={uploading || !hasContent} className="w-full">
-              {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              <Bell className="w-4 h-4 mr-2" /> Upload and notify client
             </Button>
           </div>
         </div>
