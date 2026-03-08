@@ -477,13 +477,9 @@ function AddAssetDrawer({
               </div>
 
               <div className="space-y-2">
-                <Button onClick={() => saveAsset(false)} disabled={uploading} variant="outline" className="w-full">
+                <Button onClick={() => saveAsset()} disabled={uploading} className="w-full">
                   {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  Save as draft
-                </Button>
-                <Button onClick={() => saveAsset(true)} disabled={uploading} className="w-full">
-                  {uploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                  <Bell className="w-4 h-4 mr-2" /> Save and notify client
+                  Save asset
                 </Button>
               </div>
             </div>
