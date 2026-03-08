@@ -712,6 +712,10 @@ export default function AdminClientDetail() {
             assets={assets.map((a: any) => ({ ...a, campaign_id: a.campaign_id || null }))}
             onCampaignCreated={(c) => setCampaigns((prev) => [c, ...prev])}
             onCampaignUpdated={(c) => setCampaigns((prev) => prev.map((p) => p.id === c.id ? c : p))}
+            onAssetsChanged={async () => {
+              const { data } = await supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id").eq("client_id", client.id);
+              setAssets((data || []) as AssetRow[]);
+            }}
           />
         </TabsContent>
       </Tabs>
