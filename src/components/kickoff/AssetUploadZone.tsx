@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Upload, X, Loader2, Send, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { Upload, X, Loader2, Send, FileText, Image as ImageIcon, ExternalLink, Pencil, Clock } from "lucide-react";
+import { format } from "date-fns";
 
 type UploadedFile = {
   file: File;
@@ -19,6 +20,8 @@ type SavedAsset = {
   file_url: string | null;
   status: string;
   content: any;
+  version: number;
+  created_at: string;
 };
 
 interface AssetUploadZoneProps {
@@ -84,6 +87,71 @@ const config: Record<string, {
   },
 };
 
+function extractDomain(urlStr: string): string {
+  try {
+    const u = new URL(urlStr.startsWith("http") ? urlStr : `https://${urlStr}`);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return urlStr.slice(0, 50);
+  }
+}
+
+function deriveAssetName(
+  assetType: string,
+  files: UploadedFile[],
+  url: string,
+  pasteText: string,
+  manualName: string
+): string {
+  if (manualName.trim()) return manualName.trim();
+  if (url.trim()) return extractDomain(url);
+  if (pasteText.trim()) {
+    const trimmed = pasteText.trim().slice(0, 50);
+    return pasteText.trim().length > 50 ? `${trimmed}...` : trimmed;
+  }
+  if (files.length === 1) return files[0].file.name;
+  return config[assetType]?.title || "Asset";
+}
+
+function InlineEditableName({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setDraft(value);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const commitEdit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) onSave(trimmed);
+    else setDraft(value);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitEdit}
+        onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+        className="bg-transparent border-b border-primary text-sm font-medium text-foreground outline-none px-0 py-0 w-full"
+      />
+    );
+  }
+
+  return (
+    <button onClick={startEdit} className="flex items-center gap-1.5 group text-left min-w-0">
+      <span className="text-sm font-medium text-foreground truncate">{value}</span>
+      <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+    </button>
+  );
+}
+
 export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: AssetUploadZoneProps) {
   const cfg = config[assetType];
   const Icon = cfg.icon;
@@ -135,8 +203,14 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
     if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   }, [handleFiles]);
 
+  const updateAssetName = async (assetId: string, newName: string) => {
+    const { error } = await supabase.from("assets").update({ asset_name: newName }).eq("id", assetId);
+    if (error) { toast.error("Failed to rename"); return; }
+    setSavedAssets((prev) => prev.map((a) => a.id === assetId ? { ...a, asset_name: newName } : a));
+  };
+
   const uploadAndSave = async () => {
-    if (!assetName.trim() && files.length === 0 && !url.trim() && !pasteText.trim()) {
+    if (files.length === 0 && !url.trim() && !pasteText.trim()) {
       toast.error("Add content before saving.");
       return;
     }
@@ -145,14 +219,15 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
     try {
       // Handle URL-based landing page
       if (assetType === "landing_page" && url.trim()) {
-        const { error } = await supabase.from("assets").insert({
+        const derivedName = deriveAssetName(assetType, files, url, pasteText, assetName);
+        const { data: inserted, error } = await supabase.from("assets").insert({
           client_id: clientId,
           asset_type: assetType,
-          asset_name: assetName.trim() || "Landing Page",
+          asset_name: derivedName,
           content: { url: url.trim(), notes: notes.trim() || undefined },
-        });
+        }).select("id, asset_name, file_url, status, content, version, created_at").single();
         if (error) throw error;
-        setSavedAssets((prev) => [...prev, { id: crypto.randomUUID(), asset_name: assetName || "Landing Page", file_url: null, status: "pending_review", content: { url } }]);
+        if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
         setUrl("");
         setAssetName("");
         setNotes("");
@@ -164,14 +239,15 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
 
       // Handle pasted text (blog)
       if (assetType === "blog_article" && pasteText.trim() && files.length === 0) {
-        const { error } = await supabase.from("assets").insert({
+        const derivedName = deriveAssetName(assetType, files, url, pasteText, assetName);
+        const { data: inserted, error } = await supabase.from("assets").insert({
           client_id: clientId,
           asset_type: assetType,
-          asset_name: assetName.trim() || "Blog Article",
+          asset_name: derivedName,
           content: { text: pasteText.trim(), notes: notes.trim() || undefined },
-        });
+        }).select("id, asset_name, file_url, status, content, version, created_at").single();
         if (error) throw error;
-        setSavedAssets((prev) => [...prev, { id: crypto.randomUUID(), asset_name: assetName || "Blog Article", file_url: null, status: "pending_review", content: { text: pasteText } }]);
+        if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
         setPasteText("");
         setAssetName("");
         setNotes("");
@@ -196,8 +272,8 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
           .getPublicUrl(filePath);
 
         const itemName = files.length === 1
-          ? (assetName.trim() || f.name)
-          : (f.name || `${cfg.title} ${i + 1}`);
+          ? deriveAssetName(assetType, [f], url, pasteText, assetName)
+          : (f.file.name || `${cfg.title} ${i + 1}`);
 
         const content: any = { notes: notes.trim() || undefined };
         if (cfg.hasCaptions && f.caption) content.caption = f.caption;
@@ -208,7 +284,7 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
           asset_name: itemName,
           file_url: urlData.publicUrl,
           content,
-        }).select("id, asset_name, file_url, status, content").single();
+        }).select("id, asset_name, file_url, status, content, version, created_at").single();
 
         if (insertErr) throw insertErr;
         if (inserted) setSavedAssets((prev) => [...prev, inserted as SavedAsset]);
@@ -230,7 +306,6 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
     if (savedAssets.length === 0) return;
     setNotifying(true);
     try {
-      // Update all saved assets to pending_review
       const ids = savedAssets.map((a) => a.id);
       const { error } = await supabase
         .from("assets")
@@ -238,7 +313,6 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
         .in("id", ids);
       if (error) throw error;
 
-      // Send email notification
       const { error: notifErr } = await supabase.functions.invoke("send-notification", {
         body: {
           type: "assets_ready",
@@ -258,6 +332,8 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
     }
   };
 
+  const AssetIcon = assetType === "social_post" ? ImageIcon : FileText;
+
   return (
     <div className="bg-card rounded-lg border border-border overflow-hidden">
       <div className="p-4 border-b border-border flex items-center gap-3">
@@ -271,9 +347,9 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Asset name */}
+        {/* Asset name (optional override) */}
         <Input
-          placeholder={`${cfg.title} name`}
+          placeholder={`${cfg.title} name (auto-generated if empty)`}
           value={assetName}
           onChange={(e) => setAssetName(e.target.value)}
         />
@@ -384,7 +460,7 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
 
         {/* Saved assets list */}
         {savedAssets.length > 0 && (
-          <div className="border-t border-border pt-4 space-y-2">
+          <div className="border-t border-border pt-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-foreground">{savedAssets.length} saved</p>
               <Button
@@ -399,14 +475,26 @@ export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: A
               </Button>
             </div>
             {savedAssets.map((a) => (
-              <div key={a.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="w-3 h-3" />
-                <span>{a.asset_name}</span>
-                {a.content?.url && (
-                  <a href={a.content.url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
+              <div key={a.id} className="rounded-md border border-border bg-secondary/20 p-3 space-y-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AssetIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <InlineEditableName
+                      value={a.asset_name}
+                      onSave={(newName) => updateAssetName(a.id, newName)}
+                    />
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground shrink-0">v{a.version || 1}</span>
+                  {a.content?.url && (
+                    <a href={a.content.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>Uploaded {format(new Date(a.created_at), "MMM d, yyyy")} at {format(new Date(a.created_at), "HH:mm")}</span>
+                </div>
               </div>
             ))}
           </div>
