@@ -17,6 +17,7 @@ import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAssets from "./pages/client/ClientAssets";
 import ClientAssetReview from "./pages/client/ClientAssetReview";
+import ClientCampaignReview from "./pages/client/ClientCampaignReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
