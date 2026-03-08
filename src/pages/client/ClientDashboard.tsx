@@ -398,6 +398,19 @@ export default function ClientDashboard() {
             </div>
           )}
         </TabsContent>
+
+        {pendingRequestCount > 0 && (
+          <TabsContent value="collect" className="mt-6">
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+              <Paperclip className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-foreground font-medium">PRAGMA has requested files from you</p>
+              <p className="text-sm text-muted-foreground">Please upload the requested items to help us create your campaigns.</p>
+              <Button asChild>
+                <Link to="/client/collect">Upload my files →</Link>
+              </Button>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
