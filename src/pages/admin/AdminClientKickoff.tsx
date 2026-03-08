@@ -1,16 +1,16 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
+import KickoffQuestionsManager from "@/components/kickoff/KickoffQuestionsManager";
 
 type Client = {
   id: string;
@@ -34,60 +34,6 @@ type KickoffBrief = {
   pragma_approved: boolean | null;
 };
 
-function generateQuestions(vertical: string, subNiche: string): Record<string, string[]> {
-  const base: Record<string, string[]> = {
-    "Business & Offer Details": [
-      "Describe your main service/product in one sentence.",
-      "What's your unique selling proposition vs competitors?",
-      "What's your average ticket / price point?",
-      "Do you offer packages or individual services?",
-      `What makes ${subNiche} your focus area?`,
-    ],
-    "Current Assets": [
-      "Do you have existing brand guidelines (logo, colors, fonts)?",
-      "Do you have professional photos of your team/space/products?",
-      "Do you have any existing copy (website text, brochures)?",
-      "Do you have existing email templates or sequences?",
-      "What's your current website URL (if any)?",
-    ],
-    "Technical Setup": [
-      "Do you have domain access for landing pages?",
-      "What CRM or booking system do you currently use?",
-      "Do you have a checkout or payment system?",
-      "Do you have a WhatsApp Business number?",
-      "Do you have Google Business Profile set up?",
-    ],
-    "Goals & KPIs": [
-      "What's your primary goal for the first 3 months?",
-      "How many new clients/sales do you want per month?",
-      "What's your target revenue increase?",
-      "What metrics are most important to you?",
-      "Any seasonal peaks or events to plan around?",
-    ],
-    "Communication Preferences": [
-      "What language/tone should we use in marketing materials?",
-      "Who will be the main point of contact for approvals?",
-      "How quickly can you review and approve assets?",
-      "Do you prefer formal or casual communication?",
-      "Any words or phrases you want us to always use or avoid?",
-    ],
-  };
-
-  // Add vertical-specific questions
-  if (vertical.toLowerCase().includes("salud") || vertical.toLowerCase().includes("estética")) {
-    base["Business & Offer Details"].push("What certifications or licenses do your practitioners hold?");
-    base["Business & Offer Details"].push("Do you offer before/after consultations?");
-  } else if (vertical.toLowerCase().includes("learning") || vertical.toLowerCase().includes("curso")) {
-    base["Business & Offer Details"].push("What format are your courses (live, recorded, hybrid)?");
-    base["Business & Offer Details"].push("Do you offer certifications or diplomas?");
-  } else if (vertical.toLowerCase().includes("deporte") || vertical.toLowerCase().includes("sport")) {
-    base["Business & Offer Details"].push("What sports/activities do you offer?");
-    base["Business & Offer Details"].push("Do you have membership plans or pay-per-session?");
-  }
-
-  return base;
-}
-
 function ContextLine({ label, included }: { label: string; included: boolean }) {
   return (
     <div className="flex items-center gap-2">
@@ -104,7 +50,6 @@ export default function AdminClientKickoff() {
   const [client, setClient] = useState<Client | null>(null);
   const [kickoff, setKickoff] = useState<KickoffBrief | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkedQuestions, setCheckedQuestions] = useState<Set<string>>(new Set());
   const [transcriptText, setTranscriptText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
@@ -149,27 +94,6 @@ export default function AdminClientKickoff() {
     fetchData();
   }, [id]);
 
-  const questions = useMemo(
-    () => client ? generateQuestions(client.vertical, client.sub_niche) : {},
-    [client]
-  );
-
-  const copyAllQuestions = () => {
-    const text = Object.entries(questions)
-      .map(([cat, qs]) => `## ${cat}\n${qs.map((q, i) => `${i + 1}. ${q}`).join("\n")}`)
-      .join("\n\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Questions copied to clipboard!");
-  };
-
-  const toggleQuestion = (q: string) => {
-    setCheckedQuestions((prev) => {
-      const next = new Set(prev);
-      next.has(q) ? next.delete(q) : next.add(q);
-      return next;
-    });
-  };
-
   const saveTranscript = async () => {
     if (!client) return;
     setSaving(true);
@@ -186,7 +110,6 @@ export default function AdminClientKickoff() {
             client_id: client.id,
             transcript_text: transcriptText,
             transcript_status: "ready" as any,
-            suggested_questions: questions,
           })
           .select()
           .single();
@@ -204,7 +127,6 @@ export default function AdminClientKickoff() {
     if (!client) return;
     setGenerating(true);
     try {
-      // Save transcript first if not saved yet
       if (transcriptText.trim().length >= 50 && !kickoff) {
         await saveTranscript();
       } else if (kickoff && transcriptText !== (kickoff.transcript_text || "")) {
@@ -237,7 +159,7 @@ export default function AdminClientKickoff() {
     const file = e.target.files?.[0];
     if (!file || !client) return;
 
-    const maxSize = 100 * 1024 * 1024; // 100MB
+    const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error("File too large. Maximum 100MB.");
       return;
@@ -268,7 +190,6 @@ export default function AdminClientKickoff() {
             client_id: client.id,
             audio_file_url: urlData.publicUrl,
             transcript_status: "pending" as any,
-            suggested_questions: questions,
           })
           .select()
           .single();
@@ -292,41 +213,13 @@ export default function AdminClientKickoff() {
         <p className="text-muted-foreground">{client.name} · {client.email}</p>
       </div>
 
-      {/* SECTION 1: Suggested Questions */}
-      <div className="bg-card rounded-lg border border-border p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground">Kickoff Questions</h3>
-          <Button variant="outline" size="sm" onClick={copyAllQuestions}>
-            <Copy className="w-4 h-4 mr-2" />
-            Copy all
-          </Button>
-        </div>
-
-        <div className="space-y-6">
-          {Object.entries(questions).map(([category, qs]) => (
-            <div key={category}>
-              <h4 className="text-sm font-semibold text-foreground mb-2">{category}</h4>
-              <div className="space-y-2">
-                {qs.map((q) => (
-                  <label
-                    key={q}
-                    className="flex items-start gap-3 p-2 rounded-md hover:bg-secondary/50 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={checkedQuestions.has(q)}
-                      onCheckedChange={() => toggleQuestion(q)}
-                      className="mt-0.5"
-                    />
-                    <span className={`text-sm ${checkedQuestions.has(q) ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                      {q}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* SECTION 1: Kickoff Questions (new editable component) */}
+      <KickoffQuestionsManager
+        clientId={client.id}
+        clientName={client.name}
+        vertical={client.vertical}
+        subNiche={client.sub_niche}
+      />
 
       {/* SECTION 2: Upload Transcript */}
       <div className="bg-card rounded-lg border border-border p-6 mb-6">
@@ -421,7 +314,6 @@ export default function AdminClientKickoff() {
               )}
             </Tooltip>
           </TooltipProvider>
-          {/* Context sources collapsible */}
           {contextSources && (
             <div className="mt-3">
               <button
@@ -481,7 +373,7 @@ export default function AdminClientKickoff() {
         </div>
       )}
 
-      {/* SECTION 2.5: Client Materials */}
+      {/* Client Materials */}
       <ClientMaterials
         clientId={client.id}
         kickoffId={kickoff?.id || null}
@@ -493,7 +385,6 @@ export default function AdminClientKickoff() {
           } else {
             const { data } = await supabase.from("kickoff_briefs").insert({
               client_id: client.id,
-              suggested_questions: questions,
               client_materials: m,
             } as any).select().single();
             if (data) setKickoff(data as KickoffBrief);
@@ -501,7 +392,7 @@ export default function AdminClientKickoff() {
         }}
       />
 
-      {/* SECTION 3: Asset Upload Zones */}
+      {/* Asset Upload Zones */}
       <div className="space-y-4">
         <h3 className="font-semibold text-foreground text-lg">Client Assets</h3>
         <div className="grid gap-4 lg:grid-cols-2">
