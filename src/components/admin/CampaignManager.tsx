@@ -284,7 +284,7 @@ function AddAssetDrawer({
     return ASSET_TYPE_FULL[assetType] || "Asset";
   };
 
-  const saveAsset = async (notify: boolean) => {
+  const saveAsset = async () => {
     setUploading(true);
     try {
       // URL-based
@@ -295,7 +295,6 @@ function AddAssetDrawer({
           asset_name: deriveName(),
           content: { url: url.trim(), notes: notes.trim() || undefined },
           campaign_id: campaignId,
-          status: notify ? "pending_review" : "pending_review",
         } as any);
         if (error) throw error;
       }
@@ -307,7 +306,6 @@ function AddAssetDrawer({
           asset_name: deriveName(),
           content: { text: pasteText.trim(), notes: notes.trim() || undefined },
           campaign_id: campaignId,
-          status: notify ? "pending_review" : "pending_review",
         } as any);
         if (error) throw error;
       }
@@ -327,25 +325,12 @@ function AddAssetDrawer({
             file_url: urlData.publicUrl,
             content: { notes: notes.trim() || undefined },
             campaign_id: campaignId,
-            status: notify ? "pending_review" : "pending_review",
           } as any);
           if (error) throw error;
         }
       }
 
-      if (notify) {
-        const { data, error: notifError } = await supabase.functions.invoke("send-notification", {
-          body: { type: "assets_ready", client_id: clientId, asset_type: assetType, asset_name: deriveName() },
-        });
-        if (notifError || data?.error) {
-          toast.error(`Asset saved but notification failed: ${data?.error || notifError?.message || "Unknown error"}`);
-        } else {
-          toast.success("Asset saved and client notified!");
-        }
-      } else {
-        toast.success("Asset saved as draft!");
-      }
-
+      toast.success("Asset saved!");
       onAssetSaved();
       handleClose();
     } catch (e: any) {
