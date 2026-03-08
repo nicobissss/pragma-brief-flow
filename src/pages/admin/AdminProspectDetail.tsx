@@ -106,7 +106,7 @@ export default function AdminProspectDetail() {
       <Tabs defaultValue="briefing">
         <TabsList>
           <TabsTrigger value="briefing">Briefing</TabsTrigger>
-          <TabsTrigger value="proposal">Proposal</TabsTrigger>
+          <TabsTrigger value="proposal">{proposal ? "View Proposal" : "Proposal"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="briefing" className="mt-6 space-y-6">
