@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.generate-proposal]
 verify_jwt = false
+
+[functions.accept-prospect]
+verify_jwt = false

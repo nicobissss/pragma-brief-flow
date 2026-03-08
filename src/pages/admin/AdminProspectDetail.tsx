@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ProposalView } from "@/components/proposal/ProposalView";
@@ -7,7 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MARKETS } from "@/lib/briefing-data";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Archive } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type Prospect = {
   id: string;
@@ -36,12 +45,20 @@ function InfoRow({ label, value }: { label: string; value: any }) {
 
 export default function AdminProspectDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<any>(null);
   const [proposalDate, setProposalDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loadingProposal, setLoadingProposal] = useState(true);
+
+  // Modal states
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,7 +101,66 @@ export default function AdminProspectDetail() {
     const { error } = await supabase.from("prospects").update({ status }).eq("id", prospect.id);
     if (error) { toast.error(error.message); return; }
     setProspect({ ...prospect, status });
-    toast.success(`Status updated to ${status}`);
+    return true;
+  };
+
+  const handleMarkReady = async () => {
+    const ok = await updateStatus("proposal_ready");
+    if (ok) toast.success("Proposal marked as ready");
+  };
+
+  const handleAccept = async () => {
+    if (!prospect) return;
+    setAccepting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("accept-prospect", {
+        body: { prospect_id: prospect.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setProspect({ ...prospect, status: "accepted" });
+      toast.success("Prospect accepted! Client account created and invite sent.");
+      setAcceptDialogOpen(false);
+
+      // Redirect to kickoff page
+      if (data?.client_id) {
+        navigate(`/admin/client/${data.client_id}/kickoff`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to accept prospect");
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!prospect) return;
+    setRejecting(true);
+    try {
+      const { error } = await supabase.from("prospects").update({
+        status: "rejected" as any,
+        briefing_answers: {
+          ...prospect.briefing_answers,
+          _rejection_reason: rejectReason || undefined,
+        },
+      }).eq("id", prospect.id);
+      if (error) throw error;
+
+      setProspect({ ...prospect, status: "rejected" });
+      toast.success("Prospect rejected");
+      setRejectDialogOpen(false);
+      setRejectReason("");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reject prospect");
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    const ok = await updateStatus("archived");
+    if (ok) toast.success("Prospect archived");
   };
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
@@ -100,7 +176,14 @@ export default function AdminProspectDetail() {
           <h1 className="text-2xl font-bold text-foreground">{prospect.name}</h1>
           <p className="text-muted-foreground">{prospect.company_name} · {prospect.email}</p>
         </div>
-        <StatusBadge status={prospect.status} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={prospect.status} />
+          {prospect.status !== "archived" && (
+            <Button variant="ghost" size="icon" onClick={handleArchive} title="Archive">
+              <Archive className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="briefing">
@@ -171,15 +254,25 @@ export default function AdminProspectDetail() {
                 </p>
               )}
               <ProposalView data={proposal} />
-              <div className="flex gap-3 pt-4 border-t border-border">
+              <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
-                <Button onClick={() => updateStatus("proposal_ready")} disabled={prospect.status === "proposal_ready"}>
+                <Button onClick={handleMarkReady} disabled={prospect.status === "proposal_ready"}>
                   Mark as Ready
                 </Button>
-                <Button onClick={() => updateStatus("accepted")} variant="outline" className="border-status-accepted text-status-accepted hover:bg-status-accepted/10">
+                <Button
+                  onClick={() => setAcceptDialogOpen(true)}
+                  variant="outline"
+                  className="border-status-accepted text-status-accepted hover:bg-status-accepted/10"
+                  disabled={prospect.status === "accepted"}
+                >
                   Prospect Accepted
                 </Button>
-                <Button onClick={() => updateStatus("rejected")} variant="outline" className="border-status-rejected text-status-rejected hover:bg-status-rejected/10">
+                <Button
+                  onClick={() => setRejectDialogOpen(true)}
+                  variant="outline"
+                  className="border-status-rejected text-status-rejected hover:bg-status-rejected/10"
+                  disabled={prospect.status === "rejected"}
+                >
                   Prospect Rejected
                 </Button>
               </div>
@@ -187,6 +280,55 @@ export default function AdminProspectDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Accept confirmation dialog */}
+      <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept prospect?</DialogTitle>
+            <DialogDescription>
+              This will create a client account for <strong>{prospect.name}</strong> at{" "}
+              <strong>{prospect.email}</strong>. An invite email with login credentials will be sent automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)} disabled={accepting}>
+              Cancel
+            </Button>
+            <Button onClick={handleAccept} disabled={accepting}>
+              {accepting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject dialog with optional reason */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject prospect?</DialogTitle>
+            <DialogDescription>
+              Optionally provide a reason for rejecting <strong>{prospect.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Reason for rejection (optional)"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            className="min-h-[80px]"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialogOpen(false); setRejectReason(""); }} disabled={rejecting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejecting}>
+              {rejecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
