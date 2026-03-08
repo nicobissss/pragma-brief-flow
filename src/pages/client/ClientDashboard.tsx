@@ -226,6 +226,14 @@ export default function ClientDashboard() {
         <TabsList>
           <TabsTrigger value="assets">My Assets</TabsTrigger>
           <TabsTrigger value="briefing">My Briefing</TabsTrigger>
+          {pendingRequestCount > 0 && (
+            <TabsTrigger value="collect" className="relative">
+              📎 Files requested
+              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
+                {pendingRequestCount}
+              </Badge>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="assets" className="mt-6">
