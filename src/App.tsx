@@ -12,6 +12,7 @@ import AdminProspectDetail from "./pages/admin/AdminProspectDetail";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminClientKickoff from "./pages/admin/AdminClientKickoff";
+import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientAssets from "./pages/client/ClientAssets";
