@@ -52,6 +52,7 @@ export default function AdminProspectDetail() {
       setProspect(prospectRes.data as Prospect | null);
       if (proposalRes.data?.full_proposal_content) {
         setProposal(proposalRes.data.full_proposal_content);
+        setProposalDate(proposalRes.data.created_at);
       }
       setLoading(false);
       setLoadingProposal(false);
