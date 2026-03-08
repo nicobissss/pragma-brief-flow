@@ -39,6 +39,7 @@ export default function AdminProspectDetail() {
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
   const [proposal, setProposal] = useState<any>(null);
+  const [proposalDate, setProposalDate] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [loadingProposal, setLoadingProposal] = useState(true);
 
@@ -51,6 +52,7 @@ export default function AdminProspectDetail() {
       setProspect(prospectRes.data as Prospect | null);
       if (proposalRes.data?.full_proposal_content) {
         setProposal(proposalRes.data.full_proposal_content);
+        setProposalDate(proposalRes.data.created_at);
       }
       setLoading(false);
       setLoadingProposal(false);
@@ -68,6 +70,7 @@ export default function AdminProspectDetail() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setProposal(data.proposal);
+      setProposalDate(new Date().toISOString());
       toast.success("Proposal generated successfully!");
     } catch (e: any) {
       toast.error(e.message || "Failed to generate proposal");
@@ -103,7 +106,7 @@ export default function AdminProspectDetail() {
       <Tabs defaultValue="briefing">
         <TabsList>
           <TabsTrigger value="briefing">Briefing</TabsTrigger>
-          <TabsTrigger value="proposal">Proposal</TabsTrigger>
+          <TabsTrigger value="proposal">{proposal ? "View Proposal" : "Proposal"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="briefing" className="mt-6 space-y-6">
@@ -162,6 +165,11 @@ export default function AdminProspectDetail() {
 
           {proposal && !generating && (
             <>
+              {proposalDate && (
+                <p className="text-muted-foreground text-sm">
+                  Last generated: {new Date(proposalDate).toLocaleString()}
+                </p>
+              )}
               <ProposalView data={proposal} />
               <div className="flex gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
