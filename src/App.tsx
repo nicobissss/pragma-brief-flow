@@ -43,6 +43,7 @@ const App = () => (
           <Route path="/client" element={<ClientLayout />}>
             <Route path="dashboard" element={<ClientDashboard />} />
             <Route path="assets" element={<ClientAssets />} />
+            <Route path="assets/:type" element={<ClientAssetReview />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
