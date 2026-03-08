@@ -112,7 +112,6 @@ export default function AdminProspectDetail() {
     if (!prospect) return;
     setAccepting(true);
     try {
-      // Step 1: Create client via accept-prospect edge function
       const { data, error } = await supabase.functions.invoke("accept-prospect", {
         body: { prospect_id: prospect.id },
       });
@@ -121,64 +120,11 @@ export default function AdminProspectDetail() {
 
       setProspect({ ...prospect, status: "accepted" });
 
-      // Step 2: Send webhook to Briefer (non-blocking)
-      try {
-        const { data: brieferConfig } = await (supabase.from("connected_tools" as any) as any)
-          .select("config")
-          .eq("tool_name", "briefer")
-          .maybeSingle();
-
-        if (brieferConfig?.config?.url && brieferConfig?.config?.webhook_secret) {
-          const webhookUrl = `${brieferConfig.config.url}/functions/v1/receive-client`;
-
-          // Get proposal data for webhook payload
-          const { data: proposalData } = await supabase.from("proposals")
-            .select("full_proposal_content")
-            .eq("prospect_id", prospect.id)
-            .maybeSingle();
-
-          const proposalContent = proposalData?.full_proposal_content as any;
-
-          const webhookBody = {
-            client_id: data.client_id,
-            name: prospect.name,
-            company_name: prospect.company_name,
-            email: prospect.email,
-            vertical: prospect.vertical,
-            sub_niche: prospect.sub_niche,
-            market: prospect.market,
-            contract_type: proposalContent?.pricing?.contract_type || "",
-            activated_tools: proposalContent?.recommended_tools || [],
-            briefing_answers: prospect.briefing_answers,
-            recommended_flow: proposalContent?.recommended_flow || "",
-            retainer: proposalContent?.pricing?.retainer || "",
-            commission: proposalContent?.pricing?.commission || "",
-          };
-
-          const webhookRes = await fetch(webhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${brieferConfig.config.webhook_secret}`,
-            },
-            body: JSON.stringify(webhookBody),
-          });
-
-          if (webhookRes.ok) {
-            toast.success("Client created in Briefer ✅", { duration: 5000 });
-            // Log success
-            await supabase.from("activity_log").insert({
-              entity_type: "client",
-              entity_id: data.client_id,
-              entity_name: prospect.name,
-              action: "Client sent to Briefer successfully",
-            });
-          } else {
-            throw new Error("Webhook failed");
-          }
-        }
-      } catch {
-        toast.error("Briefer connection failed. Client saved in CRM. Add manually in Briefer.", { duration: 8000 });
+      // Show Briefer result from edge function
+      if (data?.briefer_sent) {
+        toast.success("✅ Client created in Briefer", { duration: 5000 });
+      } else if (data?.briefer_error) {
+        toast.error("⚠️ Briefer not connected. Add client manually in Briefer.", { duration: 8000 });
       }
 
       toast.success(

@@ -23,12 +23,12 @@ export default function AdminLayout() {
 
       if (roles?.some((r) => r.role === "pragma_admin")) {
         setAuthorized(true);
-        // Fetch briefer URL
-        const { data } = await (supabase.from("connected_tools" as any) as any)
-          .select("config")
-          .eq("tool_name", "briefer")
+        // Fetch briefer URL from app_settings
+        const { data: urlSetting } = await (supabase.from("app_settings" as any) as any)
+          .select("value")
+          .eq("key", "briefer_url")
           .maybeSingle();
-        if (data?.config?.url) setBrieferUrl(data.config.url);
+        if (urlSetting?.value) setBrieferUrl(urlSetting.value);
       } else {
         navigate("/login");
       }

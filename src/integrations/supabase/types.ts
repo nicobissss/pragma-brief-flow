@@ -41,6 +41,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       asset_section_comments: {
         Row: {
           asset_id: string
@@ -331,27 +352,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      connected_tools: {
-        Row: {
-          config: Json
-          id: string
-          tool_name: string
-          updated_at: string
-        }
-        Insert: {
-          config?: Json
-          id?: string
-          tool_name: string
-          updated_at?: string
-        }
-        Update: {
-          config?: Json
-          id?: string
-          tool_name?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       documents: {
         Row: {

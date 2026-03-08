@@ -65,11 +65,10 @@ export default function AdminClientDetail() {
       if (!clientData) { setLoading(false); return; }
       setClient(clientData as Client);
 
-      // Fetch briefer config
-      const brieferRes = await (supabase.from("connected_tools" as any) as any)
-        .select("config").eq("tool_name", "briefer").maybeSingle();
-      const brieferConfig = brieferRes?.data?.config;
-      if (brieferConfig?.url) setBrieferUrl(brieferConfig.url);
+      // Fetch briefer config from app_settings
+      const brieferRes = await (supabase.from("app_settings" as any) as any)
+        .select("key, value").eq("key", "briefer_url").maybeSingle();
+      if (brieferRes?.data?.value) setBrieferUrl(brieferRes.data.value);
 
       if (clientData.prospect_id) {
         const [proposalRes, prospectRes] = await Promise.all([
