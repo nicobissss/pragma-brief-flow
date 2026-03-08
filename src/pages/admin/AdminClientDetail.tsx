@@ -442,31 +442,15 @@ export default function AdminClientDetail() {
         {/* TAB 2 — Kickoff                               */}
         {/* ═══════════════════════════════════════════════ */}
         <TabsContent value="kickoff" className="mt-6 space-y-6">
-          {/* Section 1: Questions */}
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground">Kickoff Questions</h3>
-              <Button variant="outline" size="sm" onClick={copyAllQuestions}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copy all
-              </Button>
-            </div>
-            <div className="space-y-6">
-              {Object.entries(questions).map(([category, qs]) => (
-                <div key={category}>
-                  <h4 className="text-sm font-semibold text-foreground mb-2">{category}</h4>
-                  <div className="space-y-2">
-                    {qs.map((q) => (
-                      <label key={q} className="flex items-start gap-3 p-2 rounded-md hover:bg-secondary/50 cursor-pointer">
-                        <Checkbox checked={checkedQuestions.has(q)} onCheckedChange={() => toggleQuestion(q)} className="mt-0.5" />
-                        <span className={`text-sm ${checkedQuestions.has(q) ? "text-muted-foreground line-through" : "text-foreground"}`}>{q}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Section 1: Kickoff Questions (editable) */}
+          {client && (
+            <KickoffQuestionsManager
+              clientId={client.id}
+              clientName={client.name}
+              vertical={client.vertical}
+              subNiche={client.sub_niche}
+            />
+          )}
 
           {/* Section 2: Transcript */}
           <div className="bg-card rounded-lg border border-border p-6">
