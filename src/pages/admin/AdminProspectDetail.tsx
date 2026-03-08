@@ -267,7 +267,7 @@ export default function AdminProspectDetail() {
                   Last generated: {new Date(proposalDate).toLocaleString()}
                 </p>
               )}
-              <ProposalView data={proposal} />
+              <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
               <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
                 <Button onClick={handleMarkReady} disabled={prospect.status === "proposal_ready"}>
