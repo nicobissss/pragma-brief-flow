@@ -405,12 +405,18 @@ export default function AdminClientDetail() {
           </TabsTrigger>
           <TabsTrigger
             value="prompts"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5"
+          >
+            Prompts
+          </TabsTrigger>
+          <TabsTrigger
+            value="assets"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5 relative"
           >
-            Prompts & Assets
-            {assetsPendingCount > 0 && (
+            Assets
+            {changeRequestedCount > 0 && (
               <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
-                {assetsPendingCount}
+                {changeRequestedCount}
               </Badge>
             )}
           </TabsTrigger>
