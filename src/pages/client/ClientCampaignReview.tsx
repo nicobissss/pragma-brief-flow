@@ -150,10 +150,20 @@ export default function ClientCampaignReview() {
 
     setSubmitting(true);
     try {
-      await supabase.from("assets").update({
+      const { error: updateError } = await supabase.from("assets").update({
         status: "change_requested" as any,
         client_comment: text,
       }).eq("id", asset.id);
+      if (updateError) throw updateError;
+
+      // Save to asset_section_comments for admin visibility
+      await supabase.from("asset_section_comments").insert({
+        asset_id: asset.id,
+        client_id: clientId!,
+        section_name: "general",
+        comment_text: text,
+        version_number: asset.version || 1,
+      });
 
       const { data: existingRounds } = await supabase.from("revision_rounds")
         .select("round_number").eq("asset_id", asset.id)
