@@ -168,6 +168,7 @@ export default function AdminClientDetail() {
   const [proposal, setProposal] = useState<ProposalData | null>(null);
   const [kickoff, setKickoff] = useState<KickoffBrief | null>(null);
   const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
 
   // Kickoff state
   const [checkedQuestions, setCheckedQuestions] = useState<Set<string>>(new Set());
