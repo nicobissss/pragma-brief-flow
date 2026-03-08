@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { CommentableSection } from "@/components/client/CommentableSection";
-import { toast } from "sonner";
-import { CheckCircle2, Send, Loader2, ArrowLeft, Target, Users, MessageSquare, Calendar } from "lucide-react";
 import { AssetPreview } from "@/components/client/AssetPreview";
+import { toast } from "sonner";
+import { CheckCircle2, Send, Loader2, ArrowLeft, Target, Users, MessageSquare, Calendar, FileText, Mail, Image, PenTool, Eye } from "lucide-react";
 
 type Asset = {
   id: string;
@@ -39,15 +39,24 @@ const typeLabels: Record<string, string> = {
   blog_article: "Blog Articles",
 };
 
+const typeIcons: Record<string, any> = {
+  landing_page: FileText,
+  email_flow: Mail,
+  social_post: Image,
+  blog_article: PenTool,
+};
+
 const LANDING_PAGE_SECTIONS = ["Hero", "Benefits", "Social proof", "Offer/pricing", "Footer CTA"];
 
 export default function ClientCampaignReview() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
 
   const [sectionComments, setSectionComments] = useState<Record<string, Record<string, string>>>({});
   const [generalComments, setGeneralComments] = useState<Record<string, string>>({});
@@ -63,14 +72,14 @@ export default function ClientCampaignReview() {
       setClientId(client.id);
 
       // Fetch campaign
-      const { data: campaignData } = await (supabase.from("campaigns" as any) as any)
+      const { data: campaignData } = await supabase.from("campaigns")
         .select("*").eq("id", id!).single();
-      if (campaignData) setCampaign(campaignData as Campaign);
+      if (campaignData) setCampaign(campaignData as unknown as Campaign);
 
       // Fetch assets for this campaign
-      const { data: assetsData } = await (supabase.from("assets") as any)
+      const { data: assetsData } = await supabase.from("assets")
         .select("*").eq("client_id", client.id).eq("campaign_id", id!).order("created_at");
-      const assetList = (assetsData as Asset[]) || [];
+      const assetList = (assetsData as unknown as Asset[]) || [];
       setAssets(assetList);
 
       // Pre-fill general comments
@@ -83,11 +92,11 @@ export default function ClientCampaignReview() {
       // Load existing section comments
       if (assetList.length > 0) {
         const assetIds = assetList.map((a) => a.id);
-        const { data: comments } = await (supabase.from("asset_section_comments" as any) as any)
+        const { data: comments } = await supabase.from("asset_section_comments")
           .select("*").in("asset_id", assetIds).eq("client_id", client.id);
         if (comments && Array.isArray(comments)) {
           const map: Record<string, Record<string, string>> = {};
-          for (const c of comments as any[]) {
+          for (const c of comments) {
             if (!map[c.asset_id]) map[c.asset_id] = {};
             map[c.asset_id][c.section_name] = c.comment_text;
           }
@@ -127,14 +136,14 @@ export default function ClientCampaignReview() {
     setSubmittingFeedback(true);
     try {
       // Delete old section comments for this asset
-      await (supabase.from("asset_section_comments" as any) as any).delete().eq("asset_id", asset.id).eq("client_id", clientId!);
+      await supabase.from("asset_section_comments").delete().eq("asset_id", asset.id).eq("client_id", clientId!);
 
       // Insert new section comments
       if (sectionEntries.length > 0) {
         const rows = sectionEntries.map(([section, text]) => ({
           asset_id: asset.id, client_id: clientId!, section_name: section, comment_text: text.trim(), version_number: asset.version || 1,
         }));
-        await (supabase.from("asset_section_comments" as any) as any).insert(rows);
+        await supabase.from("asset_section_comments").insert(rows);
       }
 
       // Update asset
@@ -151,6 +160,7 @@ export default function ClientCampaignReview() {
       });
 
       setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "change_requested", client_comment: gen || a.client_comment } : a));
+      setExpandedAsset(null);
 
       // Trigger correction prompt
       supabase.functions.invoke("generate-correction-prompt", { body: { asset_id: asset.id } }).catch(console.error);
@@ -177,11 +187,23 @@ export default function ClientCampaignReview() {
     return [];
   };
 
+  const getAssetActionLabel = (status: string) => {
+    if (status === "approved") return "View approved version →";
+    if (status === "change_requested") return "New version available →";
+    return "Review →";
+  };
+
   return (
     <div>
       <Button variant="ghost" size="sm" asChild className="mb-4">
         <Link to="/client/dashboard"><ArrowLeft className="w-4 h-4 mr-1" /> Back to dashboard</Link>
       </Button>
+
+      {/* Campaign header */}
+      <div className="flex items-center gap-3 mb-2">
+        <h1 className="text-xl font-bold text-foreground">{campaign.name}</h1>
+        <Badge variant="outline" className="text-xs">{campaign.status}</Badge>
+      </div>
 
       {/* Campaign approved banner */}
       {allApproved && (
@@ -192,15 +214,9 @@ export default function ClientCampaignReview() {
       )}
 
       {/* Campaign brief */}
-      <div className="bg-card rounded-lg border border-border p-5 mb-6 space-y-3">
-        <div className="flex items-start justify-between">
-          <h1 className="text-xl font-bold text-foreground">{campaign.name}</h1>
-          <Badge variant="outline" className="text-xs">{campaign.status}</Badge>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Here is the strategy behind this campaign. Review the assets below and let us know what you think.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+      <p className="text-sm text-muted-foreground mb-3">Here is the strategy behind this campaign.</p>
+      <div className="bg-card rounded-lg border border-border p-5 mb-6 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {campaign.objective && (
             <div>
               <p className="text-xs text-muted-foreground flex items-center gap-1"><Target className="w-3 h-3" /> Objective</p>
@@ -235,85 +251,110 @@ export default function ClientCampaignReview() {
           No assets in this campaign yet. We'll notify you when they're ready.
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {assets.map((asset) => {
+            const Icon = typeIcons[asset.asset_type] || FileText;
+            const isExpanded = expandedAsset === asset.id;
             const sections = getSectionsForType(asset.asset_type);
+
             return (
               <div key={asset.id} className="bg-card rounded-lg border border-border overflow-hidden">
-                <div className="p-4 flex items-center justify-between border-b border-border">
+                {/* Asset summary row */}
+                <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-medium text-foreground">{asset.asset_name}</h3>
-                    <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
-                    <Badge variant="outline" className="text-[10px]">{typeLabels[asset.asset_type] || asset.asset_type}</Badge>
-                  </div>
-                  <StatusBadge status={asset.status} />
-                </div>
-
-                {/* Asset preview */}
-                <div className="p-4">
-                  <AssetPreview
-                    assetType={asset.asset_type}
-                    assetName={asset.asset_name}
-                    fileUrl={asset.file_url}
-                    content={asset.content}
-                  />
-                </div>
-
-                {/* Commentable sections */}
-                <div className="p-4 space-y-1 border-t border-border">
-                  {sections.map((section) => (
-                    <CommentableSection
-                      key={section}
-                      name={section}
-                      comment={sectionComments[asset.id]?.[section] || ""}
-                      onComment={(t) => updateSectionComment(asset.id, section, t)}
-                    >
-                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()} section</p>
-                    </CommentableSection>
-                  ))}
-
-                  {/* Blog: split paragraphs */}
-                  {asset.asset_type === "blog_article" && asset.content?.text && (() => {
-                    const paragraphs = asset.content.text.split(/\n\n+/).filter((p: string) => p.trim());
-                    return paragraphs.map((para: string, i: number) => {
-                      const key = i === 0 ? "Title" : `Paragraph ${i}`;
-                      return (
-                        <CommentableSection key={key} name={key} comment={sectionComments[asset.id]?.[key] || ""} onComment={(t) => updateSectionComment(asset.id, key, t)}>
-                          <p className={`text-sm ${i === 0 ? "font-semibold text-foreground text-lg" : "text-foreground whitespace-pre-wrap"}`}>{para}</p>
-                        </CommentableSection>
-                      );
-                    });
-                  })()}
-                </div>
-
-                {/* General comment */}
-                <div className="px-4 pb-4">
-                  <Textarea
-                    placeholder="General comments (optional)"
-                    value={generalComments[asset.id] || ""}
-                    onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
-                    className="min-h-[60px] text-sm"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="p-4 border-t border-border flex gap-3">
-                  {asset.status === "approved" ? (
-                    <div className="flex items-center gap-2 text-sm text-status-approved">
-                      <CheckCircle2 className="w-4 h-4" /> Approved
+                    <div className="p-2 rounded-md bg-secondary">
+                      <Icon className="w-4 h-4 text-foreground" />
                     </div>
-                  ) : (
-                    <>
-                      <Button size="sm" onClick={() => approveAsset(asset)} className="bg-status-approved hover:bg-status-approved/90 text-primary-foreground">
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => submitFeedbackForAsset(asset)} disabled={submittingFeedback}>
-                        {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                        Submit feedback
-                      </Button>
-                    </>
-                  )}
+                    <div>
+                      <h3 className="font-medium text-foreground text-sm">{asset.asset_name}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-[10px]">{typeLabels[asset.asset_type] || asset.asset_type}</Badge>
+                        <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={asset.status} />
+                    <Button
+                      size="sm"
+                      variant={isExpanded ? "secondary" : "default"}
+                      onClick={() => setExpandedAsset(isExpanded ? null : asset.id)}
+                    >
+                      {asset.status === "approved" ? (
+                        <><Eye className="w-4 h-4 mr-1" /> View</>
+                      ) : (
+                        <>{getAssetActionLabel(asset.status)}</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Expanded review panel */}
+                {isExpanded && (
+                  <div className="border-t border-border">
+                    {/* Asset preview */}
+                    <div className="p-4">
+                      <AssetPreview
+                        assetType={asset.asset_type}
+                        assetName={asset.asset_name}
+                        fileUrl={asset.file_url}
+                        content={asset.content}
+                      />
+                    </div>
+
+                    {/* Commentable sections */}
+                    {asset.status !== "approved" && (
+                      <>
+                        <div className="p-4 space-y-1 border-t border-border">
+                          {sections.map((section) => (
+                            <CommentableSection
+                              key={section}
+                              name={section}
+                              comment={sectionComments[asset.id]?.[section] || ""}
+                              onComment={(t) => updateSectionComment(asset.id, section, t)}
+                            >
+                              <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()} section</p>
+                            </CommentableSection>
+                          ))}
+
+                          {/* Blog: split paragraphs */}
+                          {asset.asset_type === "blog_article" && asset.content?.text && (() => {
+                            const paragraphs = asset.content.text.split(/\n\n+/).filter((p: string) => p.trim());
+                            return paragraphs.map((para: string, i: number) => {
+                              const key = i === 0 ? "Title" : `Paragraph ${i}`;
+                              return (
+                                <CommentableSection key={key} name={key} comment={sectionComments[asset.id]?.[key] || ""} onComment={(t) => updateSectionComment(asset.id, key, t)}>
+                                  <p className={`text-sm ${i === 0 ? "font-semibold text-foreground text-lg" : "text-foreground whitespace-pre-wrap"}`}>{para}</p>
+                                </CommentableSection>
+                              );
+                            });
+                          })()}
+                        </div>
+
+                        {/* General comment */}
+                        <div className="px-4 pb-4">
+                          <Textarea
+                            placeholder="General comments (optional)"
+                            value={generalComments[asset.id] || ""}
+                            onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
+                            className="min-h-[60px] text-sm"
+                          />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="p-4 border-t border-border flex gap-3">
+                          <Button size="sm" onClick={() => approveAsset(asset)} className="bg-[hsl(var(--status-approved))] hover:bg-[hsl(var(--status-approved))]/90 text-primary-foreground">
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => submitFeedbackForAsset(asset)} disabled={submittingFeedback}>
+                            {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
+                            Submit feedback
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
