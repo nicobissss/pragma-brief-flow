@@ -262,9 +262,13 @@ export type Database = {
       prospects: {
         Row: {
           briefing_answers: Json
+          call_notes: string | null
+          call_scheduled_at: string | null
+          call_status: Database["public"]["Enums"]["call_status"]
           company_name: string
           created_at: string
           email: string
+          follow_up_date: string | null
           id: string
           market: Database["public"]["Enums"]["market"]
           name: string
@@ -275,9 +279,13 @@ export type Database = {
         }
         Insert: {
           briefing_answers?: Json
+          call_notes?: string | null
+          call_scheduled_at?: string | null
+          call_status?: Database["public"]["Enums"]["call_status"]
           company_name: string
           created_at?: string
           email: string
+          follow_up_date?: string | null
           id?: string
           market: Database["public"]["Enums"]["market"]
           name: string
@@ -288,9 +296,13 @@ export type Database = {
         }
         Update: {
           briefing_answers?: Json
+          call_notes?: string | null
+          call_scheduled_at?: string | null
+          call_status?: Database["public"]["Enums"]["call_status"]
           company_name?: string
           created_at?: string
           email?: string
+          follow_up_date?: string | null
           id?: string
           market?: Database["public"]["Enums"]["market"]
           name?: string
@@ -375,6 +387,12 @@ export type Database = {
       app_role: "pragma_admin" | "client"
       asset_status: "pending_review" | "change_requested" | "approved"
       asset_type: "landing_page" | "email_flow" | "social_post" | "blog_article"
+      call_status:
+        | "not_scheduled"
+        | "scheduled"
+        | "done_positive"
+        | "done_negative"
+        | "no_show"
       client_status: "active" | "paused" | "churned"
       market: "es" | "it" | "ar"
       prospect_status:
@@ -516,6 +534,13 @@ export const Constants = {
       app_role: ["pragma_admin", "client"],
       asset_status: ["pending_review", "change_requested", "approved"],
       asset_type: ["landing_page", "email_flow", "social_post", "blog_article"],
+      call_status: [
+        "not_scheduled",
+        "scheduled",
+        "done_positive",
+        "done_negative",
+        "no_show",
+      ],
       client_status: ["active", "paused", "churned"],
       market: ["es", "it", "ar"],
       prospect_status: [

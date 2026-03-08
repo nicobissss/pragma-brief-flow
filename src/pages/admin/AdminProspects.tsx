@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Prospect = {
   id: string;
@@ -17,7 +18,35 @@ type Prospect = {
   sub_niche: string;
   market: string;
   status: string;
+  call_status: string;
+  call_scheduled_at: string | null;
 };
+
+function CallStatusIcon({ status, scheduledAt }: { status: string; scheduledAt: string | null }) {
+  switch (status) {
+    case "scheduled":
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-sm cursor-default">
+              📅 {scheduledAt ? format(new Date(scheduledAt), "dd/MM") : ""}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {scheduledAt ? format(new Date(scheduledAt), "PPp") : "Scheduled"}
+          </TooltipContent>
+        </Tooltip>
+      );
+    case "done_positive":
+      return <span className="text-sm" title="Done - Positive">✅</span>;
+    case "done_negative":
+      return <span className="text-sm" title="Done - Negative">❌</span>;
+    case "no_show":
+      return <span className="text-sm" title="No show">👻</span>;
+    default:
+      return <span className="text-muted-foreground">—</span>;
+  }
+}
 
 export default function AdminProspects() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
@@ -92,6 +121,7 @@ export default function AdminProspects() {
                 <TableHead>Vertical</TableHead>
                 <TableHead>Sub-niche</TableHead>
                 <TableHead>Market</TableHead>
+                <TableHead>Call</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
@@ -99,7 +129,7 @@ export default function AdminProspects() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     No prospects found.
                   </TableCell>
                 </TableRow>
@@ -115,6 +145,9 @@ export default function AdminProspects() {
                     <TableCell>{p.vertical}</TableCell>
                     <TableCell>{p.sub_niche}</TableCell>
                     <TableCell className="uppercase">{p.market}</TableCell>
+                    <TableCell>
+                      <CallStatusIcon status={p.call_status} scheduledAt={p.call_scheduled_at} />
+                    </TableCell>
                     <TableCell><StatusBadge status={p.status} /></TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {format(new Date(p.created_at), "dd MMM yyyy")}
