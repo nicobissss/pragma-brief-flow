@@ -153,7 +153,7 @@ function InlineEditableName({ value, onSave }: { value: string; onSave: (v: stri
   );
 }
 
-export default function AssetUploadZone({ clientId, assetType, onAssetSaved }: AssetUploadZoneProps) {
+export default function AssetUploadZone({ clientId, assetType, campaignId, onAssetSaved }: AssetUploadZoneProps) {
   const cfg = config[assetType];
   const Icon = cfg.icon;
   const fileInputRef = useRef<HTMLInputElement>(null);
