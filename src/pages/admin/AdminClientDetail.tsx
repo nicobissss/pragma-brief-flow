@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
+import { AssetCollectionRequest } from "@/components/admin/AssetCollectionRequest";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
