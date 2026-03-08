@@ -14,16 +14,327 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      assets: {
+        Row: {
+          asset_name: string
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          client_comment: string | null
+          client_id: string
+          content: Json | null
+          created_at: string
+          file_url: string | null
+          id: string
+          status: Database["public"]["Enums"]["asset_status"]
+          version: number
+        }
+        Insert: {
+          asset_name: string
+          asset_type: Database["public"]["Enums"]["asset_type"]
+          client_comment?: string | null
+          client_id: string
+          content?: Json | null
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          version?: number
+        }
+        Update: {
+          asset_name?: string
+          asset_type?: Database["public"]["Enums"]["asset_type"]
+          client_comment?: string | null
+          client_id?: string
+          content?: Json | null
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          market: Database["public"]["Enums"]["market"]
+          name: string
+          prospect_id: string | null
+          status: Database["public"]["Enums"]["client_status"]
+          sub_niche: string
+          user_id: string | null
+          vertical: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          market: Database["public"]["Enums"]["market"]
+          name: string
+          prospect_id?: string | null
+          status?: Database["public"]["Enums"]["client_status"]
+          sub_niche: string
+          user_id?: string | null
+          vertical: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          market?: Database["public"]["Enums"]["market"]
+          name?: string
+          prospect_id?: string | null
+          status?: Database["public"]["Enums"]["client_status"]
+          sub_niche?: string
+          user_id?: string | null
+          vertical?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kickoff_briefs: {
+        Row: {
+          audio_file_url: string | null
+          client_id: string
+          created_at: string
+          generated_prompts: Json | null
+          id: string
+          pragma_approved: boolean | null
+          suggested_questions: Json | null
+          transcript_status:
+            | Database["public"]["Enums"]["transcript_status"]
+            | null
+          transcript_text: string | null
+        }
+        Insert: {
+          audio_file_url?: string | null
+          client_id: string
+          created_at?: string
+          generated_prompts?: Json | null
+          id?: string
+          pragma_approved?: boolean | null
+          suggested_questions?: Json | null
+          transcript_status?:
+            | Database["public"]["Enums"]["transcript_status"]
+            | null
+          transcript_text?: string | null
+        }
+        Update: {
+          audio_file_url?: string | null
+          client_id?: string
+          created_at?: string
+          generated_prompts?: Json | null
+          id?: string
+          pragma_approved?: boolean | null
+          suggested_questions?: Json | null
+          transcript_status?:
+            | Database["public"]["Enums"]["transcript_status"]
+            | null
+          transcript_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kickoff_briefs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          created_at: string
+          full_proposal_content: Json | null
+          id: string
+          pitch_suggestions: string | null
+          pragma_notes: string | null
+          pricing: Json | null
+          prospect_id: string
+          recommended_flow: string | null
+          recommended_tools: Json | null
+          timeline: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_proposal_content?: Json | null
+          id?: string
+          pitch_suggestions?: string | null
+          pragma_notes?: string | null
+          pricing?: Json | null
+          prospect_id: string
+          recommended_flow?: string | null
+          recommended_tools?: Json | null
+          timeline?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_proposal_content?: Json | null
+          id?: string
+          pitch_suggestions?: string | null
+          pragma_notes?: string | null
+          pricing?: Json | null
+          prospect_id?: string
+          recommended_flow?: string | null
+          recommended_tools?: Json | null
+          timeline?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prospects: {
+        Row: {
+          briefing_answers: Json
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          market: Database["public"]["Enums"]["market"]
+          name: string
+          phone: string | null
+          status: Database["public"]["Enums"]["prospect_status"]
+          sub_niche: string
+          vertical: string
+        }
+        Insert: {
+          briefing_answers?: Json
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          market: Database["public"]["Enums"]["market"]
+          name: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["prospect_status"]
+          sub_niche: string
+          vertical: string
+        }
+        Update: {
+          briefing_answers?: Json
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          market?: Database["public"]["Enums"]["market"]
+          name?: string
+          phone?: string | null
+          status?: Database["public"]["Enums"]["prospect_status"]
+          sub_niche?: string
+          vertical?: string
+        }
+        Relationships: []
+      }
+      revision_rounds: {
+        Row: {
+          asset_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          requested_by: Database["public"]["Enums"]["revision_requested_by"]
+          round_number: number
+        }
+        Insert: {
+          asset_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          requested_by: Database["public"]["Enums"]["revision_requested_by"]
+          round_number: number
+        }
+        Update: {
+          asset_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          requested_by?: Database["public"]["Enums"]["revision_requested_by"]
+          round_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revision_rounds_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "pragma_admin" | "client"
+      asset_status: "pending_review" | "change_requested" | "approved"
+      asset_type: "landing_page" | "email_flow" | "social_post" | "blog_article"
+      client_status: "active" | "paused" | "churned"
+      market: "es" | "it" | "ar"
+      prospect_status:
+        | "new"
+        | "proposal_ready"
+        | "call_scheduled"
+        | "accepted"
+        | "rejected"
+        | "archived"
+      revision_requested_by: "client" | "pragma"
+      transcript_status: "pending" | "processing" | "ready"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +461,22 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["pragma_admin", "client"],
+      asset_status: ["pending_review", "change_requested", "approved"],
+      asset_type: ["landing_page", "email_flow", "social_post", "blog_article"],
+      client_status: ["active", "paused", "churned"],
+      market: ["es", "it", "ar"],
+      prospect_status: [
+        "new",
+        "proposal_ready",
+        "call_scheduled",
+        "accepted",
+        "rejected",
+        "archived",
+      ],
+      revision_requested_by: ["client", "pragma"],
+      transcript_status: ["pending", "processing", "ready"],
+    },
   },
 } as const
