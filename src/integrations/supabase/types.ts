@@ -111,6 +111,33 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string
+          extracted_text: string | null
+          file_url: string
+          filename: string
+          id: string
+          is_active: boolean
+        }
+        Insert: {
+          created_at?: string
+          extracted_text?: string | null
+          file_url: string
+          filename: string
+          id?: string
+          is_active?: boolean
+        }
+        Update: {
+          created_at?: string
+          extracted_text?: string | null
+          file_url?: string
+          filename?: string
+          id?: string
+          is_active?: boolean
+        }
+        Relationships: []
+      }
       kickoff_briefs: {
         Row: {
           audio_file_url: string | null
@@ -160,6 +187,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      knowledge_base: {
+        Row: {
+          category: string
+          content: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          content?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       proposals: {
         Row: {
