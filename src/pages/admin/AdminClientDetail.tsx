@@ -507,7 +507,7 @@ export default function AdminClientDetail() {
                 await supabase.from("kickoff_briefs").update({ client_materials: m } as any).eq("id", kickoff.id);
               } else {
                 const { data } = await supabase.from("kickoff_briefs").insert({
-                  client_id: client.id, suggested_questions: questions, client_materials: m,
+                  client_id: client.id, client_materials: m,
                 } as any).select().single();
                 if (data) setKickoff(data as KickoffBrief);
               }
