@@ -146,6 +146,51 @@ export type Database = {
           },
         ]
       }
+      briefing_questions: {
+        Row: {
+          created_at: string
+          field_key: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          options: Json | null
+          order_index: number
+          placeholder: string | null
+          question_text: string
+          question_type: Database["public"]["Enums"]["briefing_question_type"]
+          step: number
+          vertical: Database["public"]["Enums"]["briefing_vertical"]
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          order_index?: number
+          placeholder?: string | null
+          question_text: string
+          question_type?: Database["public"]["Enums"]["briefing_question_type"]
+          step: number
+          vertical?: Database["public"]["Enums"]["briefing_vertical"]
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          order_index?: number
+          placeholder?: string | null
+          question_text?: string
+          question_type?: Database["public"]["Enums"]["briefing_question_type"]
+          step?: number
+          vertical?: Database["public"]["Enums"]["briefing_vertical"]
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           client_id: string
@@ -522,6 +567,14 @@ export type Database = {
       app_role: "pragma_admin" | "client"
       asset_status: "pending_review" | "change_requested" | "approved"
       asset_type: "landing_page" | "email_flow" | "social_post" | "blog_article"
+      briefing_question_type:
+        | "text"
+        | "select"
+        | "multiselect"
+        | "number"
+        | "url"
+        | "boolean"
+      briefing_vertical: "all" | "salud" | "elearning" | "deporte"
       call_status:
         | "not_scheduled"
         | "scheduled"
@@ -670,6 +723,15 @@ export const Constants = {
       app_role: ["pragma_admin", "client"],
       asset_status: ["pending_review", "change_requested", "approved"],
       asset_type: ["landing_page", "email_flow", "social_post", "blog_article"],
+      briefing_question_type: [
+        "text",
+        "select",
+        "multiselect",
+        "number",
+        "url",
+        "boolean",
+      ],
+      briefing_vertical: ["all", "salud", "elearning", "deporte"],
       call_status: [
         "not_scheduled",
         "scheduled",

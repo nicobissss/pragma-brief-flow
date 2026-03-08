@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
+import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Processes" },
@@ -202,6 +203,11 @@ export default function AdminSettings() {
           ))}
         </div>
       )}
+
+      {/* PART 3: Briefing Questions */}
+      <div className="mt-10 border-t border-border pt-8">
+        <BriefingQuestionsManager />
+      </div>
     </div>
   );
 }

@@ -10,6 +10,19 @@ import { toast } from "sonner";
 
 const STORAGE_KEY = "pragma_briefing_draft";
 
+export type DynamicQuestion = {
+  id: string;
+  step: number;
+  vertical: string;
+  field_key: string;
+  question_text: string;
+  question_type: string;
+  options: string[] | null;
+  placeholder: string | null;
+  is_required: boolean;
+  order_index: number;
+};
+
 export default function BriefingPage() {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BriefingData>(() => {
@@ -18,7 +31,23 @@ export default function BriefingPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [questions, setQuestions] = useState<DynamicQuestion[]>([]);
+  const [questionsLoaded, setQuestionsLoaded] = useState(false);
   const navigate = useNavigate();
+
+  // Load dynamic questions
+  useEffect(() => {
+    const loadQuestions = async () => {
+      const { data: qData } = await (supabase.from("briefing_questions" as any) as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("step")
+        .order("order_index");
+      setQuestions((qData || []) as DynamicQuestion[]);
+      setQuestionsLoaded(true);
+    };
+    loadQuestions();
+  }, []);
 
   const update = useCallback((partial: Partial<BriefingData>) => {
     setData((prev) => ({ ...prev, ...partial }));
@@ -80,6 +109,22 @@ export default function BriefingPage() {
     );
   }
 
+  if (!questionsLoaded) {
+    return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">Loading...</div>;
+  }
+
+  // Helper to get question label by field_key
+  const getLabel = (fieldKey: string, fallback: string) => {
+    const q = questions.find((q) => q.field_key === fieldKey);
+    return q ? q.question_text : fallback;
+  };
+
+  const isFieldActive = (fieldKey: string) => {
+    // If no dynamic question found, assume active (backward compat)
+    const q = questions.find((q) => q.field_key === fieldKey);
+    return q ? true : true; // All loaded questions are active (filtered by is_active=true)
+  };
+
   const totalSteps = 4;
   const progress = ((step - 1) / (totalSteps - 1)) * 100;
 
@@ -107,9 +152,9 @@ export default function BriefingPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {step === 1 && <BriefingStep1 data={data} update={update} onNext={() => setStep(2)} />}
-        {step === 2 && <BriefingStep2 data={data} update={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-        {step === 3 && <BriefingStep3 data={data} update={update} onNext={() => setStep(4)} onBack={() => setStep(2)} />}
+        {step === 1 && <BriefingStep1 data={data} update={update} onNext={() => setStep(2)} questions={questions} />}
+        {step === 2 && <BriefingStep2 data={data} update={update} onNext={() => setStep(3)} onBack={() => setStep(1)} questions={questions} />}
+        {step === 3 && <BriefingStep3 data={data} update={update} onNext={() => setStep(4)} onBack={() => setStep(2)} questions={questions} />}
         {step === 4 && <BriefingStep4 data={data} onBack={() => setStep(3)} onSubmit={handleSubmit} submitting={submitting} />}
       </div>
     </div>
