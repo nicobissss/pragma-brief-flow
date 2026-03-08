@@ -98,6 +98,9 @@ export default function AdminClientKickoff() {
   const [saving, setSaving] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [materials, setMaterials] = useState<ClientMaterialsData>({});
+  const [generating, setGenerating] = useState(false);
+  const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
+  const promptsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
