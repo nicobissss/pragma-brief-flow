@@ -234,6 +234,39 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── asset_collection_request: ask client to upload files ──
+    if (type === "asset_collection_request") {
+      const itemsList = (requested_items || [])
+        .map(i => `<li style="margin-bottom: 8px;"><strong>${i.label}</strong>${i.description ? `<br/><span style="color: #a0aec0; font-size: 13px;">${i.description}</span>` : ""}</li>`)
+        .join("");
+
+      const subject = `We need a few things from you — ${client.company_name}`;
+      const html = emailWrapper(`
+        <h2 style="color: #1a365d;">Hi ${client.name},</h2>
+        <p style="color: #4a5568; line-height: 1.6;">
+          To prepare your campaigns, we need a few things from you.
+        </p>
+        <p style="color: #4a5568;">Please upload the following in your portal:</p>
+        <ul style="color: #4a5568; line-height: 1.8;">
+          ${itemsList}
+        </ul>
+        <p style="color: #4a5568; line-height: 1.6;">
+          This will help us create more personalized and effective marketing materials for you.
+        </p>
+        <div style="margin: 30px 0;">
+          <a href="${APP_URL}/client/collect"
+             style="background-color: #1a365d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Upload my files →
+          </a>
+        </div>
+      `);
+
+      await sendEmail(client.email, subject, html);
+      return new Response(JSON.stringify({ success: true, sent_to: client.email }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     throw new Error(`Unknown notification type: ${type}`);
   } catch (e) {
     console.error("send-notification error:", e);
