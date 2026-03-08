@@ -163,6 +163,20 @@ export default function AdminProspectDetail() {
     if (ok) toast.success("Prospect archived");
   };
 
+  const handleSaveProposal = async (updatedData: ProposalData) => {
+    if (!prospect) return;
+    const { error } = await supabase
+      .from("proposals")
+      .update({ full_proposal_content: updatedData as any })
+      .eq("prospect_id", prospect.id);
+    if (error) {
+      toast.error("Failed to save proposal changes");
+      return;
+    }
+    setProposal(updatedData);
+    toast.success("Proposal changes saved");
+  };
+
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!prospect) return <div className="p-8 text-muted-foreground">Prospect not found.</div>;
 
