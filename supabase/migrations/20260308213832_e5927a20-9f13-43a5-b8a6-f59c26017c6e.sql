@@ -1,0 +1,1 @@
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS last_notified_at timestamp with time zone DEFAULT NULL;
