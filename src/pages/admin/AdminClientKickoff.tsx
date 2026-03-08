@@ -209,6 +209,7 @@ export default function AdminClientKickoff() {
       if (error) throw error;
       if (data?.prompts) {
         setGeneratedPrompts(data.prompts);
+        if (data.context_sources) setContextSources(data.context_sources);
         toast.success("Prompts generated successfully!");
         setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       } else {
