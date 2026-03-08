@@ -244,6 +244,44 @@ export type Database = {
           },
         ]
       }
+      client_asset_requests: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          pragma_notified: boolean
+          requested_items: Json
+          status: Database["public"]["Enums"]["asset_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          pragma_notified?: boolean
+          requested_items?: Json
+          status?: Database["public"]["Enums"]["asset_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          pragma_notified?: boolean
+          requested_items?: Json
+          status?: Database["public"]["Enums"]["asset_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_asset_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           company_name: string
@@ -568,6 +606,7 @@ export type Database = {
     }
     Enums: {
       app_role: "pragma_admin" | "client"
+      asset_request_status: "pending" | "partial" | "complete"
       asset_status: "pending_review" | "change_requested" | "approved"
       asset_type: "landing_page" | "email_flow" | "social_post" | "blog_article"
       briefing_question_type:
@@ -724,6 +763,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["pragma_admin", "client"],
+      asset_request_status: ["pending", "partial", "complete"],
       asset_status: ["pending_review", "change_requested", "approved"],
       asset_type: ["landing_page", "email_flow", "social_post", "blog_article"],
       briefing_question_type: [
