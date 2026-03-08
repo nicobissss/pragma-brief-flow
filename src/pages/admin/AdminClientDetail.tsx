@@ -65,23 +65,20 @@ export default function AdminClientDetail() {
       if (!clientData) { setLoading(false); return; }
       setClient(clientData as Client);
 
-      // Fetch proposal + prospect answers + briefer config in parallel
-      const promises: Promise<any>[] = [
-        supabase.from("connected_tools" as any).select("config").eq("tool_name", "briefer").maybeSingle(),
-      ];
-
-      if (clientData.prospect_id) {
-        promises.push(
-          supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle(),
-          supabase.from("prospects").select("briefing_answers").eq("id", clientData.prospect_id).single(),
-        );
-      }
-
-      const results = await Promise.all(promises);
-      const brieferConfig = (results[0] as any)?.data?.config;
+      // Fetch briefer config
+      const brieferRes = await (supabase.from("connected_tools" as any) as any)
+        .select("config").eq("tool_name", "briefer").maybeSingle();
+      const brieferConfig = brieferRes?.data?.config;
       if (brieferConfig?.url) setBrieferUrl(brieferConfig.url);
 
-      if (clientData.prospect_id && results.length > 1) {
+      if (clientData.prospect_id) {
+        const [proposalRes, prospectRes] = await Promise.all([
+          supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle(),
+          supabase.from("prospects").select("briefing_answers").eq("id", clientData.prospect_id).single(),
+        ]);
+
+        const proposalData = proposalRes as any;
+        const prospectData = prospectRes as any;
         const proposalRes = results[1] as any;
         const prospectRes = results[2] as any;
         if (proposalRes?.data?.full_proposal_content) {
