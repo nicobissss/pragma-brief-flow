@@ -249,28 +249,18 @@ export default function ClientCampaignReview() {
                   <StatusBadge status={asset.status} />
                 </div>
 
-                <div className="p-4 space-y-1">
-                  {/* File preview */}
-                  {asset.file_url && (
-                    <div className="mb-4">
-                      {asset.file_url.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? (
-                        <img src={asset.file_url} alt={asset.asset_name} className="w-full rounded-md border border-border" />
-                      ) : (
-                        <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
-                          <ExternalLink className="w-4 h-4" /> View file
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  {asset.content?.url && (
-                    <div className="mb-4">
-                      <a href={asset.content.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
-                        <ExternalLink className="w-4 h-4" /> {asset.content.url}
-                      </a>
-                    </div>
-                  )}
+                {/* Asset preview */}
+                <div className="p-4">
+                  <AssetPreview
+                    assetType={asset.asset_type}
+                    assetName={asset.asset_name}
+                    fileUrl={asset.file_url}
+                    content={asset.content}
+                  />
+                </div>
 
-                  {/* Commentable sections */}
+                {/* Commentable sections */}
+                <div className="p-4 space-y-1 border-t border-border">
                   {sections.map((section) => (
                     <CommentableSection
                       key={section}
