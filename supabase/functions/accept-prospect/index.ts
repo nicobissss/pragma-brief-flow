@@ -56,7 +56,8 @@ serve(async (req) => {
         email: prospect.email,
         password: "Pragma2026!",
         email_confirm: true,
-        user_metadata: { full_name: prospect.name, company: prospect.company_name },
+        user_metadata: { full_name: prospect.name, company: prospect.company_name, role: "client" },
+        app_metadata: { role: "client" },
       });
 
       if (createErr) throw new Error(`Failed to create user: ${createErr.message}`);
