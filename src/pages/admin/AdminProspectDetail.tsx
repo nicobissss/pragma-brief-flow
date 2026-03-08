@@ -70,6 +70,7 @@ export default function AdminProspectDetail() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setProposal(data.proposal);
+      setProposalDate(new Date().toISOString());
       toast.success("Proposal generated successfully!");
     } catch (e: any) {
       toast.error(e.message || "Failed to generate proposal");
