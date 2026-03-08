@@ -325,12 +325,15 @@ export default function AdminClientKickoff() {
         </Tabs>
       </div>
 
-      {/* SECTION 3: Asset Upload Zones — placeholder */}
-      <div className="bg-card rounded-lg border border-border p-6">
-        <h3 className="font-semibold text-foreground mb-4">Client Assets</h3>
-        <p className="text-muted-foreground text-sm">
-          Asset upload zones will be available after the kickoff is complete. You'll be able to upload landing pages, email flows, social posts, and blog articles for client review.
-        </p>
+      {/* SECTION 3: Asset Upload Zones */}
+      <div className="space-y-4">
+        <h3 className="font-semibold text-foreground text-lg">Client Assets</h3>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <AssetUploadZone clientId={client.id} assetType="landing_page" />
+          <AssetUploadZone clientId={client.id} assetType="email_flow" />
+          <AssetUploadZone clientId={client.id} assetType="social_post" />
+          <AssetUploadZone clientId={client.id} assetType="blog_article" />
+        </div>
       </div>
     </div>
   );
