@@ -26,7 +26,6 @@ serve(async (req) => {
       .single();
 
     if (pErr || !prospect) throw new Error("Prospect not found");
-    if (prospect.status === "accepted") throw new Error("Prospect already accepted");
 
     // 2. Check if client already exists for this prospect
     const { data: existingClient } = await supabaseAdmin
@@ -35,64 +34,40 @@ serve(async (req) => {
       .eq("prospect_id", prospect_id)
       .maybeSingle();
 
-    if (existingClient) throw new Error("Client already exists for this prospect");
-
-    // 3. Create auth user via invite (sends email with magic link)
-    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      prospect.email,
-      { data: { full_name: prospect.name, company: prospect.company_name } }
-    );
-
-    if (inviteErr) {
-      // If user already exists, try to get them
-      if (inviteErr.message?.includes("already been registered") || inviteErr.message?.includes("already exists")) {
-        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-        const existingUser = users?.find((u: any) => u.email === prospect.email);
-        if (!existingUser) throw new Error("User exists but could not be found");
-        
-        // Use existing user
-        const userId = existingUser.id;
-
-        // Ensure role exists
-        await supabaseAdmin.from("user_roles").upsert(
-          { user_id: userId, role: "client" },
-          { onConflict: "user_id,role" }
-        );
-
-        // Create client record
-        const { data: client, error: clientErr } = await supabaseAdmin.from("clients").insert({
-          name: prospect.name,
-          company_name: prospect.company_name,
-          email: prospect.email,
-          market: prospect.market,
-          vertical: prospect.vertical,
-          sub_niche: prospect.sub_niche,
-          prospect_id: prospect.id,
-          user_id: userId,
-          status: "active",
-        }).select("id").single();
-
-        if (clientErr) throw clientErr;
-
-        // Update prospect status
-        await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
-
-        return new Response(JSON.stringify({ success: true, client_id: client.id, user_id: userId }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw inviteErr;
+    if (existingClient) {
+      // Client already exists — just ensure prospect is marked accepted and return
+      await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
+      return new Response(JSON.stringify({ success: true, client_id: existingClient.id, already_existed: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const userId = inviteData.user.id;
+    // 3. Check if email already has an auth user
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = users?.find((u: any) => u.email === prospect.email);
 
-    // 4. Assign client role
-    const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role: "client",
-    });
+    let userId: string;
 
-    if (roleErr) console.error("Role assignment error:", roleErr);
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      // Create auth user with temporary password
+      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email: prospect.email,
+        password: "Pragma2026!",
+        email_confirm: true,
+        user_metadata: { full_name: prospect.name, company: prospect.company_name },
+      });
+
+      if (createErr) throw new Error(`Failed to create user: ${createErr.message}`);
+      userId = newUser.user.id;
+    }
+
+    // 4. Assign client role (upsert to avoid duplicates)
+    await supabaseAdmin.from("user_roles").upsert(
+      { user_id: userId, role: "client" },
+      { onConflict: "user_id,role" }
+    );
 
     // 5. Create client record
     const { data: client, error: clientErr } = await supabaseAdmin.from("clients").insert({
@@ -107,10 +82,18 @@ serve(async (req) => {
       status: "active",
     }).select("id").single();
 
-    if (clientErr) throw clientErr;
+    if (clientErr) throw new Error(`Failed to create client: ${clientErr.message}`);
 
     // 6. Update prospect status
     await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
+
+    // 7. Log activity
+    await supabaseAdmin.from("activity_log").insert({
+      entity_type: "prospect",
+      entity_id: prospect.id,
+      entity_name: prospect.name,
+      action: `accepted — client account created`,
+    });
 
     return new Response(JSON.stringify({ success: true, client_id: client.id, user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
