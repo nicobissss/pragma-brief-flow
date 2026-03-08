@@ -183,20 +183,20 @@ export default function AdminClientDetail() {
       setClient(clientData as Client);
 
       // Parallel fetches
-      const fetches: Promise<any>[] = [
-        supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle(),
-        supabase.from("assets").select("id, asset_type, status").eq("client_id", id!),
-      ];
+      const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
+      const assetsPromise = supabase.from("assets").select("id, asset_type, status").eq("client_id", id!);
+
+      let prospectPromise: ReturnType<typeof supabase.from<"prospects">["select"]> | null = null;
+      let proposalPromise: ReturnType<typeof supabase.from<"proposals">["select"]> | null = null;
+
       if (clientData.prospect_id) {
-        fetches.push(
-          supabase.from("prospects").select("*").eq("id", clientData.prospect_id).single(),
-          supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle(),
-        );
+        prospectPromise = supabase.from("prospects").select("*").eq("id", clientData.prospect_id).single();
+        proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
       }
 
-      const results = await Promise.all(fetches);
-      const kickoffData = results[0].data;
-      const assetsData = results[1].data || [];
+      const [kickoffRes, assetsRes] = await Promise.all([kickoffPromise, assetsPromise]);
+      const kickoffData = kickoffRes.data;
+      const assetsData = (assetsRes.data || []) as AssetRow[];
 
       if (kickoffData) {
         setKickoff(kickoffData as KickoffBrief);
@@ -209,12 +209,13 @@ export default function AdminClientDetail() {
         }
       }
 
-      setAssets(assetsData as AssetRow[]);
+      setAssets(assetsData);
 
-      if (clientData.prospect_id && results[2]) {
-        setProspect(results[2].data as Prospect);
-        if (results[3]?.data?.full_proposal_content) {
-          setProposal(results[3].data.full_proposal_content as ProposalData);
+      if (prospectPromise && proposalPromise) {
+        const [prospectRes, proposalRes] = await Promise.all([prospectPromise, proposalPromise]);
+        if (prospectRes.data) setProspect(prospectRes.data as unknown as Prospect);
+        if (proposalRes.data?.full_proposal_content) {
+          setProposal(proposalRes.data.full_proposal_content as unknown as ProposalData);
         }
       }
 
