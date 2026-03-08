@@ -273,7 +273,8 @@ export default function ClientCampaignReview() {
             const isExpanded = expandedAsset === asset.id;
             const feedbackText = feedbackTexts[asset.id] || "";
             const canSubmitFeedback = feedbackText.trim().length >= 20;
-            const isReviewed = asset.status === "approved" || asset.status === "change_requested";
+            const isApproved = asset.status === "approved";
+            const canReview = asset.status === "pending_review" || asset.status === "change_requested";
 
             return (
               <div key={asset.id} className="bg-card rounded-lg border border-border overflow-hidden">
