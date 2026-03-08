@@ -60,7 +60,7 @@ export default function ClientAssetReview() {
         .from("assets")
         .select("*")
         .eq("client_id", client.id)
-        .eq("asset_type", type!)
+        .eq("asset_type", type! as any)
         .order("created_at");
 
       setAssets((data as Asset[]) || []);
