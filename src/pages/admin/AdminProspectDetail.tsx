@@ -125,7 +125,10 @@ export default function AdminProspectDetail() {
       if (data?.error) throw new Error(data.error);
 
       setProspect({ ...prospect, status: "accepted" });
-      toast.success("Prospect accepted! Client account created and invite sent.");
+      toast.success(
+        `Client account created successfully.\nEmail: ${prospect.email}\nPassword: Pragma2026!\nThey will be prompted to change it on first login.`,
+        { duration: 10000 }
+      );
       setAcceptDialogOpen(false);
 
       if (data?.client_id) {
