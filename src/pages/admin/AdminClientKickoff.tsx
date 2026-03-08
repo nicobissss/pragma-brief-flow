@@ -88,6 +88,17 @@ function generateQuestions(vertical: string, subNiche: string): Record<string, s
   return base;
 }
 
+function ContextLine({ label, included }: { label: string; included: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span>{included ? "✅" : "⚪"}</span>
+      <span className={included ? "text-foreground" : "text-muted-foreground"}>
+        {label}{!included && " (not provided)"}
+      </span>
+    </div>
+  );
+}
+
 export default function AdminClientKickoff() {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<Client | null>(null);
