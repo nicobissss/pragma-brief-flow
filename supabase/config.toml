@@ -2,3 +2,6 @@ project_id = "udhlikcjuyirtkdjzscc"
 
 [functions.create-user]
 verify_jwt = false
+
+[functions.generate-proposal]
+verify_jwt = false

@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ProposalView } from "@/components/proposal/ProposalView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MARKETS } from "@/lib/briefing-data";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 type Prospect = {
   id: string;
@@ -36,15 +38,43 @@ export default function AdminProspectDetail() {
   const { id } = useParams<{ id: string }>();
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
+  const [proposal, setProposal] = useState<any>(null);
+  const [generating, setGenerating] = useState(false);
+  const [loadingProposal, setLoadingProposal] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase.from("prospects").select("*").eq("id", id!).single();
-      setProspect(data as Prospect | null);
+    const fetchData = async () => {
+      const [prospectRes, proposalRes] = await Promise.all([
+        supabase.from("prospects").select("*").eq("id", id!).single(),
+        supabase.from("proposals").select("*").eq("prospect_id", id!).maybeSingle(),
+      ]);
+      setProspect(prospectRes.data as Prospect | null);
+      if (proposalRes.data?.full_proposal_content) {
+        setProposal(proposalRes.data.full_proposal_content);
+      }
       setLoading(false);
+      setLoadingProposal(false);
     };
-    fetch();
+    fetchData();
   }, [id]);
+
+  const generateProposal = async () => {
+    if (!prospect) return;
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-proposal", {
+        body: { prospect_id: prospect.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setProposal(data.proposal);
+      toast.success("Proposal generated successfully!");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate proposal");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const updateStatus = async (status: "new" | "proposal_ready" | "call_scheduled" | "accepted" | "rejected" | "archived") => {
     if (!prospect) return;
@@ -114,23 +144,39 @@ export default function AdminProspectDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="proposal" className="mt-6">
-          <div className="bg-card rounded-lg border border-border p-6 text-center">
-            <p className="text-muted-foreground mb-4">Proposal generation will be available when AI edge functions are configured.</p>
-            <Button disabled>Generate Proposal</Button>
-          </div>
+        <TabsContent value="proposal" className="mt-6 space-y-6">
+          {!proposal && !generating && !loadingProposal && (
+            <div className="bg-card rounded-lg border border-border p-8 text-center">
+              <p className="text-muted-foreground mb-4">No proposal generated yet. Click below to analyze the briefing and generate a full proposal.</p>
+              <Button onClick={generateProposal} size="lg">Generate Proposal</Button>
+            </div>
+          )}
 
-          <div className="flex gap-3 mt-6">
-            <Button onClick={() => updateStatus("proposal_ready")} disabled={prospect.status === "proposal_ready"}>
-              Mark as Ready
-            </Button>
-            <Button onClick={() => updateStatus("accepted")} variant="outline" className="border-status-accepted text-status-accepted">
-              Prospect Accepted
-            </Button>
-            <Button onClick={() => updateStatus("rejected")} variant="outline" className="border-status-rejected text-status-rejected">
-              Prospect Rejected
-            </Button>
-          </div>
+          {generating && (
+            <div className="bg-card rounded-lg border border-border p-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-foreground font-medium">Analyzing briefing and generating proposal...</p>
+              <p className="text-muted-foreground text-sm mt-1">This may take 20–30 seconds</p>
+            </div>
+          )}
+
+          {proposal && !generating && (
+            <>
+              <ProposalView data={proposal} />
+              <div className="flex gap-3 pt-4 border-t border-border">
+                <Button onClick={generateProposal} variant="outline">Regenerate</Button>
+                <Button onClick={() => updateStatus("proposal_ready")} disabled={prospect.status === "proposal_ready"}>
+                  Mark as Ready
+                </Button>
+                <Button onClick={() => updateStatus("accepted")} variant="outline" className="border-status-accepted text-status-accepted hover:bg-status-accepted/10">
+                  Prospect Accepted
+                </Button>
+                <Button onClick={() => updateStatus("rejected")} variant="outline" className="border-status-rejected text-status-rejected hover:bg-status-rejected/10">
+                  Prospect Rejected
+                </Button>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
