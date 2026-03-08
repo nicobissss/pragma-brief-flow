@@ -809,7 +809,6 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                           toast.error(`Failed to notify: ${e.message || "Unknown error"}`);
                         }
                       }}
-                      }}
                     >
                       <Bell className="w-3.5 h-3.5 mr-1" /> Notify client about this campaign
                     </Button>
