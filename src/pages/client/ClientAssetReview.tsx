@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentableSection } from "@/components/client/CommentableSection";
 import { toast } from "sonner";
-import { CheckCircle2, ExternalLink, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, Send, Loader2 } from "lucide-react";
+import { AssetPreview } from "@/components/client/AssetPreview";
 
 type Asset = {
   id: string;
@@ -280,33 +281,21 @@ export default function ClientAssetReview() {
               <StatusBadge status={asset.status} />
             </div>
 
+            {/* Asset preview */}
+            <div className="p-4">
+              <AssetPreview
+                assetType={asset.asset_type}
+                assetName={asset.asset_name}
+                fileUrl={asset.file_url}
+                content={asset.content}
+              />
+            </div>
+
             {/* Content with commentable sections */}
-            <div className="p-4 space-y-1">
+            <div className="p-4 space-y-1 border-t border-border">
               {/* ── Landing Page ── */}
               {type === "landing_page" && (
                 <div className="space-y-1">
-                  {/* Preview */}
-                  {asset.file_url && (
-                    <div className="mb-4">
-                      {asset.file_url.match(/\.(png|jpg|jpeg|webp|gif)$/i) ? (
-                        <img src={asset.file_url} alt={asset.asset_name} className="w-full rounded-md border border-border" />
-                      ) : asset.file_url.match(/\.pdf$/i) ? (
-                        <iframe src={asset.file_url} className="w-full h-[600px] rounded-md border border-border" />
-                      ) : (
-                        <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                          <ExternalLink className="w-4 h-4" /> View landing page
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  {asset.content?.url && (
-                    <div className="mb-4">
-                      <a href={asset.content.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
-                        <ExternalLink className="w-4 h-4" /> {asset.content.url}
-                      </a>
-                    </div>
-                  )}
-
                   {LANDING_PAGE_SECTIONS.map((section) => (
                     <CommentableSection
                       key={section}
@@ -314,9 +303,7 @@ export default function ClientAssetReview() {
                       comment={sectionComments[asset.id]?.[section] || ""}
                       onComment={(t) => updateSectionComment(asset.id, section, t)}
                     >
-                      <p className="text-sm text-muted-foreground italic">
-                        Review the {section.toLowerCase()} section above
-                      </p>
+                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()} section</p>
                     </CommentableSection>
                   ))}
                 </div>
@@ -325,115 +312,66 @@ export default function ClientAssetReview() {
               {/* ── Email Flow ── */}
               {type === "email_flow" && (
                 <div className="space-y-1">
-                  <CommentableSection
-                    name="Subject line"
-                    comment={sectionComments[asset.id]?.["Subject line"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "Subject line", t)}
-                  >
-                    <p className="font-semibold text-foreground">{asset.content?.subject || "—"}</p>
-                  </CommentableSection>
-
-                  <CommentableSection
-                    name="Preview text"
-                    comment={sectionComments[asset.id]?.["Preview text"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "Preview text", t)}
-                  >
-                    <p className="text-sm text-muted-foreground">{asset.content?.preview_text || "—"}</p>
-                  </CommentableSection>
-
-                  <CommentableSection
-                    name="Body content"
-                    comment={sectionComments[asset.id]?.["Body content"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "Body content", t)}
-                  >
-                    {asset.content?.body ? (
-                      <div className="text-sm text-foreground whitespace-pre-wrap">{asset.content.body}</div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">No body content</p>
-                    )}
-                  </CommentableSection>
-
-                  <CommentableSection
-                    name="CTA button"
-                    comment={sectionComments[asset.id]?.["CTA button"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "CTA button", t)}
-                  >
-                    <p className="text-sm text-foreground">{asset.content?.cta || "—"}</p>
-                  </CommentableSection>
+                  {EMAIL_SECTIONS.map((section) => (
+                    <CommentableSection
+                      key={section}
+                      name={section}
+                      comment={sectionComments[asset.id]?.[section] || ""}
+                      onComment={(t) => updateSectionComment(asset.id, section, t)}
+                    >
+                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()}</p>
+                    </CommentableSection>
+                  ))}
                 </div>
               )}
 
               {/* ── Social Post ── */}
               {type === "social_post" && (
                 <div className="space-y-1">
-                  {asset.file_url && (
+                  {["Image", "Caption", "Hashtags"].map((section) => (
                     <CommentableSection
-                      name="Image"
-                      comment={sectionComments[asset.id]?.["Image"] || ""}
-                      onComment={(t) => updateSectionComment(asset.id, "Image", t)}
+                      key={section}
+                      name={section}
+                      comment={sectionComments[asset.id]?.[section] || ""}
+                      onComment={(t) => updateSectionComment(asset.id, section, t)}
                     >
-                      <img src={asset.file_url} alt={asset.asset_name} className="w-full max-w-md rounded-md border border-border" />
+                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()}</p>
                     </CommentableSection>
-                  )}
-                  <CommentableSection
-                    name="Caption"
-                    comment={sectionComments[asset.id]?.["Caption"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "Caption", t)}
-                  >
-                    <p className="text-sm text-foreground">{asset.content?.caption || "—"}</p>
-                  </CommentableSection>
-                  <CommentableSection
-                    name="Hashtags"
-                    comment={sectionComments[asset.id]?.["Hashtags"] || ""}
-                    onComment={(t) => updateSectionComment(asset.id, "Hashtags", t)}
-                  >
-                    <p className="text-sm text-muted-foreground">{asset.content?.hashtags || "—"}</p>
-                  </CommentableSection>
+                  ))}
                 </div>
               )}
 
               {/* ── Blog Article ── */}
               {type === "blog_article" && (
                 <div className="space-y-1">
-                  {asset.content?.text ? (
-                    <>
-                      {/* Title = first line */}
-                      {(() => {
-                        const paragraphs = splitParagraphs(asset.content.text);
-                        const title = paragraphs[0] || "";
-                        const body = paragraphs.slice(1);
-                        return (
-                          <>
+                  {asset.content?.text ? (() => {
+                    const paragraphs = splitParagraphs(asset.content.text);
+                    return (
+                      <>
+                        <CommentableSection
+                          name="Title"
+                          comment={sectionComments[asset.id]?.["Title"] || ""}
+                          onComment={(t) => updateSectionComment(asset.id, "Title", t)}
+                        >
+                          <p className="font-semibold text-foreground text-lg">{paragraphs[0] || ""}</p>
+                        </CommentableSection>
+                        {paragraphs.slice(1).map((para, i) => {
+                          const sectionKey = `Paragraph ${i + 1}`;
+                          return (
                             <CommentableSection
-                              name="Title"
-                              comment={sectionComments[asset.id]?.["Title"] || ""}
-                              onComment={(t) => updateSectionComment(asset.id, "Title", t)}
+                              key={i}
+                              name={sectionKey}
+                              comment={sectionComments[asset.id]?.[sectionKey] || ""}
+                              onComment={(t) => updateSectionComment(asset.id, sectionKey, t)}
                             >
-                              <p className="font-semibold text-foreground text-lg">{title}</p>
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{para}</p>
                             </CommentableSection>
-                            {body.map((para, i) => {
-                              const sectionKey = `Paragraph ${i + 1}`;
-                              return (
-                                <CommentableSection
-                                  key={i}
-                                  name={sectionKey}
-                                  comment={sectionComments[asset.id]?.[sectionKey] || ""}
-                                  onComment={(t) => updateSectionComment(asset.id, sectionKey, t)}
-                                >
-                                  <p className="text-sm text-foreground whitespace-pre-wrap">{para}</p>
-                                </CommentableSection>
-                              );
-                            })}
-                          </>
-                        );
-                      })()}
-                    </>
-                  ) : asset.file_url ? (
-                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
-                      <ExternalLink className="w-4 h-4" /> Download file
-                    </a>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">No content available</p>
+                          );
+                        })}
+                      </>
+                    );
+                  })() : (
+                    <p className="text-sm text-muted-foreground italic">No blog content</p>
                   )}
                 </div>
               )}
