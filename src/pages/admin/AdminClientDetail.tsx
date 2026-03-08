@@ -14,6 +14,7 @@ import {
   ChevronDown, ChevronUp, Building2, Calendar, Globe,
 } from "lucide-react";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
+import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
@@ -63,8 +64,14 @@ type KickoffBrief = {
 
 type AssetRow = {
   id: string;
+  asset_name: string;
   asset_type: string;
   status: string;
+  file_url: string | null;
+  content: any;
+  version: number;
+  client_comment: string | null;
+  created_at: string;
 };
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -184,7 +191,7 @@ export default function AdminClientDetail() {
 
       // Parallel fetches
       const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
-      const assetsPromise = supabase.from("assets").select("id, asset_type, status").eq("client_id", id!);
+      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_type, status, file_url, content, version, client_comment, created_at").eq("client_id", id!);
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
@@ -691,13 +698,36 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
+          {/* Client feedback on existing assets */}
+          {assets.filter((a) => a.status === "change_requested" || a.client_comment).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground text-lg">Client Feedback</h3>
+              {assets
+                .filter((a) => a.status === "change_requested" || a.client_comment)
+                .map((asset) => (
+                  <div key={asset.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{asset.asset_name}</span>
+                      <span className="text-xs font-mono text-muted-foreground">v{asset.version || 1}</span>
+                    </div>
+                    <AssetFeedbackPanel
+                      assetId={asset.id}
+                      clientComment={asset.client_comment}
+                      status={asset.status}
+                      version={asset.version || 1}
+                    />
+                  </div>
+                ))}
+            </div>
+          )}
+
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
             <div className="grid gap-4 lg:grid-cols-2">
-              <AssetUploadZone clientId={client.id} assetType="landing_page" />
-              <AssetUploadZone clientId={client.id} assetType="email_flow" />
-              <AssetUploadZone clientId={client.id} assetType="social_post" />
-              <AssetUploadZone clientId={client.id} assetType="blog_article" />
+              <AssetUploadZone clientId={client.id} assetType="landing_page" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="email_flow" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="social_post" onAssetSaved={() => {}} />
+              <AssetUploadZone clientId={client.id} assetType="blog_article" onAssetSaved={() => {}} />
             </div>
           </div>
         </TabsContent>
