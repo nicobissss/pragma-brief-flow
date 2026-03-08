@@ -790,8 +790,11 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                       <CorrectionPromptPanel
                         clientId={clientId}
                         assets={changeRequestedAssets}
-                        onUploadNewVersion={(_, assetType, summary) => {
-                          toast.info(`Upload a new version. Changes: ${summary}`);
+                        onUploadNewVersion={(assetId, assetType, summary) => {
+                          const asset = cAssets.find((a) => a.id === assetId);
+                          if (asset) {
+                            setNewVersionDrawer({ asset, campaignId: campaign.id, summary });
+                          }
                         }}
                       />
                     </div>
