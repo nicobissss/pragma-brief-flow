@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.extract-pdf-text]
 verify_jwt = false
+
+[functions.generate-kickoff-prompts]
+verify_jwt = false
