@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Image, Mail, PenTool, ChevronDown } from "lucide-react";
+import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2 } from "lucide-react";
+import { format } from "date-fns";
 
 const typeIcons: Record<string, any> = {
   landing_page: FileText,
@@ -54,11 +56,18 @@ const briefingFields = {
   ],
 };
 
+type AssetItem = {
+  id: string;
+  asset_name: string;
+  asset_type: string;
+  status: string;
+  version: number;
+  created_at: string;
+};
+
 function BriefingRow({ label, value }: { label: string; value: any }) {
   const isEmpty = value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
-  const display = isEmpty
-    ? null
-    : Array.isArray(value) ? value.join(", ") : String(value);
+  const display = isEmpty ? null : Array.isArray(value) ? value.join(", ") : String(value);
   return (
     <div className="py-3 border-b border-border last:border-0">
       <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
@@ -73,7 +82,7 @@ function BriefingRow({ label, value }: { label: string; value: any }) {
 
 export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
-  const [assetGroups, setAssetGroups] = useState<{ type: string; status: string; count: number }[]>([]);
+  const [allAssets, setAllAssets] = useState<AssetItem[]>([]);
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,29 +101,14 @@ export default function ClientDashboard() {
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);
 
-      // Fetch assets and prospect in parallel
       const [assetsRes, prospectRes] = await Promise.all([
-        supabase.from("assets").select("asset_type, status").eq("client_id", client.id),
+        supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at").eq("client_id", client.id).order("created_at"),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
       ]);
 
-      if (assetsRes.data) {
-        const grouped = new Map<string, string[]>();
-        for (const a of assetsRes.data) {
-          if (!grouped.has(a.asset_type)) grouped.set(a.asset_type, []);
-          grouped.get(a.asset_type)!.push(a.status);
-        }
-        const result: { type: string; status: string; count: number }[] = [];
-        grouped.forEach((statuses, type) => {
-          let displayStatus = "approved";
-          if (statuses.includes("change_requested")) displayStatus = "change_requested";
-          else if (statuses.includes("pending_review")) displayStatus = "pending_review";
-          result.push({ type, status: displayStatus, count: statuses.length });
-        });
-        setAssetGroups(result);
-      }
+      if (assetsRes.data) setAllAssets(assetsRes.data as AssetItem[]);
 
       if (prospectRes.data) {
         setProspectData(prospectRes.data);
@@ -128,14 +122,58 @@ export default function ClientDashboard() {
 
   if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
 
-  const pendingGroups = assetGroups.filter((g) => g.status !== "approved");
-  const approvedGroups = assetGroups.filter((g) => g.status === "approved");
+  const totalAssets = allAssets.length;
+  const approvedCount = allAssets.filter((a) => a.status === "approved").length;
+  const allApproved = totalAssets > 0 && approvedCount === totalAssets;
+  const progressPercent = totalAssets > 0 ? Math.round((approvedCount / totalAssets) * 100) : 0;
+
+  // Group by type for pending cards
+  const typeGroups = new Map<string, { statuses: string[]; count: number }>();
+  for (const a of allAssets) {
+    if (!typeGroups.has(a.asset_type)) typeGroups.set(a.asset_type, { statuses: [], count: 0 });
+    const g = typeGroups.get(a.asset_type)!;
+    g.statuses.push(a.status);
+    g.count++;
+  }
+
+  const pendingGroups: { type: string; status: string; count: number }[] = [];
+  const approvedGroupTypes: string[] = [];
+  typeGroups.forEach(({ statuses, count }, type) => {
+    let displayStatus = "approved";
+    if (statuses.includes("change_requested")) displayStatus = "change_requested";
+    else if (statuses.includes("pending_review")) displayStatus = "pending_review";
+    if (displayStatus !== "approved") pendingGroups.push({ type, status: displayStatus, count });
+    else approvedGroupTypes.push(type);
+  });
+
+  const approvedAssets = allAssets.filter((a) => a.status === "approved");
 
   return (
     <div>
+      {/* All approved congratulations banner */}
+      {allApproved && (
+        <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
+          <p className="text-lg font-bold">🎉 All assets approved!</p>
+          <p className="text-sm mt-1 text-white/90">
+            Your campaigns are being activated. We'll be in touch shortly.
+          </p>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Welcome, {companyName}</h1>
         <p className="text-muted-foreground mt-1">Here you can review your assets and briefing information.</p>
+
+        {/* Progress bar */}
+        {totalAssets > 0 && (
+          <div className="mt-4 max-w-md">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm text-muted-foreground">Assets approved: {approvedCount} of {totalAssets}</span>
+              <span className="text-sm font-medium text-foreground">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-2.5 [&>div]:bg-[hsl(142,71%,35%)]" />
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="assets">
@@ -145,6 +183,7 @@ export default function ClientDashboard() {
         </TabsList>
 
         <TabsContent value="assets" className="mt-6">
+          {/* Pending review cards */}
           {pendingGroups.length > 0 && (
             <div className="space-y-4 mb-8">
               <h2 className="text-lg font-semibold text-foreground">Needs Your Review</h2>
@@ -175,20 +214,29 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {approvedGroups.length > 0 && (
+          {/* Approved assets section */}
+          {approvedAssets.length > 0 && (
             <div className="space-y-4 mb-8">
-              <h2 className="text-lg font-semibold text-foreground">Approved</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {approvedGroups.map((g) => {
-                  const Icon = typeIcons[g.type] || FileText;
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">✅ Approved assets</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  These have been approved and are being activated by the PRAGMA team.
+                </p>
+              </div>
+              <div className="rounded-lg border-2 border-[hsl(142,71%,35%)]/30 bg-[hsl(142,71%,35%)]/5 divide-y divide-border">
+                {approvedAssets.map((asset) => {
+                  const Icon = typeIcons[asset.asset_type] || FileText;
                   return (
-                    <div key={g.type} className="bg-card rounded-lg border border-border p-5 flex items-start gap-3 opacity-70">
-                      <div className="p-2 rounded-md bg-secondary">
-                        <Icon className="w-5 h-5 text-foreground" />
+                    <div key={asset.id} className="flex items-center gap-3 p-4">
+                      <CheckCircle2 className="w-4 h-4 text-[hsl(142,71%,35%)] shrink-0" />
+                      <div className="p-1.5 rounded bg-secondary shrink-0">
+                        <Icon className="w-4 h-4 text-foreground" />
                       </div>
-                      <div>
-                        <h3 className="font-medium text-foreground">{typeLabels[g.type] || g.type}</h3>
-                        <StatusBadge status="approved" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{asset.asset_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Approved on {format(new Date(asset.created_at), "dd MMM yyyy")} — Version {asset.version || 1}
+                        </p>
                       </div>
                     </div>
                   );
@@ -197,7 +245,7 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {assetGroups.length === 0 && (
+          {allAssets.length === 0 && (
             <div className="bg-card rounded-lg border border-border p-8 text-center">
               <p className="text-muted-foreground">No assets to review right now.</p>
               <p className="text-muted-foreground text-sm mt-1">We'll notify you by email when something is ready.</p>
