@@ -98,7 +98,7 @@ export default function AdminDashboard() {
         supabase.from("clients").select("id, name, company_name, vertical, created_at, status").eq("status", "active"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
-        supabase.from("connected_tools" as any).select("config").eq("tool_name", "briefer").maybeSingle(),
+        (supabase.from("app_settings" as any) as any).select("key, value").eq("key", "briefer_url").maybeSingle(),
       ]);
 
       const allProspects = (prospectsRes.data || []) as ProspectCard[];
@@ -112,8 +112,8 @@ export default function AdminDashboard() {
       setFollowUps((followUpsRes.data || []) as FollowUp[]);
       setActivity((activityRes.data || []) as ActivityItem[]);
 
-      const brieferConfig = (brieferRes as any)?.data?.config;
-      if (brieferConfig?.url) setBrieferUrl(brieferConfig.url);
+      const brieferSetting = (brieferRes as any)?.data;
+      if (brieferSetting?.value) setBrieferUrl(brieferSetting.value);
 
       setLoading(false);
     };
