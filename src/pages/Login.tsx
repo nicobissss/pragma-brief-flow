@@ -33,9 +33,6 @@ export default function LoginPage() {
         toast.error("Access denied. This CRM is for PRAGMA admins only.");
         await supabase.auth.signOut();
       }
-        toast.error("No role assigned. Contact PRAGMA.");
-        await supabase.auth.signOut();
-      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
