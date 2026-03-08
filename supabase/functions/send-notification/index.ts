@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
 
   try {
     const payload: NotificationPayload = await req.json();
-    const { type, client_id, asset_type, asset_name, comment, campaign_name, asset_ids } = payload;
+    const { type, client_id, asset_type, asset_name, comment, campaign_name, asset_ids, requested_items } = payload;
 
     if (!type || !client_id) throw new Error("type and client_id are required");
 
