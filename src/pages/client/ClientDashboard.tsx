@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle } from "lucide-react";
+import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
 const typeIcons: Record<string, any> = {
