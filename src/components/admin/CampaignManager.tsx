@@ -271,7 +271,7 @@ function AddAssetDrawer({
     blog_article: { accept: ".pdf,.txt,.md", multiple: true, maxFiles: 10, hasUrl: false, hasText: true },
   };
 
-  const cfg = typeConfig[assetType] || {};
+  const cfg = typeConfig[assetType] || { accept: "", multiple: false, maxFiles: 1, hasUrl: false, hasText: false };
   const hasContent = files.length > 0 || url.trim() || pasteText.trim();
 
   const deriveName = () => {
