@@ -586,10 +586,9 @@ export default function AdminClientDetail() {
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════ */}
-        {/* TAB 3 — Prompts & Assets                      */}
+        {/* TAB 3 — Prompts                               */}
         {/* ═══════════════════════════════════════════════ */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
-          {/* Generate Prompts */}
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
@@ -626,7 +625,6 @@ export default function AdminClientDetail() {
                 </Tooltip>
               </TooltipProvider>
 
-              {/* Context sources */}
               {contextSources && (
                 <div className="mt-3">
                   <button
@@ -671,8 +669,12 @@ export default function AdminClientDetail() {
               <p className="text-sm text-muted-foreground">No prompts generated yet. Add a transcript in the Kickoff tab and click Generate.</p>
             )}
           </div>
+        </TabsContent>
 
-          {/* Asset status overview */}
+        {/* ═══════════════════════════════════════════════ */}
+        {/* TAB 4 — Assets                                */}
+        {/* ═══════════════════════════════════════════════ */}
+        <TabsContent value="assets" className="mt-6 space-y-6">
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">Asset Status</h3>
             <div className="grid grid-cols-4 gap-3 mb-6">
@@ -689,7 +691,6 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
-          {/* Asset upload zones */}
           <div className="space-y-4">
             <h3 className="font-semibold text-foreground text-lg">Upload & Manage Assets</h3>
             <div className="grid gap-4 lg:grid-cols-2">
