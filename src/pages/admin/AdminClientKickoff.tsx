@@ -328,6 +328,26 @@ export default function AdminClientKickoff() {
         </Tabs>
       </div>
 
+      {/* SECTION 2.5: Client Materials */}
+      <ClientMaterials
+        clientId={client.id}
+        kickoffId={kickoff?.id || null}
+        materials={materials}
+        onMaterialsChange={setMaterials}
+        onSave={async (m) => {
+          if (kickoff) {
+            await supabase.from("kickoff_briefs").update({ client_materials: m } as any).eq("id", kickoff.id);
+          } else {
+            const { data } = await supabase.from("kickoff_briefs").insert({
+              client_id: client.id,
+              suggested_questions: questions,
+              client_materials: m,
+            } as any).select().single();
+            if (data) setKickoff(data as KickoffBrief);
+          }
+        }}
+      />
+
       {/* SECTION 3: Asset Upload Zones */}
       <div className="space-y-4">
         <h3 className="font-semibold text-foreground text-lg">Client Assets</h3>
