@@ -75,22 +75,21 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
+    const assignedFlow = getFlowForSubNiche(prospect.vertical, prospect.sub_niche);
+
     const systemPrompt = `${knowledgeBase}You are PRAGMA's internal AI proposal engine. PRAGMA is a marketing automation agency serving three verticals: Salud & Estética, E-Learning, and Deporte Offline, in Spain, Italy, and Argentina.
 
-You will receive a prospect's briefing answers and must generate a complete, structured proposal.
+${STRICT_RULES}
 
-PRAGMA's tools:
-- Pragma Calendar: appointment scheduling & reminders
-- Landing Pragma: landing page builder
-- Pragma Visual Email: email flow automation
-- Social Engine Pragma: social media content engine
-- Pragma SEO & GEO: SEO & local search optimization
+The assigned flow for this prospect based on their vertical "${prospect.vertical}" and sub-niche "${prospect.sub_niche}" is: "${assignedFlow}". You MUST use this flow in your recommendation. Do NOT suggest a different flow.
+
+You will receive a prospect's briefing answers and must generate a complete, structured proposal.
 
 Contract types:
 - Tipo A: client has a trackable conversion event (e.g. appointment booking, purchase). Commission-based pricing applies.
 - Tipo B: no clear trackable conversion (e.g. brand awareness). Fixed retainer only.
 
-Pricing guidelines (monthly retainer ranges):
+Pricing guidelines (monthly retainer ranges) — use ONLY prices from the knowledge base above. If none found, use these defaults:
 - Salud & Estética: ${currency === "EUR" ? "€800–€2,000" : "$600–$1,500"}
 - E-Learning: ${currency === "EUR" ? "€1,000–€2,500" : "$800–$2,000"}
 - Deporte Offline: ${currency === "EUR" ? "€600–€1,500" : "$500–$1,200"}
