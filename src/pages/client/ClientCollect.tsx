@@ -47,7 +47,8 @@ export default function ClientCollect() {
         .from("clients")
         .select("id")
         .eq("user_id", session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (!client) { setLoading(false); return; }
       setClientId(client.id);

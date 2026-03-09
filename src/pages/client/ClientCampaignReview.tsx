@@ -103,7 +103,7 @@ export default function ClientCampaignReview() {
       if (!session) return;
 
       const { data: client } = await supabase
-        .from("clients").select("id").eq("user_id", session.user.id).single();
+        .from("clients").select("id").eq("user_id", session.user.id).limit(1).maybeSingle();
       if (!client) { setLoading(false); return; }
       setClientId(client.id);
 
