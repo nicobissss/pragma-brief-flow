@@ -122,7 +122,8 @@ export default function ClientDashboard() {
         .from("clients")
         .select("id, company_name, prospect_id")
         .eq("user_id", session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);

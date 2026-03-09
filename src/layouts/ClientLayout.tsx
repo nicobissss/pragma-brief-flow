@@ -29,7 +29,8 @@ export default function ClientLayout() {
           .from("clients")
           .select("id, company_name")
           .eq("user_id", session.user.id)
-          .single();
+          .limit(1)
+          .maybeSingle();
         if (client) {
           setCompanyName(client.company_name);
           // Check for pending asset requests
