@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
 
     // Proposal decisions
     if (sources.proposal) {
-      contextBlocks.push(`PROPOSAL DECISIONS:\n- Recommended Flow: ${proposal.recommended_flow || "N/A"}\n- Tools: ${JSON.stringify(proposal.recommended_tools || [])}\n- Pricing: ${JSON.stringify(proposal.pricing || {})}\n- Timeline: ${proposal.timeline || "N/A"}`);
+      const rawFlow = proposal.recommended_flow;
+      const flowDisplay = typeof rawFlow === "string" ? rawFlow : JSON.stringify(rawFlow || "N/A");
+      const rawTimeline = proposal.timeline;
+      const timelineDisplay = typeof rawTimeline === "string" ? rawTimeline : JSON.stringify(rawTimeline || "N/A");
+      contextBlocks.push(`PROPOSAL DECISIONS:\n- Recommended Flow: ${flowDisplay}\n- Tools: ${JSON.stringify(proposal.recommended_tools || [])}\n- Pricing: ${JSON.stringify(proposal.pricing || {})}\n- Timeline: ${timelineDisplay}`);
     }
 
     // Transcript

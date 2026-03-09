@@ -42,7 +42,8 @@ serve(async (req) => {
         .eq("prospect_id", prospect.id)
         .maybeSingle();
       if (proposal) {
-        recommendedFlow = proposal.recommended_flow || "";
+        const rawFlow = proposal.recommended_flow;
+        recommendedFlow = typeof rawFlow === "string" ? rawFlow : JSON.stringify(rawFlow || "");
         recommendedTools = (proposal.recommended_tools as string[]) || [];
       }
     }

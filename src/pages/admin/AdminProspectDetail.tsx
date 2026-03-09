@@ -189,8 +189,22 @@ export default function AdminProspectDetail() {
     setProspect({ ...prospect, ...fields });
   };
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
-  if (!prospect) return <div className="p-8 text-muted-foreground">Prospect not found.</div>;
+  if (loading) return (
+    <div className="p-8 max-w-4xl space-y-4">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+      {[1,2,3].map(i => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}
+    </div>
+  );
+  if (!prospect) return (
+    <div className="p-8 max-w-4xl">
+      <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Prospect not found</h2>
+        <p className="text-sm text-muted-foreground">This prospect may have been deleted or you don't have access.</p>
+        <Button variant="outline" onClick={() => navigate("/admin/prospects")}>Back to Prospects</Button>
+      </div>
+    </div>
+  );
 
   const answers = prospect.briefing_answers || {};
   const marketLabel = MARKETS.find((m) => m.value === prospect.market)?.label || prospect.market;

@@ -305,9 +305,12 @@ export default function ClientDashboard() {
 
           {/* No campaigns empty state */}
           {!hasCampaigns && allAssets.length === 0 && (
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
-              <p className="text-muted-foreground">Your campaigns are being prepared.</p>
-              <p className="text-sm text-muted-foreground">We'll notify you when assets are ready for review.</p>
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+              <p className="text-2xl">🚀</p>
+              <h3 className="text-lg font-semibold text-foreground">Your campaigns are being prepared</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Check back soon — your PRAGMA team is working on your marketing assets. We'll notify you when they're ready for review.
+              </p>
             </div>
           )}
 
