@@ -52,7 +52,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   return await res.json();
 }
 
-const APP_URL = "https://pragma-brief-flow.lovable.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app";
 
 function emailWrapper(content: string): string {
   return `
