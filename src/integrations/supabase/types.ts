@@ -212,6 +212,35 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_submissions: {
+        Row: {
+          answers: Json
+          client_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          answers?: Json
+          client_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          answers?: Json
+          client_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefing_submissions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           client_id: string
@@ -305,6 +334,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          activated_tools: Json | null
           company_name: string
           created_at: string
           email: string
@@ -318,6 +348,7 @@ export type Database = {
           vertical: string
         }
         Insert: {
+          activated_tools?: Json | null
           company_name: string
           created_at?: string
           email: string
@@ -331,6 +362,7 @@ export type Database = {
           vertical: string
         }
         Update: {
+          activated_tools?: Json | null
           company_name?: string
           created_at?: string
           email?: string

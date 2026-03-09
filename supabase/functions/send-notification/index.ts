@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready" | "asset_collection_request";
+type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready" | "asset_collection_request" | "client_welcome";
 
 interface NotificationPayload {
   type: NotificationType;
@@ -52,7 +52,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   return await res.json();
 }
 
-const APP_URL = "https://pragma-brief-flow.lovable.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app";
 
 function emailWrapper(content: string): string {
   return `
@@ -263,6 +263,41 @@ Deno.serve(async (req) => {
 
       await sendEmail(client.email, subject, html);
       return new Response(JSON.stringify({ success: true, sent_to: client.email }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── client_welcome: send welcome email to new client ──
+    if (type === "client_welcome") {
+      const data = (payload as any).data;
+      if (!data?.email || !data?.name) throw new Error("client_welcome requires data.name and data.email");
+
+      const appUrl = data.app_url || APP_URL;
+      const subject = "Welcome to PRAGMA — your portal is ready";
+      const html = emailWrapper(`
+        <h2 style="color: #1a365d;">Welcome to PRAGMA, ${data.name}!</h2>
+        <p style="color: #4a5568; line-height: 1.6;">
+          Your client portal is ready. You can log in to review campaigns, approve assets, and collaborate with our team.
+        </p>
+        <p style="color: #4a5568; line-height: 1.6;">
+          <strong>Login URL:</strong> <a href="${appUrl}/login" style="color: #2b6cb0;">${appUrl}/login</a><br/>
+          <strong>Email:</strong> ${data.email}<br/>
+          <strong>Temporary password:</strong> Pragma2026!
+        </p>
+        <p style="color: #e53e3e; font-size: 13px;">
+          Please change your password after your first login.
+        </p>
+        <div style="margin: 30px 0;">
+          <a href="${appUrl}/login"
+             style="background-color: #1a365d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Log in to your portal →
+          </a>
+        </div>
+      `);
+
+      await sendEmail(data.email, subject, html);
+
+      return new Response(JSON.stringify({ success: true, sent_to: data.email }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
