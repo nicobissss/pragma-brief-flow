@@ -110,7 +110,9 @@ export default function AdminProspects() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="space-y-3">
+          {[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />)}
+        </div>
       ) : (
         <div className="border border-border rounded-lg overflow-hidden">
           <Table>

@@ -32,7 +32,12 @@ export default function AdminClients() {
     fetch();
   }, []);
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading) return (
+    <div className="p-8 max-w-5xl space-y-4">
+      <div className="h-8 w-32 animate-pulse rounded-md bg-muted" />
+      {[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />)}
+    </div>
+  );
 
   return (
     <div className="p-8 max-w-5xl">

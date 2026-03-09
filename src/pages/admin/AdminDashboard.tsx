@@ -160,7 +160,15 @@ export default function AdminDashboard() {
     fetchAll();
   }, []);
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading dashboard...</div>;
+  if (loading) return (
+    <div className="p-6 lg:p-8 space-y-6">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}
+      </div>
+      <div className="h-64 animate-pulse rounded-lg bg-muted" />
+    </div>
+  );
 
   const pipelineGroups = PIPELINE_STATUSES.reduce((acc, status) => {
     acc[status] = prospects.filter(p => p.status === status);

@@ -285,8 +285,22 @@ export default function AdminClientDetail() {
   const kickoffBadge = !kickoff?.transcript_text;
   const changeRequestedCount = assets.filter((a) => a.status === "change_requested").length;
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
-  if (!client) return <div className="p-8 text-muted-foreground">Client not found.</div>;
+  if (loading) return (
+    <div className="p-8 max-w-5xl space-y-4">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+      {[1,2,3].map(i => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}
+    </div>
+  );
+  if (!client) return (
+    <div className="p-8 max-w-5xl">
+      <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Client not found</h2>
+        <p className="text-sm text-muted-foreground">This client may have been deleted or you don't have access.</p>
+        <Button variant="outline" onClick={() => navigate("/admin/clients")}>Back to Clients</Button>
+      </div>
+    </div>
+  );
 
   const marketLabel = MARKETS.find((m) => m.value === client.market)?.label || client.market;
   const verticalColor = VERTICAL_COLORS[client.vertical] || "hsl(var(--primary))";

@@ -159,7 +159,13 @@ export default function ClientDashboard() {
     load();
   }, []);
 
-  if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
+  if (loading) return (
+    <div className="space-y-4">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+      {[1,2,3].map(i => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}
+    </div>
+  );
 
   const totalAssets = allAssets.length;
   const approvedCount = allAssets.filter((a) => a.status === "approved").length;
@@ -299,9 +305,12 @@ export default function ClientDashboard() {
 
           {/* No campaigns empty state */}
           {!hasCampaigns && allAssets.length === 0 && (
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
-              <p className="text-muted-foreground">Your campaigns are being prepared.</p>
-              <p className="text-sm text-muted-foreground">We'll notify you when assets are ready for review.</p>
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+              <p className="text-2xl">🚀</p>
+              <h3 className="text-lg font-semibold text-foreground">Your campaigns are being prepared</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Check back soon — your PRAGMA team is working on your marketing assets. We'll notify you when they're ready for review.
+              </p>
             </div>
           )}
 
