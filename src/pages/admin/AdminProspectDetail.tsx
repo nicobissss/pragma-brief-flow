@@ -9,7 +9,12 @@ import { MARKETS } from "@/lib/briefing-data";
 import { toast } from "sonner";
 import { Loader2, Archive } from "lucide-react";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
@@ -53,6 +58,7 @@ export default function AdminProspectDetail() {
   const [generating, setGenerating] = useState(false);
   const [loadingProposal, setLoadingProposal] = useState(true);
 
+  // Modal states
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -119,22 +125,14 @@ export default function AdminProspectDetail() {
       if (data?.error) throw new Error(data.error);
 
       setProspect({ ...prospect, status: "accepted" });
-
-      // Show Briefer result from edge function
-      if (data?.briefer_sent) {
-        toast.success("✅ Client created in Briefer", { duration: 5000 });
-      } else if (data?.briefer_error) {
-        toast.error("⚠️ Briefer not connected. Add client manually in Briefer.", { duration: 8000 });
-      }
-
       toast.success(
-        `Client account created successfully.\nEmail: ${prospect.email}\nPassword: Pragma2026!`,
+        `Client account created successfully.\nEmail: ${prospect.email}\nPassword: Pragma2026!\nThey will be prompted to change it on first login.`,
         { duration: 10000 }
       );
       setAcceptDialogOpen(false);
 
       if (data?.client_id) {
-        navigate(`/admin/client/${data.client_id}`);
+        navigate(`/admin/client/${data.client_id}/kickoff`);
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to accept prospect");
@@ -155,6 +153,7 @@ export default function AdminProspectDetail() {
         },
       }).eq("id", prospect.id);
       if (error) throw error;
+
       setProspect({ ...prospect, status: "rejected" });
       toast.success("Prospect rejected");
       setRejectDialogOpen(false);
@@ -217,7 +216,6 @@ export default function AdminProspectDetail() {
         <TabsList>
           <TabsTrigger value="briefing">Briefing</TabsTrigger>
           <TabsTrigger value="proposal">{proposal ? "View Proposal" : "Proposal"}</TabsTrigger>
-          <TabsTrigger value="sales">Sales Call</TabsTrigger>
         </TabsList>
 
         <TabsContent value="briefing" className="mt-6 space-y-6">
@@ -231,6 +229,7 @@ export default function AdminProspectDetail() {
             <InfoRow label="Vertical" value={prospect.vertical} />
             <InfoRow label="Sub-niche" value={prospect.sub_niche} />
           </div>
+
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">Current Situation</h3>
             <InfoRow label="Years in operation" value={answers.years_in_operation} />
@@ -246,6 +245,7 @@ export default function AdminProspectDetail() {
             <InfoRow label="Uses CRM" value={answers.uses_crm} />
             <InfoRow label="CRM system" value={answers.crm_name} />
           </div>
+
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">Goals</h3>
             <InfoRow label="Main goal" value={answers.main_goal} />
@@ -259,10 +259,11 @@ export default function AdminProspectDetail() {
         <TabsContent value="proposal" className="mt-6 space-y-6">
           {!proposal && !generating && !loadingProposal && (
             <div className="bg-card rounded-lg border border-border p-8 text-center">
-              <p className="text-muted-foreground mb-4">No proposal generated yet.</p>
+              <p className="text-muted-foreground mb-4">No proposal generated yet. Click below to analyze the briefing and generate a full proposal.</p>
               <Button onClick={generateProposal} size="lg">Generate Proposal</Button>
             </div>
           )}
+
           {generating && (
             <div className="bg-card rounded-lg border border-border p-12 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
@@ -270,6 +271,7 @@ export default function AdminProspectDetail() {
               <p className="text-muted-foreground text-sm mt-1">This may take 20–30 seconds</p>
             </div>
           )}
+
           {proposal && !generating && (
             <>
               {proposalDate && (
@@ -278,6 +280,17 @@ export default function AdminProspectDetail() {
                 </p>
               )}
               <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
+
+              {/* Sales Call Card — between proposal and action buttons */}
+              <SalesCallCard
+                prospectId={prospect.id}
+                callStatus={prospect.call_status as any}
+                callScheduledAt={prospect.call_scheduled_at}
+                callNotes={prospect.call_notes}
+                followUpDate={prospect.follow_up_date}
+                onUpdate={handleCallUpdate}
+              />
+
               <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
                 <Button onClick={generateProposal} variant="outline">Regenerate</Button>
                 <Button onClick={handleMarkReady} disabled={prospect.status === "proposal_ready"}>
@@ -303,31 +316,22 @@ export default function AdminProspectDetail() {
             </>
           )}
         </TabsContent>
-
-        <TabsContent value="sales" className="mt-6">
-          <SalesCallCard
-            prospectId={prospect.id}
-            callStatus={prospect.call_status as any}
-            callScheduledAt={prospect.call_scheduled_at}
-            callNotes={prospect.call_notes}
-            followUpDate={prospect.follow_up_date}
-            onUpdate={handleCallUpdate}
-          />
-        </TabsContent>
       </Tabs>
 
-      {/* Accept dialog */}
+      {/* Accept confirmation dialog */}
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Accept prospect?</DialogTitle>
             <DialogDescription>
               This will create a client account for <strong>{prospect.name}</strong> at{" "}
-              <strong>{prospect.email}</strong> and send data to Briefer if configured.
+              <strong>{prospect.email}</strong>. An invite email with login credentials will be sent automatically.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)} disabled={accepting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)} disabled={accepting}>
+              Cancel
+            </Button>
             <Button onClick={handleAccept} disabled={accepting}>
               {accepting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Confirm
@@ -336,7 +340,7 @@ export default function AdminProspectDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Reject dialog */}
+      {/* Reject dialog with optional reason */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -352,7 +356,9 @@ export default function AdminProspectDetail() {
             className="min-h-[80px]"
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejectDialogOpen(false); setRejectReason(""); }} disabled={rejecting}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setRejectDialogOpen(false); setRejectReason(""); }} disabled={rejecting}>
+              Cancel
+            </Button>
             <Button variant="destructive" onClick={handleReject} disabled={rejecting}>
               {rejecting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Reject

@@ -35,6 +35,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingClient) {
+      // Client already exists — just ensure prospect is marked accepted and return
       await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
       return new Response(JSON.stringify({ success: true, client_id: existingClient.id, already_existed: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,6 +51,7 @@ serve(async (req) => {
     if (existingUser) {
       userId = existingUser.id;
     } else {
+      // Create auth user with temporary password
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: prospect.email,
         password: "Pragma2026!",
@@ -62,7 +64,7 @@ serve(async (req) => {
       userId = newUser.user.id;
     }
 
-    // 4. Assign client role
+    // 4. Assign client role (upsert to avoid duplicates)
     await supabaseAdmin.from("user_roles").upsert(
       { user_id: userId, role: "client" },
       { onConflict: "user_id,role" }
@@ -91,99 +93,10 @@ serve(async (req) => {
       entity_type: "prospect",
       entity_id: prospect.id,
       entity_name: prospect.name,
-      action: "accepted — client account created",
+      action: `accepted — client account created`,
     });
 
-    // 8. Send webhook to Briefer (non-blocking)
-    let briefer_sent = false;
-    let briefer_error: string | null = null;
-    try {
-      // Read briefer settings from app_settings
-      const { data: settings } = await supabaseAdmin
-        .from("app_settings")
-        .select("key, value")
-        .in("key", ["briefer_url", "briefer_webhook_secret"]);
-
-      const settingsMap: Record<string, string> = {};
-      if (settings) {
-        for (const s of settings) settingsMap[s.key] = s.value;
-      }
-
-      const brieferUrl = settingsMap["briefer_url"];
-      const brieferSecret = settingsMap["briefer_webhook_secret"];
-
-      if (brieferUrl) {
-        // Fetch proposal data
-        const { data: proposalData } = await supabaseAdmin
-          .from("proposals")
-          .select("full_proposal_content")
-          .eq("prospect_id", prospect_id)
-          .maybeSingle();
-
-        const proposal = proposalData?.full_proposal_content as any;
-
-        const webhookBody = {
-          client_id: client.id,
-          name: prospect.name,
-          company_name: prospect.company_name,
-          email: prospect.email,
-          vertical: prospect.vertical,
-          sub_niche: prospect.sub_niche,
-          market: prospect.market,
-          contract_type: proposal?.pricing?.contract_type || "",
-          activated_tools: proposal?.recommended_tools || [],
-          briefing_answers: prospect.briefing_answers || {},
-          recommended_flow: proposal?.recommended_flow || "",
-          retainer: proposal?.pricing?.retainer || "",
-          commission: proposal?.pricing?.commission || "",
-        };
-
-        const webhookRes = await fetch(`${brieferUrl}/functions/v1/receive-client`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(brieferSecret ? { "Authorization": `Bearer ${brieferSecret}` } : {}),
-          },
-          body: JSON.stringify(webhookBody),
-        });
-
-        if (webhookRes.ok) {
-          briefer_sent = true;
-          await supabaseAdmin.from("activity_log").insert({
-            entity_type: "client",
-            entity_id: client.id,
-            entity_name: prospect.name,
-            action: "Client sent to Briefer ✅",
-          });
-        } else {
-          const errText = await webhookRes.text();
-          briefer_error = `${webhookRes.status}: ${errText.slice(0, 200)}`;
-          await supabaseAdmin.from("activity_log").insert({
-            entity_type: "client",
-            entity_id: client.id,
-            entity_name: prospect.name,
-            action: `Briefer webhook failed: ${briefer_error}`,
-          });
-        }
-      }
-    } catch (webhookErr: any) {
-      briefer_error = webhookErr.message;
-      // Log but don't block
-      await supabaseAdmin.from("activity_log").insert({
-        entity_type: "client",
-        entity_id: client.id,
-        entity_name: prospect.name,
-        action: `Briefer webhook error: ${webhookErr.message}`,
-      }).catch(() => {});
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      client_id: client.id,
-      user_id: userId,
-      briefer_sent,
-      briefer_error,
-    }), {
+    return new Response(JSON.stringify({ success: true, client_id: client.id, user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
