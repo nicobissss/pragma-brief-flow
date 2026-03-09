@@ -85,16 +85,63 @@ serve(async (req) => {
 
     if (clientErr) throw new Error(`Failed to create client: ${clientErr.message}`);
 
-    // 6. Update prospect status
+    // 6. Save briefing answers
+    const { error: bsErr } = await supabaseAdmin
+      .from("briefing_submissions")
+      .upsert({
+        client_id: client.id,
+        answers: prospect.briefing_answers || {}
+      }, { onConflict: "client_id" });
+    if (bsErr) console.error("briefing_submissions error:", bsErr);
+
+    // 7. Copy activated tools from proposal
+    const { data: proposal } = await supabaseAdmin
+      .from("proposals")
+      .select("recommended_tools")
+      .eq("prospect_id", prospect_id)
+      .maybeSingle();
+
+    if (proposal?.recommended_tools) {
+      const activatedTools = Array.isArray(proposal.recommended_tools)
+        ? proposal.recommended_tools
+            .filter((t: any) => t.recommended === true)
+            .map((t: any) => t.name)
+        : [];
+
+      if (activatedTools.length > 0) {
+        await supabaseAdmin
+          .from("clients")
+          .update({ activated_tools: activatedTools })
+          .eq("id", client.id);
+      }
+    }
+
+    // 8. Update prospect status
     await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
 
-    // 7. Log activity
+    // 9. Log activity
     await supabaseAdmin.from("activity_log").insert({
       entity_type: "prospect",
       entity_id: prospect.id,
       entity_name: prospect.name,
       action: `accepted — client account created`,
     });
+
+    // 10. Send welcome email (non-blocking)
+    try {
+      await supabaseAdmin.functions.invoke("send-notification", {
+        body: {
+          type: "client_welcome",
+          data: {
+            name: prospect.name,
+            email: prospect.email,
+            app_url: "https://pragma-brief-flow.lovable.app"
+          }
+        }
+      });
+    } catch (emailErr) {
+      console.error("Welcome email error:", emailErr);
+    }
 
     return new Response(JSON.stringify({ success: true, client_id: client.id, user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

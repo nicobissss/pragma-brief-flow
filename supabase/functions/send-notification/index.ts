@@ -267,6 +267,41 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── client_welcome: send welcome email to new client ──
+    if (type === "client_welcome") {
+      const data = (payload as any).data;
+      if (!data?.email || !data?.name) throw new Error("client_welcome requires data.name and data.email");
+
+      const appUrl = data.app_url || APP_URL;
+      const subject = "Welcome to PRAGMA — your portal is ready";
+      const html = emailWrapper(`
+        <h2 style="color: #1a365d;">Welcome to PRAGMA, ${data.name}!</h2>
+        <p style="color: #4a5568; line-height: 1.6;">
+          Your client portal is ready. You can log in to review campaigns, approve assets, and collaborate with our team.
+        </p>
+        <p style="color: #4a5568; line-height: 1.6;">
+          <strong>Login URL:</strong> <a href="${appUrl}/login" style="color: #2b6cb0;">${appUrl}/login</a><br/>
+          <strong>Email:</strong> ${data.email}<br/>
+          <strong>Temporary password:</strong> Pragma2026!
+        </p>
+        <p style="color: #e53e3e; font-size: 13px;">
+          Please change your password after your first login.
+        </p>
+        <div style="margin: 30px 0;">
+          <a href="${appUrl}/login"
+             style="background-color: #1a365d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Log in to your portal →
+          </a>
+        </div>
+      `);
+
+      await sendEmail(data.email, subject, html);
+
+      return new Response(JSON.stringify({ success: true, sent_to: data.email }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     throw new Error(`Unknown notification type: ${type}`);
   } catch (e) {
     console.error("send-notification error:", e);
