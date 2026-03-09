@@ -81,10 +81,11 @@ export default function ClientLayout() {
             <LayoutDashboard className="w-5 h-5" />
           </Link>
           <Link
-            to="/client/assets"
-            className={`p-2 rounded-md ${location.pathname === "/client/assets" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            to="/client/dashboard"
+            className={`p-2 rounded-md ${location.pathname === "/client/dashboard" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
           >
             <FileText className="w-5 h-5" />
+          </Link>
           </Link>
           <Link
             to="/client/collect"
