@@ -64,23 +64,31 @@ serve(async (req) => {
       .join("\n")
       .substring(0, 800);
 
+    const assignedFlow = getFlowForSubNiche(client.vertical, client.sub_niche);
+
     const userPrompt = `You are a marketing strategist for PRAGMA.
+
+${STRICT_RULES}
+
+The assigned flow for this client based on their vertical "${client.vertical}" and sub-niche "${client.sub_niche}" is: "${assignedFlow}". Generate a campaign brief ONLY aligned with this flow. Never suggest strategies from other flows (e.g. never suggest a webinar for a Salud client, never suggest local ads for an E-Learning client).
+
 Based on this client's context, generate a campaign brief for the campaign named "${campaign_name}".
 
 CLIENT CONTEXT:
 Vertical: ${client.vertical}
 Sub-niche: ${client.sub_niche}
 Market: ${client.market}
-${recommendedFlow ? `Recommended flow: ${recommendedFlow}` : ""}
+Assigned Flow: ${assignedFlow}
+${recommendedFlow ? `Recommended flow from proposal: ${recommendedFlow}` : ""}
 ${recommendedTools.length > 0 ? `Activated tools: ${recommendedTools.join(", ")}` : ""}
 ${briefingSummary ? `Briefing summary:\n${briefingSummary}` : ""}
 ${transcriptSummary ? `Kickoff transcript summary:\n${transcriptSummary}` : ""}
 
 Generate:
-- objective: one clear sentence
+- objective: one clear sentence aligned with the assigned flow
 - target_audience: specific description based on their vertical and sub-niche
 - key_message: the core value proposition for this specific campaign
-- timeline: suggested duration based on the flow type
+- timeline: suggested duration based on the assigned flow type
 
 Return ONLY a JSON object:
 {

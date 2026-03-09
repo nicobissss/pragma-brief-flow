@@ -143,17 +143,18 @@ Deno.serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
+    const assignedFlow = getFlowForSubNiche(client.vertical, client.sub_niche);
+
     const systemPrompt = `You are PRAGMA's internal prompt generation engine. Your job is to create highly specific, ready-to-use prompts for each marketing tool that PRAGMA will deploy for this client.
+
+${STRICT_RULES}
+
+The assigned flow for this client based on their vertical "${client.vertical}" and sub-niche "${client.sub_niche}" is: "${assignedFlow}". Generate prompts ONLY aligned with this flow. Do NOT reference strategies from other flows.
 
 ${kbText ? `--- PRAGMA KNOWLEDGE BASE ---\n${kbText}\n--- END KNOWLEDGE BASE ---\n` : ""}
 Each prompt must be detailed enough that another AI (or a human copywriter) can execute it immediately without needing additional context. Include specific brand colors, tone of voice, service names, prices, and photo references when available.
 
-Generate prompts for these tools (only if applicable based on the proposal):
-1. Landing Pragma (landing page copy & structure)
-2. Pragma Visual Email (email sequence copy)
-3. Social Engine Pragma (social media posts)
-4. Pragma SEO & GEO (SEO content briefs)
-5. Pragma Calendar (appointment flow messaging)
+Generate prompts ONLY for tools from the approved list above (Pragma Calendar, Landing Pragma, Pragma Visual Email, Social Engine Pragma, Pragma SEO & GEO, Pragma Learn, Voice Bot). Only include tools that are applicable based on the proposal.
 
 For each tool, provide:
 - A detailed system prompt that sets the context
