@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready" | "asset_collection_request";
+type NotificationType = "assets_ready" | "client_feedback" | "campaign_ready" | "asset_collection_request" | "client_welcome";
 
 interface NotificationPayload {
   type: NotificationType;
