@@ -367,7 +367,7 @@ export default function AdminDashboard() {
                       else if (item.entity_type === "asset") {
                         // Find the client that owns this asset and navigate to their Assets tab
                         supabase.from("assets").select("client_id").eq("id", item.entity_id).single().then(({ data }) => {
-                          if (data?.client_id) navigate(`/admin/client/${data.client_id}/kickoff?tab=assets`);
+                          if (data?.client_id) navigate(`/admin/client/${data.client_id}?tab=assets`);
                         });
                       }
                     }}

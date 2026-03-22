@@ -133,7 +133,7 @@ export default function AdminSettings() {
 
   const deleteDoc = async (doc: DocRow) => {
     await supabase.storage.from("kb-documents").remove([doc.file_url]);
-    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    const { error } = await (supabase.from("kb_documents" as any) as any).delete().eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
     toast.success("Document deleted");

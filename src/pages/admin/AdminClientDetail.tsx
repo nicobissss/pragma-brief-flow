@@ -328,6 +328,9 @@ export default function AdminClientDetail() {
 
   return (
     <div className="p-8 max-w-5xl">
+      <Button variant="ghost" size="sm" onClick={() => navigate("/admin/clients")} className="mb-4">
+        <ChevronDown className="w-4 h-4 mr-1 rotate-90" /> Volver a clientes
+      </Button>
       {/* ─── Header ─────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <Building2 className="w-6 h-6 text-muted-foreground" />

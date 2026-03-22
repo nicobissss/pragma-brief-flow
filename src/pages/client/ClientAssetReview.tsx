@@ -254,6 +254,9 @@ export default function ClientAssetReview() {
 
   return (
     <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
+        <ChevronLeft className="w-4 h-4 mr-1" /> Volver al panel
+      </Button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground">{label}</h1>
         {hasPending && assets.length > 1 && (
