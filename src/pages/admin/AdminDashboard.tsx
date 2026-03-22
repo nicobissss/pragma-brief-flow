@@ -313,7 +313,7 @@ export default function AdminDashboard() {
                         ? c.assets.reduce((latest, a) => a.created_at > latest ? a.created_at : latest, c.assets[0].created_at)
                         : null;
                       return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}/kickoff`)}>
+                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}`)}>
                           <TableCell>
                             <p className="font-medium text-foreground">{c.name}</p>
                             <p className="text-xs text-muted-foreground">{c.company_name}</p>
