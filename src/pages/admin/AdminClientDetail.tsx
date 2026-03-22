@@ -81,6 +81,20 @@ type KickoffBrief = {
   client_rules: any;
   client_materials: any;
   context_completeness_score: number | null;
+  suggested_services: any;
+  suggested_services_approved: boolean | null;
+  voice_reference: string | null;
+  preferred_tone: string | null;
+};
+
+type ToolGeneration = {
+  id: string;
+  client_id: string | null;
+  tool_name: string;
+  prompt: any;
+  status: string | null;
+  sent_at: string | null;
+  created_at: string | null;
 };
 
 type AssetRow = {
