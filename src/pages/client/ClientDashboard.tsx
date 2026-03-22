@@ -114,6 +114,7 @@ export default function ClientDashboard() {
   const [projectPlan, setProjectPlan] = useState<any>(null);
   const [projectPlanShared, setProjectPlanShared] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
 
   useEffect(() => {
     const load = async () => {
