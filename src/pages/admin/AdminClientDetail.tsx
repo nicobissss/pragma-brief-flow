@@ -22,7 +22,11 @@ import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
-import { MARKETS } from "@/lib/briefing-data";
+const MARKETS = [
+  { value: "es", label: "España" },
+  { value: "it", label: "Italia" },
+  { value: "ar", label: "Argentina" },
+] as const;
 
 // ─── Types ───────────────────────────────────────────────
 type Client = {
