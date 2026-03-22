@@ -285,7 +285,17 @@ export default function AdminClientDetail() {
       });
       if (error) throw error;
       if (data?.prompts) {
-        setGeneratedPrompts(data.prompts);
+        if (data.structured) {
+          setGeneratedPrompts(JSON.stringify(data.prompts, null, 2));
+          // Refresh tool generations
+          const { data: tg } = await supabase.from("tool_generations").select("*").eq("client_id", client.id).order("created_at", { ascending: false });
+          setToolGenerations((tg || []) as ToolGeneration[]);
+          // Refresh kickoff for suggested_services
+          const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
+          if (kb) setKickoff(kb as unknown as KickoffBrief);
+        } else {
+          setGeneratedPrompts(data.prompts);
+        }
         if (data.context_sources) setContextSources(data.context_sources);
         toast.success("Prompts generated successfully!");
         setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -297,6 +307,74 @@ export default function AdminClientDetail() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleAnalyzeTranscript = async () => {
+    if (!client) return;
+    setAnalyzingTranscript(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-kickoff-transcript", {
+        body: { client_id: client.id },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success("Transcripción analizada");
+        // Refresh kickoff
+        const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
+        if (kb) setKickoff(kb as unknown as KickoffBrief);
+        // Auto-add suggested rules
+        if (data.suggested_client_rules?.length && kickoff) {
+          const existing = Array.isArray(kickoff.client_rules) ? kickoff.client_rules : [];
+          const merged = [...existing, ...data.suggested_client_rules];
+          await supabase.from("kickoff_briefs").update({ client_rules: merged } as any).eq("id", kickoff.id);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error analyzing transcript");
+    } finally {
+      setAnalyzingTranscript(false);
+    }
+  };
+
+  const handleSendToSlotty = async (generation: ToolGeneration) => {
+    if (!client) return;
+    const prompt = generation.prompt;
+    const { data: matData } = await supabase.from("kickoff_briefs").select("client_materials").eq("client_id", client.id).maybeSingle();
+    const clientMaterials = matData?.client_materials || {};
+    const brandAssets = {
+      brand_name: client.company_name,
+      primary_color: (clientMaterials as any).primary_color || null,
+      logo_url: (clientMaterials as any).logo_url || null,
+      photos: ((clientMaterials as any).photos || []).map((p: any) => p.url).filter(Boolean),
+    };
+    const { error } = await supabase.from("slotty_workspace_requests").insert({
+      client_id: client.id,
+      client_name: client.name,
+      client_email: client.email,
+      workspace_config: prompt.workspace_config || prompt,
+      brand_assets: brandAssets,
+      status: "pending",
+    } as any);
+    if (error) { toast.error("Error al enviar a Slotty"); return; }
+    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", generation.id);
+    setToolGenerations(toolGenerations.map(t => t.id === generation.id ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success("Solicitud enviada a Slotty");
+  };
+
+  const handleMarkSent = async (genId: string) => {
+    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", genId);
+    setToolGenerations(toolGenerations.map(t => t.id === genId ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success("Marcado como enviado");
+  };
+
+  const handleApproveAllGens = async () => {
+    const ids = toolGenerations.filter(t => t.status === "prompt_ready").map(t => t.id);
+    if (ids.length === 0) return;
+    for (const gid of ids) {
+      await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", gid);
+    }
+    setToolGenerations(toolGenerations.map(t => ids.includes(t.id) ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success(`${ids.length} prompts marcados como enviados`);
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
