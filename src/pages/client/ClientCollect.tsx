@@ -231,7 +231,17 @@ export default function ClientCollect() {
                 ) : (
                   <div className="space-y-3">
                     {/* File upload */}
-                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                    <div
+                      className="border-2 border-dashed border-border rounded-lg p-6 text-center transition-colors"
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-primary'); }}
+                      onDragLeave={(e) => { e.currentTarget.classList.remove('border-primary'); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('border-primary');
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleFileUpload(index, file);
+                      }}
+                    >
                       <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
                       <p className="text-sm text-muted-foreground mb-2">Drag & drop or click to upload</p>
                       <Input

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MARKETS } from "@/lib/briefing-data";
 import { toast } from "sonner";
-import { Loader2, Archive } from "lucide-react";
+import { Loader2, Archive, ChevronLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -132,7 +132,7 @@ export default function AdminProspectDetail() {
       setAcceptDialogOpen(false);
 
       if (data?.client_id) {
-        navigate(`/admin/client/${data.client_id}/kickoff`);
+        navigate(`/admin/client/${data.client_id}`);
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to accept prospect");
@@ -211,6 +211,9 @@ export default function AdminProspectDetail() {
 
   return (
     <div className="p-8 max-w-4xl">
+      <Button variant="ghost" size="sm" onClick={() => navigate("/admin/prospects")} className="mb-4">
+        <ChevronLeft className="w-4 h-4 mr-1" /> Volver a prospects
+      </Button>
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{prospect.name}</h1>

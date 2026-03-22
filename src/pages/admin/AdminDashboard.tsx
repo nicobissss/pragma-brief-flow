@@ -313,7 +313,7 @@ export default function AdminDashboard() {
                         ? c.assets.reduce((latest, a) => a.created_at > latest ? a.created_at : latest, c.assets[0].created_at)
                         : null;
                       return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}/kickoff`)}>
+                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}`)}>
                           <TableCell>
                             <p className="font-medium text-foreground">{c.name}</p>
                             <p className="text-xs text-muted-foreground">{c.company_name}</p>
@@ -367,7 +367,7 @@ export default function AdminDashboard() {
                       else if (item.entity_type === "asset") {
                         // Find the client that owns this asset and navigate to their Assets tab
                         supabase.from("assets").select("client_id").eq("id", item.entity_id).single().then(({ data }) => {
-                          if (data?.client_id) navigate(`/admin/client/${data.client_id}/kickoff?tab=assets`);
+                          if (data?.client_id) navigate(`/admin/client/${data.client_id}?tab=assets`);
                         });
                       }
                     }}

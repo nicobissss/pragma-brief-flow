@@ -78,7 +78,7 @@ export default function AdminSettings() {
   const fetchAll = async () => {
     const [kbRes, docRes] = await Promise.all([
       supabase.from("knowledge_base").select("*").order("category"),
-      supabase.from("documents").select("*").order("created_at", { ascending: false }),
+      supabase.from("kb_documents" as any).select("*").order("created_at", { ascending: false }),
     ]);
     if (kbRes.data) setKbRows(kbRes.data as unknown as KBRow[]);
     if (docRes.data) setDocs(docRes.data as unknown as DocRow[]);
@@ -111,7 +111,7 @@ export default function AdminSettings() {
       extractedText = await file.text();
     }
 
-    const { error: insertErr } = await supabase.from("documents").insert({
+    const { error: insertErr } = await (supabase.from("kb_documents" as any) as any).insert({
       filename: file.name,
       file_url: path,
       is_active: true,
@@ -126,14 +126,14 @@ export default function AdminSettings() {
   };
 
   const toggleActive = async (doc: DocRow) => {
-    const { error } = await supabase.from("documents").update({ is_active: !doc.is_active }).eq("id", doc.id);
+    const { error } = await (supabase.from("kb_documents" as any) as any).update({ is_active: !doc.is_active }).eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, is_active: !d.is_active } : d));
   };
 
   const deleteDoc = async (doc: DocRow) => {
     await supabase.storage.from("kb-documents").remove([doc.file_url]);
-    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    const { error } = await (supabase.from("kb_documents" as any) as any).delete().eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
     toast.success("Document deleted");

@@ -26,7 +26,9 @@ export default function LoginPage() {
         .select("role")
         .eq("user_id", authData.user.id);
 
-      const role = roles?.[0]?.role;
+      const role = roles?.[0]?.role
+        || (authData.user.user_metadata as any)?.role
+        || (authData.user.app_metadata as any)?.role;
       if (role === "pragma_admin") {
         navigate("/admin/dashboard");
       } else if (role === "client") {

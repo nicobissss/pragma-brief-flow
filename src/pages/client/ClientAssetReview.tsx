@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CommentableSection } from "@/components/client/CommentableSection";
 import { toast } from "sonner";
-import { CheckCircle2, Send, Loader2 } from "lucide-react";
+import { CheckCircle2, Send, Loader2, ChevronLeft } from "lucide-react";
 import { AssetPreview } from "@/components/client/AssetPreview";
 
 type Asset = {
@@ -33,6 +33,7 @@ const EMAIL_SECTIONS = ["Subject line", "Preview text", "Body content", "CTA but
 
 export default function ClientAssetReview() {
   const { type } = useParams<{ type: string }>();
+  const navigate = useNavigate();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -253,6 +254,9 @@ export default function ClientAssetReview() {
 
   return (
     <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
+        <ChevronLeft className="w-4 h-4 mr-1" /> Volver al panel
+      </Button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground">{label}</h1>
         {hasPending && assets.length > 1 && (

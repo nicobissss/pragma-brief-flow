@@ -110,44 +110,71 @@ export type Database = {
       assets: {
         Row: {
           asset_name: string
+          asset_title: string | null
           asset_type: Database["public"]["Enums"]["asset_type"]
+          assigned_to: string | null
           campaign_id: string | null
           client_comment: string | null
           client_id: string
           content: Json | null
+          context_used: Json | null
           correction_prompt: string | null
           created_at: string
+          due_date: string | null
           file_url: string | null
           id: string
+          incorporated: boolean | null
+          preview_url: string | null
+          production_status: string | null
           status: Database["public"]["Enums"]["asset_status"]
+          strategic_note: string | null
+          strategic_note_approved: boolean | null
           version: number
         }
         Insert: {
           asset_name: string
+          asset_title?: string | null
           asset_type: Database["public"]["Enums"]["asset_type"]
+          assigned_to?: string | null
           campaign_id?: string | null
           client_comment?: string | null
           client_id: string
           content?: Json | null
+          context_used?: Json | null
           correction_prompt?: string | null
           created_at?: string
+          due_date?: string | null
           file_url?: string | null
           id?: string
+          incorporated?: boolean | null
+          preview_url?: string | null
+          production_status?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
+          strategic_note?: string | null
+          strategic_note_approved?: boolean | null
           version?: number
         }
         Update: {
           asset_name?: string
+          asset_title?: string | null
           asset_type?: Database["public"]["Enums"]["asset_type"]
+          assigned_to?: string | null
           campaign_id?: string | null
           client_comment?: string | null
           client_id?: string
           content?: Json | null
+          context_used?: Json | null
           correction_prompt?: string | null
           created_at?: string
+          due_date?: string | null
           file_url?: string | null
           id?: string
+          incorporated?: boolean | null
+          preview_url?: string | null
+          production_status?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
+          strategic_note?: string | null
+          strategic_note_approved?: boolean | null
           version?: number
         }
         Relationships: [
@@ -332,6 +359,83 @@ export type Database = {
           },
         ]
       }
+      client_context_snapshots: {
+        Row: {
+          client_id: string | null
+          context_data: Json
+          created_at: string | null
+          generation_id: string | null
+          id: string
+          snapshot_type: string | null
+          tokens_used: number | null
+        }
+        Insert: {
+          client_id?: string | null
+          context_data?: Json
+          created_at?: string | null
+          generation_id?: string | null
+          id?: string
+          snapshot_type?: string | null
+          tokens_used?: number | null
+        }
+        Update: {
+          client_id?: string | null
+          context_data?: Json
+          created_at?: string | null
+          generation_id?: string | null
+          id?: string
+          snapshot_type?: string | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_context_snapshots_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_context_snapshots_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "tool_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notes: {
+        Row: {
+          author: string | null
+          client_id: string | null
+          created_at: string | null
+          id: string
+          note: string
+        }
+        Insert: {
+          author?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          note: string
+        }
+        Update: {
+          author?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           activated_tools: Json | null
@@ -340,7 +444,11 @@ export type Database = {
           email: string
           id: string
           market: Database["public"]["Enums"]["market"]
+          max_revision_rounds: number | null
           name: string
+          pipeline_status: string | null
+          project_plan: Json | null
+          project_plan_shared: boolean | null
           prospect_id: string | null
           status: Database["public"]["Enums"]["client_status"]
           sub_niche: string
@@ -354,7 +462,11 @@ export type Database = {
           email: string
           id?: string
           market: Database["public"]["Enums"]["market"]
+          max_revision_rounds?: number | null
           name: string
+          pipeline_status?: string | null
+          project_plan?: Json | null
+          project_plan_shared?: boolean | null
           prospect_id?: string | null
           status?: Database["public"]["Enums"]["client_status"]
           sub_niche: string
@@ -368,7 +480,11 @@ export type Database = {
           email?: string
           id?: string
           market?: Database["public"]["Enums"]["market"]
+          max_revision_rounds?: number | null
           name?: string
+          pipeline_status?: string | null
+          project_plan?: Json | null
+          project_plan_shared?: boolean | null
           prospect_id?: string | null
           status?: Database["public"]["Enums"]["client_status"]
           sub_niche?: string
@@ -412,48 +528,170 @@ export type Database = {
         }
         Relationships: []
       }
+      email_log: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          error: string | null
+          id: string
+          status: string | null
+          subject: string | null
+          to_email: string
+          type: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          status?: string | null
+          subject?: string | null
+          to_email: string
+          type: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          status?: string | null
+          subject?: string | null
+          to_email?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          body_html: string
+          id: string
+          is_active: boolean | null
+          subject: string
+          type: string
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          body_html: string
+          id?: string
+          is_active?: boolean | null
+          subject: string
+          type: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          body_html?: string
+          id?: string
+          is_active?: boolean | null
+          subject?: string
+          type?: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          event_type: string
+          id?: string
+          payload?: Json
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean | null
+        }
+        Relationships: []
+      }
       kickoff_briefs: {
         Row: {
           audio_file_url: string | null
           client_id: string
           client_materials: Json | null
+          client_rules: Json | null
+          context_completeness_score: number | null
           created_at: string
           generated_prompts: Json | null
           id: string
           pragma_approved: boolean | null
+          preferred_tone: string | null
           suggested_questions: Json | null
+          suggested_services: Json | null
+          suggested_services_approved: boolean | null
+          transcript_quality: string | null
           transcript_status:
             | Database["public"]["Enums"]["transcript_status"]
             | null
           transcript_text: string | null
+          voice_reference: string | null
         }
         Insert: {
           audio_file_url?: string | null
           client_id: string
           client_materials?: Json | null
+          client_rules?: Json | null
+          context_completeness_score?: number | null
           created_at?: string
           generated_prompts?: Json | null
           id?: string
           pragma_approved?: boolean | null
+          preferred_tone?: string | null
           suggested_questions?: Json | null
+          suggested_services?: Json | null
+          suggested_services_approved?: boolean | null
+          transcript_quality?: string | null
           transcript_status?:
             | Database["public"]["Enums"]["transcript_status"]
             | null
           transcript_text?: string | null
+          voice_reference?: string | null
         }
         Update: {
           audio_file_url?: string | null
           client_id?: string
           client_materials?: Json | null
+          client_rules?: Json | null
+          context_completeness_score?: number | null
           created_at?: string
           generated_prompts?: Json | null
           id?: string
           pragma_approved?: boolean | null
+          preferred_tone?: string | null
           suggested_questions?: Json | null
+          suggested_services?: Json | null
+          suggested_services_approved?: boolean | null
+          transcript_quality?: string | null
           transcript_status?:
             | Database["public"]["Enums"]["transcript_status"]
             | null
           transcript_text?: string | null
+          voice_reference?: string | null
         }
         Relationships: [
           {
@@ -524,8 +762,78 @@ export type Database = {
         }
         Relationships: []
       }
+      pragma_flows: {
+        Row: {
+          applicable_sub_niches: Json | null
+          description: string | null
+          estimated_total_days: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          steps: Json | null
+          updated_at: string | null
+          updated_by: string | null
+          vertical: string
+        }
+        Insert: {
+          applicable_sub_niches?: Json | null
+          description?: string | null
+          estimated_total_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          steps?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          vertical: string
+        }
+        Update: {
+          applicable_sub_niches?: Json | null
+          description?: string | null
+          estimated_total_days?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          steps?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          vertical?: string
+        }
+        Relationships: []
+      }
+      pragma_rules: {
+        Row: {
+          category: string
+          content: string
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          category: string
+          content: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       proposals: {
         Row: {
+          client_notes: string | null
           created_at: string
           full_proposal_content: Json | null
           id: string
@@ -535,9 +843,12 @@ export type Database = {
           prospect_id: string
           recommended_flow: string | null
           recommended_tools: Json | null
+          shared_at: string | null
+          shared_with_client: boolean | null
           timeline: string | null
         }
         Insert: {
+          client_notes?: string | null
           created_at?: string
           full_proposal_content?: Json | null
           id?: string
@@ -547,9 +858,12 @@ export type Database = {
           prospect_id: string
           recommended_flow?: string | null
           recommended_tools?: Json | null
+          shared_at?: string | null
+          shared_with_client?: boolean | null
           timeline?: string | null
         }
         Update: {
+          client_notes?: string | null
           created_at?: string
           full_proposal_content?: Json | null
           id?: string
@@ -559,6 +873,8 @@ export type Database = {
           prospect_id?: string
           recommended_flow?: string | null
           recommended_tools?: Json | null
+          shared_at?: string | null
+          shared_with_client?: boolean | null
           timeline?: string | null
         }
         Relationships: [
@@ -574,7 +890,9 @@ export type Database = {
       prospects: {
         Row: {
           briefing_answers: Json
+          call_date: string | null
           call_notes: string | null
+          call_platform: string | null
           call_scheduled_at: string | null
           call_status: Database["public"]["Enums"]["call_status"]
           company_name: string
@@ -591,7 +909,9 @@ export type Database = {
         }
         Insert: {
           briefing_answers?: Json
+          call_date?: string | null
           call_notes?: string | null
+          call_platform?: string | null
           call_scheduled_at?: string | null
           call_status?: Database["public"]["Enums"]["call_status"]
           company_name: string
@@ -608,7 +928,9 @@ export type Database = {
         }
         Update: {
           briefing_answers?: Json
+          call_date?: string | null
           call_notes?: string | null
+          call_platform?: string | null
           call_scheduled_at?: string | null
           call_status?: Database["public"]["Enums"]["call_status"]
           company_name?: string
@@ -660,6 +982,148 @@ export type Database = {
           },
         ]
       }
+      slotty_workspace_requests: {
+        Row: {
+          brand_assets: Json | null
+          client_email: string
+          client_id: string | null
+          client_name: string
+          created_at: string | null
+          error: string | null
+          id: string
+          processed_at: string | null
+          status: string | null
+          workspace_config: Json
+          workspace_id: string | null
+        }
+        Insert: {
+          brand_assets?: Json | null
+          client_email: string
+          client_id?: string | null
+          client_name: string
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          workspace_config?: Json
+          workspace_id?: string | null
+        }
+        Update: {
+          brand_assets?: Json | null
+          client_email?: string
+          client_id?: string | null
+          client_name?: string
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          status?: string | null
+          workspace_config?: Json
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slotty_workspace_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_generations: {
+        Row: {
+          client_id: string | null
+          content_ready_at: string | null
+          created_at: string | null
+          id: string
+          prompt: Json | null
+          sent_at: string | null
+          status: string | null
+          tool_name: string
+        }
+        Insert: {
+          client_id?: string | null
+          content_ready_at?: string | null
+          created_at?: string | null
+          id?: string
+          prompt?: Json | null
+          sent_at?: string | null
+          status?: string | null
+          tool_name: string
+        }
+        Update: {
+          client_id?: string | null
+          content_ready_at?: string | null
+          created_at?: string | null
+          id?: string
+          prompt?: Json | null
+          sent_at?: string | null
+          status?: string | null
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_generations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_results: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          event_type: string
+          generation_id: string | null
+          id: string
+          metadata: Json | null
+          payload: Json
+          status: string | null
+          tool_name: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          event_type: string
+          generation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          payload?: Json
+          status?: string | null
+          tool_name: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          event_type?: string
+          generation_id?: string | null
+          id?: string
+          metadata?: Json | null
+          payload?: Json
+          status?: string | null
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_results_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tool_results_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "tool_generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -675,6 +1139,36 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      webhook_log: {
+        Row: {
+          created_at: string | null
+          direction: string
+          error: string | null
+          event_type: string | null
+          id: string
+          payload: Json | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          direction: string
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          direction?: string
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string | null
         }
         Relationships: []
       }

@@ -70,7 +70,7 @@ export default function BriefingPage() {
     setSubmitting(true);
     try {
       const { name, company_name, email, phone, market, vertical, sub_niche, ...rest } = data;
-      const { error } = await supabase.from("prospects").insert({
+      const { data: insertedProspect, error } = await supabase.from("prospects").insert({
         name,
         company_name,
         email,
@@ -80,8 +80,18 @@ export default function BriefingPage() {
         sub_niche,
         status: "new",
         briefing_answers: rest,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Emit event
+      try {
+        await supabase.from("events").insert({
+          event_type: "prospect.created",
+          entity_type: "prospect",
+          entity_id: insertedProspect?.id,
+          payload: { name, vertical, market },
+        });
+      } catch (_) {}
       localStorage.removeItem(STORAGE_KEY);
       setSubmitted(true);
     } catch (e: any) {

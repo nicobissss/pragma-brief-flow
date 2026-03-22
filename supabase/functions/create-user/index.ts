@@ -18,9 +18,10 @@ serve(async (req) => {
     );
 
     // Create user
+    const finalPassword = password || Deno.env.get("DEFAULT_CLIENT_PASSWORD") || "Pragma2026!";
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password,
+      password: finalPassword,
       email_confirm: true,
     });
 

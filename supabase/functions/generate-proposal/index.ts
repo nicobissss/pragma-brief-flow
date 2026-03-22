@@ -30,7 +30,7 @@ async function fetchKnowledgeBase(supabaseAdmin: any): Promise<string> {
   }
 
   const { data: docs } = await supabaseAdmin
-    .from("documents")
+    .from("kb_documents")
     .select("filename, extracted_text")
     .eq("is_active", true);
 
