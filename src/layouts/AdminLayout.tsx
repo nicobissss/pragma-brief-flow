@@ -65,10 +65,10 @@ export default function AdminLayout() {
               <Link
                 key={item.to}
                 to={item.to}
-                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    ? "bg-accent text-primary font-medium border-l-2 border-primary rounded-r-xl"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-xl"
                 }`}
               >
                 <item.icon className="w-4 h-4" />

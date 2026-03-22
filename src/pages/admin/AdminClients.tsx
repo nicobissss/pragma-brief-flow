@@ -51,20 +51,20 @@ export default function AdminClients() {
         <div className="bg-card rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Company</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Vertical</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left p-3 font-medium text-muted-foreground">Since</th>
-                <th className="p-3"></th>
+              <tr className="border-b border-border">
+                <th className="text-left p-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/50">Name</th>
+                <th className="text-left p-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/50">Company</th>
+                <th className="text-left p-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/50">Vertical</th>
+                <th className="text-left p-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/50">Status</th>
+                <th className="text-left p-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/50">Since</th>
+                <th className="p-3 bg-secondary/50"></th>
               </tr>
             </thead>
             <tbody>
               {clients.map((c) => (
                 <tr
                   key={c.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer"
+                  className="border-b border-border last:border-0 hover:bg-secondary/30 cursor-pointer transition-colors"
                   onClick={() => navigate(`/admin/client/${c.id}`)}
                 >
                   <td className="p-3 font-medium text-foreground">{c.name}</td>
