@@ -130,6 +130,15 @@ export default function ClientCampaignReview() {
       setExpandedAsset(null);
       toast.success(`${asset.asset_name} approved!`);
 
+      try {
+        await supabase.from("events").insert({
+          event_type: "asset.approved",
+          entity_type: "asset",
+          entity_id: asset.id,
+          payload: { client_id: clientId, asset_title: asset.asset_name },
+        } as any);
+      } catch (_) {}
+
       supabase.functions.invoke("send-notification", {
         body: { type: "client_feedback", client_id: clientId, asset_type: asset.asset_type, asset_name: asset.asset_name, comment: "Asset approved" },
       }).catch(console.error);
