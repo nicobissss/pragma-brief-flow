@@ -393,6 +393,15 @@ export default function AdminClientDetail() {
   const handleApproveStrategicNote = async (assetId: string) => {
     await supabase.from("assets").update({ strategic_note_approved: true } as any).eq("id", assetId);
     setAssets(assets.map(a => a.id === assetId ? { ...a, strategic_note_approved: true } : a));
+    const asset = assets.find(a => a.id === assetId);
+    try {
+      await supabase.from("events").insert({
+        event_type: "asset.uploaded",
+        entity_type: "asset",
+        entity_id: assetId,
+        payload: { asset_title: asset?.asset_title, client_id: client?.id, client_name: client?.name },
+      } as any);
+    } catch (_) {}
     toast.success("Nota estratégica aprobada");
   };
 

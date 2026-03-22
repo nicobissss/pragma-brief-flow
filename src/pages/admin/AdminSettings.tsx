@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
 import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
+import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Processes" },
@@ -37,7 +39,7 @@ function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border p-6">
+    <div className="bg-card rounded-2xl border border-border p-6">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-foreground">{title}</h3>
         <div className="flex items-center gap-2">
@@ -78,7 +80,7 @@ export default function AdminSettings() {
   const fetchAll = async () => {
     const [kbRes, docRes] = await Promise.all([
       supabase.from("knowledge_base").select("*").order("category"),
-      supabase.from("kb_documents" as any).select("*").order("created_at", { ascending: false }),
+      supabase.from("documents").select("*").order("created_at", { ascending: false }),
     ]);
     if (kbRes.data) setKbRows(kbRes.data as unknown as KBRow[]);
     if (docRes.data) setDocs(docRes.data as unknown as DocRow[]);
@@ -90,34 +92,25 @@ export default function AdminSettings() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["pdf", "txt", "md"].includes(ext || "")) {
       toast.error("Only PDF, TXT, and MD files are accepted.");
       return;
     }
-
     setUploading(true);
     const path = `${crypto.randomUUID()}_${file.name}`;
-
     const { error: uploadErr } = await supabase.storage.from("kb-documents").upload(path, file);
     if (uploadErr) { toast.error(uploadErr.message); setUploading(false); return; }
 
-    const { data: urlData } = supabase.storage.from("kb-documents").getPublicUrl(path);
-
-    // Extract text for txt/md
     let extractedText: string | null = null;
-    if (ext === "txt" || ext === "md") {
-      extractedText = await file.text();
-    }
+    if (ext === "txt" || ext === "md") extractedText = await file.text();
 
-    const { error: insertErr } = await (supabase.from("kb_documents" as any) as any).insert({
+    const { error: insertErr } = await supabase.from("documents").insert({
       filename: file.name,
       file_url: path,
       is_active: true,
       extracted_text: extractedText,
     });
-
     if (insertErr) { toast.error(insertErr.message); setUploading(false); return; }
     toast.success("Document uploaded");
     setUploading(false);
@@ -126,14 +119,14 @@ export default function AdminSettings() {
   };
 
   const toggleActive = async (doc: DocRow) => {
-    const { error } = await (supabase.from("kb_documents" as any) as any).update({ is_active: !doc.is_active }).eq("id", doc.id);
+    const { error } = await supabase.from("documents").update({ is_active: !doc.is_active }).eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, is_active: !d.is_active } : d));
   };
 
   const deleteDoc = async (doc: DocRow) => {
     await supabase.storage.from("kb-documents").remove([doc.file_url]);
-    const { error } = await (supabase.from("kb_documents" as any) as any).delete().eq("id", doc.id);
+    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
     toast.success("Document deleted");
@@ -144,70 +137,75 @@ export default function AdminSettings() {
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
-      <p className="text-muted-foreground mb-8">
-        Manage the knowledge base that powers AI proposal generation.
+      <p className="text-muted-foreground mb-6">
+        Manage the knowledge base, email templates, and integrations.
       </p>
 
-      {/* PART 1: Text blocks */}
-      <h2 className="text-lg font-semibold text-foreground mb-4">Knowledge Base</h2>
-      <div className="space-y-4 mb-10">
-        {kbRows.map((row) => (
-          <KBBlock key={row.id} row={row} onSaved={fetchAll} />
-        ))}
-      </div>
+      <Tabs defaultValue="knowledge">
+        <TabsList>
+          <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
+          <TabsTrigger value="integrations">Integraciones</TabsTrigger>
+        </TabsList>
 
-      {/* PART 2: Document upload */}
-      <h2 className="text-lg font-semibold text-foreground mb-4">Documents</h2>
-      <div className="bg-card rounded-lg border border-border p-6 mb-4">
-        <div className="flex items-center gap-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.txt,.md"
-            onChange={handleUpload}
-            className="hidden"
-          />
-          <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline">
-            {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-            Upload Document
-          </Button>
-          <span className="text-xs text-muted-foreground">PDF, TXT, MD accepted</span>
-        </div>
-      </div>
+        <TabsContent value="knowledge" className="mt-6 space-y-8">
+          {/* Text blocks */}
+          <div className="space-y-4">
+            {kbRows.map((row) => (
+              <KBBlock key={row.id} row={row} onSaved={fetchAll} />
+            ))}
+          </div>
 
-      {docs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {docs.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between bg-card rounded-lg border border-border p-4">
-              <div className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{doc.filename}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Uploaded {new Date(doc.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
+          {/* Document upload */}
+          <div>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Documents</h2>
+            <div className="bg-card rounded-2xl border border-border p-6 mb-4">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{doc.is_active ? "Active" : "Inactive"}</span>
-                  <Switch checked={doc.is_active} onCheckedChange={() => toggleActive(doc)} />
-                </div>
-                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteDoc(doc)}>
-                  <Trash2 className="w-4 h-4" />
+                <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" />
+                <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline">
+                  {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Upload Document
                 </Button>
+                <span className="text-xs text-muted-foreground">PDF, TXT, MD accepted</span>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+            {docs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {docs.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between bg-card rounded-xl border border-border p-4">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{doc.filename}</p>
+                        <p className="text-xs text-muted-foreground">Uploaded {new Date(doc.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{doc.is_active ? "Active" : "Inactive"}</span>
+                        <Switch checked={doc.is_active} onCheckedChange={() => toggleActive(doc)} />
+                      </div>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteDoc(doc)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-      {/* PART 3: Briefing Questions */}
-      <div className="mt-10 border-t border-border pt-8">
-        <BriefingQuestionsManager />
-      </div>
+          {/* Briefing Questions */}
+          <div className="border-t border-border pt-8">
+            <BriefingQuestionsManager />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="integrations" className="mt-6">
+          <IntegrationsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

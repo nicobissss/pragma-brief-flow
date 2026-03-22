@@ -127,6 +127,14 @@ export default function AdminProspectDetail() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setProspect({ ...prospect, status: "accepted" });
+      try {
+        await supabase.from("events").insert({
+          event_type: "prospect.accepted",
+          entity_type: "prospect",
+          entity_id: prospect.id,
+          payload: { name: prospect.name, vertical: prospect.vertical, market: prospect.market },
+        } as any);
+      } catch (_) {}
       toast.success(
         `Client account created successfully.\nEmail: ${prospect.email}\nPassword: Pragma2026!\nThey will be prompted to change it on first login.`,
         { duration: 10000 }
