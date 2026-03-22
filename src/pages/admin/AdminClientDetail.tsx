@@ -944,13 +944,24 @@ export default function AdminClientDetail() {
 
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Generated Prompts
-            </h3>
+          {/* Prerequisite checklist */}
+          <div className="bg-card rounded-lg border border-border p-5 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prerequisitos</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <ContextLine label="Transcripción cargada y analizada" included={!!kickoff?.transcript_text && !!kickoff?.voice_reference} />
+              <ContextLine label="Servicios aprobados" included={!!kickoff?.suggested_services_approved} />
+              <ContextLine label="Al menos 1 tool activado" included={toolGenerations.length > 0 || !!(kickoff?.suggested_services as any[])?.some?.((s: any) => s.recommended)} />
+              <ContextLine label="Materiales subidos" included={!!((materials as any)?.photos?.length || (materials as any)?.website_context)} />
+              <ContextLine label={`Contexto ≥ 60% (${completenessPct}%)`} included={completenessPct >= 60} />
+            </div>
 
-            <div className="mb-4">
+            <div className="flex flex-wrap gap-2 pt-2">
+              {kickoff?.transcript_text && !kickoff?.voice_reference && (
+                <Button variant="outline" size="sm" onClick={handleAnalyzeTranscript} disabled={analyzingTranscript}>
+                  {analyzingTranscript ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                  Analizar transcripción
+                </Button>
+              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -965,65 +976,202 @@ export default function AdminClientDetail() {
                         {generating ? (
                           <><Loader2 className="w-4 h-4 animate-spin mr-2" />Claude is analyzing...</>
                         ) : generatedPrompts ? (
-                          <><RefreshCw className="w-4 h-4 mr-2" />Regenerate Prompts</>
+                          <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
                         ) : (
-                          <><Sparkles className="w-4 h-4 mr-2" />Generate Prompts</>
+                          <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>
                         )}
                       </Button>
                     </span>
                   </TooltipTrigger>
                   {transcriptText.trim().length < 50 && (
                     <TooltipContent>
-                      <p>Paste a transcript in the Kickoff tab first (min 50 characters)</p>
+                      <p>Pega una transcripción en el tab Kickoff primero (mín. 50 caracteres)</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
               </TooltipProvider>
+            </div>
+          </div>
 
-              {contextSources && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => setShowContextSources(!showContextSources)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showContextSources ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    Context used for generation
-                  </button>
-                  {showContextSources && (
-                    <div className="mt-2 p-3 rounded-md bg-secondary/50 text-xs space-y-1">
-                      <ContextLine label="Transcript" included={contextSources.transcript} />
-                      <ContextLine label="Briefing answers" included={contextSources.briefing_answers} />
-                      <ContextLine label="Proposal" included={contextSources.proposal} />
-                      <ContextLine label="Brand colors" included={contextSources.brand_colors} />
-                      <ContextLine label="Brand personality" included={contextSources.brand_tags} />
-                      <ContextLine label="Website analysis" included={contextSources.website_context} />
-                      <ContextLine label="Pricing PDF" included={contextSources.pricing_pdf} />
-                      <ContextLine label={`Photos${contextSources.photos?.count ? ` (${contextSources.photos.count} assets)` : ""}`} included={contextSources.photos?.included} />
-                      <ContextLine label="Existing emails" included={contextSources.emails} />
-                      <ContextLine label={`Social posts${contextSources.social_posts?.count ? ` (${contextSources.social_posts.count} posts)` : ""}`} included={contextSources.social_posts?.included} />
+          {/* Suggested services */}
+          {kickoff?.suggested_services && Array.isArray(kickoff.suggested_services) && kickoff.suggested_services.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Servicios sugeridos</h3>
+              {(kickoff.suggested_services as any[]).map((svc: any, i: number) => (
+                <div key={i} className="bg-card rounded-lg border border-border p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{svc.recommended ? "✅" : "⚪"}</span>
+                      <span className="font-semibold text-foreground">{svc.tool_name}</span>
                     </div>
-                  )}
+                    <Badge variant="outline" className="text-xs">Prioridad: {svc.priority}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">{svc.reason}</p>
                 </div>
+              ))}
+              {!kickoff.suggested_services_approved && (
+                <Button size="sm" onClick={async () => {
+                  await supabase.from("kickoff_briefs").update({ suggested_services_approved: true } as any).eq("id", kickoff.id);
+                  setKickoff({ ...kickoff, suggested_services_approved: true });
+                  toast.success("Servicios aprobados");
+                }}>
+                  Aprobar servicios
+                </Button>
+              )}
+              {kickoff.suggested_services_approved && (
+                <Badge className="badge-accepted text-xs">✅ Servicios aprobados</Badge>
               )}
             </div>
+          )}
 
-            {generatedPrompts && (
-              <div ref={promptsRef}>
-                <div className="flex justify-end mb-2">
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(generatedPrompts); toast.success("Copied!"); }}>
-                    <Copy className="w-4 h-4 mr-2" />Copy all
+          {/* Tool generation cards */}
+          {toolGenerations.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prompts por herramienta</h3>
+                {toolGenerations.some(t => t.status === "prompt_ready") && (
+                  <Button size="sm" variant="outline" onClick={handleApproveAllGens}>
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Aprobar todos
                   </Button>
-                </div>
-                <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap bg-secondary/20 rounded-lg p-4 border border-border">
-                  {generatedPrompts}
-                </div>
+                )}
               </div>
-            )}
+              {toolGenerations.map((gen) => {
+                const prompt = gen.prompt || {};
+                const toolIcons: Record<string, string> = { Slotty: "🔧", "Landing + Email": "🏠", "Blog System": "📝" };
+                const toolBorderColors: Record<string, string> = {
+                  Slotty: "hsl(var(--primary))",
+                  "Landing + Email": "hsl(152, 44%, 23%)",
+                  "Blog System": "hsl(38, 92%, 50%)",
+                };
+                const isSlotty = gen.tool_name.toLowerCase().includes("slotty");
+                return (
+                  <Collapsible key={gen.id}>
+                    <div
+                      className="bg-card rounded-lg border border-border overflow-hidden"
+                      style={{ borderLeftWidth: "4px", borderLeftColor: toolBorderColors[gen.tool_name] || "hsl(var(--primary))" }}
+                    >
+                      <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{toolIcons[gen.tool_name] || "⚙️"}</span>
+                          <span className="font-semibold text-foreground">{gen.tool_name}</span>
+                          <Badge variant={gen.status === "sent" ? "default" : "outline"} className="text-xs">
+                            {gen.status === "sent" ? "✅ Enviado" : gen.status}
+                          </Badge>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 space-y-3">
+                          {prompt.objective && (
+                            <p className="text-sm text-muted-foreground"><strong>Objetivo:</strong> {prompt.objective}</p>
+                          )}
 
-            {!generatedPrompts && !generating && (
-              <p className="text-sm text-muted-foreground">No prompts generated yet. Add a transcript in the Kickoff tab and click Generate.</p>
-            )}
-          </div>
+                          {/* Slotty specific */}
+                          {prompt.workspace_config && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver configuración completa
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
+                                  {JSON.stringify(prompt.workspace_config, null, 2)}
+                                </pre>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+
+                          {/* Landing + Email specific */}
+                          {prompt.system_prompt && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver prompt sistema
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
+                                  {prompt.system_prompt}
+                                </pre>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          {prompt.landing_task_prompts && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver tasks landing ({prompt.landing_task_prompts.length})
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
+                                  {prompt.landing_task_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                                </ul>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          {prompt.email_sequence_prompts && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver tasks email ({prompt.email_sequence_prompts.length})
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
+                                  {prompt.email_sequence_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                                </ul>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+
+                          {/* Blog specific */}
+                          {prompt.topics && (
+                            <div className="text-sm"><strong className="text-foreground">Topics:</strong> <span className="text-muted-foreground">{prompt.topics.join(", ")}</span></div>
+                          )}
+                          {prompt.keyword_focus && (
+                            <div className="text-sm"><strong className="text-foreground">Keywords:</strong> <span className="text-muted-foreground">{prompt.keyword_focus.join(", ")}</span></div>
+                          )}
+
+                          <div className="flex gap-2 pt-2">
+                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(JSON.stringify(prompt, null, 2)); toast.success("JSON copiado"); }}>
+                              <Copy className="w-4 h-4 mr-1" /> Copiar JSON
+                            </Button>
+                            {isSlotty && gen.status !== "sent" && (
+                              <Button size="sm" onClick={() => handleSendToSlotty(gen)}>
+                                Crear workspace en Slotty →
+                              </Button>
+                            )}
+                            {!isSlotty && gen.status !== "sent" && (
+                              <Button size="sm" variant="outline" onClick={() => handleMarkSent(gen.id)}>
+                                Marcar como enviado →
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Legacy raw text prompts */}
+          {generatedPrompts && typeof generatedPrompts === "string" && !toolGenerations.length && (
+            <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-foreground text-sm">Prompts (texto)</h3>
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(generatedPrompts); toast.success("Copied!"); }}>
+                  <Copy className="w-4 h-4 mr-1" /> Copy all
+                </Button>
+              </div>
+              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap bg-secondary/20 rounded-lg p-4 border border-border text-xs">
+                {generatedPrompts}
+              </div>
+            </div>
+          )}
+
+          {!generatedPrompts && !generating && toolGenerations.length === 0 && (
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
+              <span className="text-4xl">📋</span>
+              <h3 className="font-semibold text-foreground">No hay prompts generados</h3>
+              <p className="text-sm text-muted-foreground">Completa los prerequisitos y haz click en "Generar Prompts"</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* TAB 4 — Assets */}
