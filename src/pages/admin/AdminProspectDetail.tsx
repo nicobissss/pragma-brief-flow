@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { MARKETS } from "@/lib/briefing-data";
 import { toast } from "sonner";
-import { Loader2, Archive } from "lucide-react";
+import { Loader2, Archive, ChevronLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
