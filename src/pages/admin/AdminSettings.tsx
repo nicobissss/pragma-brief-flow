@@ -111,7 +111,7 @@ export default function AdminSettings() {
       extractedText = await file.text();
     }
 
-    const { error: insertErr } = await supabase.from("documents").insert({
+    const { error: insertErr } = await (supabase.from("kb_documents" as any) as any).insert({
       filename: file.name,
       file_url: path,
       is_active: true,
