@@ -1,18 +1,16 @@
-import { Badge } from "@/components/ui/badge";
-
-const statusColors: Record<string, string> = {
-  new: "bg-status-new",
-  proposal_ready: "bg-status-proposal-ready",
-  call_scheduled: "bg-status-call-scheduled",
-  accepted: "bg-status-accepted",
-  rejected: "bg-status-rejected",
-  archived: "bg-muted",
-  active: "bg-status-accepted",
-  paused: "bg-status-change-requested",
-  churned: "bg-status-rejected",
-  pending_review: "bg-status-pending-review",
-  change_requested: "bg-status-change-requested",
-  approved: "bg-status-approved",
+const statusClasses: Record<string, string> = {
+  new: "badge-new",
+  proposal_ready: "badge-new",
+  call_scheduled: "badge-new",
+  accepted: "badge-accepted",
+  active: "badge-accepted",
+  approved: "badge-accepted",
+  rejected: "badge-rejected",
+  churned: "badge-rejected",
+  archived: "badge-paused",
+  paused: "badge-paused",
+  pending_review: "badge-pending",
+  change_requested: "badge-paused",
 };
 
 const statusLabels: Record<string, string> = {
@@ -32,8 +30,8 @@ const statusLabels: Record<string, string> = {
 
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <Badge className={`${statusColors[status] || "bg-muted"} text-primary-foreground border-0 font-medium text-xs`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${statusClasses[status] || "badge-pending"}`}>
       {statusLabels[status] || status}
-    </Badge>
+    </span>
   );
 }
