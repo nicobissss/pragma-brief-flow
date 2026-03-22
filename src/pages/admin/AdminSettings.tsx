@@ -126,7 +126,7 @@ export default function AdminSettings() {
   };
 
   const toggleActive = async (doc: DocRow) => {
-    const { error } = await supabase.from("documents").update({ is_active: !doc.is_active }).eq("id", doc.id);
+    const { error } = await (supabase.from("kb_documents" as any) as any).update({ is_active: !doc.is_active }).eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.map((d) => d.id === doc.id ? { ...d, is_active: !d.is_active } : d));
   };
