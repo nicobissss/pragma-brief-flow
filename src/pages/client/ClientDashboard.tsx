@@ -111,6 +111,8 @@ export default function ClientDashboard() {
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [projectPlan, setProjectPlan] = useState<any>(null);
+  const [projectPlanShared, setProjectPlanShared] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -120,13 +122,15 @@ export default function ClientDashboard() {
 
       const { data: client } = await supabase
         .from("clients")
-        .select("id, company_name, prospect_id")
+        .select("id, company_name, prospect_id, project_plan, project_plan_shared")
         .eq("user_id", session.user.id)
         .limit(1)
         .maybeSingle();
 
       if (!client) { setLoading(false); return; }
       setCompanyName(client.company_name);
+      setProjectPlan(client.project_plan);
+      setProjectPlanShared(client.project_plan_shared || false);
 
       const [assetsRes, campaignsRes, prospectRes, requestsRes] = await Promise.all([
         supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
@@ -172,11 +176,9 @@ export default function ClientDashboard() {
   const allApproved = totalAssets > 0 && approvedCount === totalAssets;
   const progressPercent = totalAssets > 0 ? Math.round((approvedCount / totalAssets) * 100) : 0;
 
-  // Assets not in any campaign
   const uncategorizedAssets = allAssets.filter((a) => !a.campaign_id);
   const hasCampaigns = campaigns.length > 0;
 
-  // Group uncategorized by type for legacy cards
   const typeGroups = new Map<string, { statuses: string[]; count: number }>();
   for (const a of uncategorizedAssets) {
     if (!typeGroups.has(a.asset_type)) typeGroups.set(a.asset_type, { statuses: [], count: 0 });
@@ -195,12 +197,11 @@ export default function ClientDashboard() {
 
   const approvedAssets = allAssets.filter((a) => a.status === "approved");
 
-  // Campaign card helpers
   const getCampaignCardStyle = (campaignAssets: AssetItem[]) => {
     if (campaignAssets.length === 0) return { border: "border-border", label: null };
     const allCampaignApproved = campaignAssets.every((a) => a.status === "approved");
     const hasChangeRequested = campaignAssets.some((a) => a.status === "change_requested");
-    if (allCampaignApproved) return { border: "border-l-4 border-l-[hsl(var(--status-approved))] border-border", label: "✅ Approved" };
+    if (allCampaignApproved) return { border: "border-l-4 border-l-[hsl(142,71%,35%)] border-border", label: "✅ Approved" };
     if (hasChangeRequested) return { border: "border-l-4 border-l-[hsl(var(--status-pending-review))] border-border", label: "Action needed — we uploaded a new version" };
     return { border: "border-border", label: null };
   };
@@ -228,7 +229,6 @@ export default function ClientDashboard() {
           </div>
         )}
 
-        {/* Pipeline progress tracker */}
         <div className="mt-6 flex items-center gap-0 max-w-2xl">
           {["Contacto inicial", "Kickoff call", "Materiales subidos", "En producción", "Revisión y aprobación"].map((label, i) => {
             const stepDone = totalAssets > 0
@@ -263,7 +263,30 @@ export default function ClientDashboard() {
         </TabsList>
 
         <TabsContent value="assets" className="mt-6">
-          {/* Campaign cards */}
+          {/* FEAT-11: Project plan for client */}
+          {projectPlanShared && projectPlan && (
+            <div className="bg-card rounded-lg border border-border p-6 mb-6 space-y-3">
+              <h2 className="text-lg font-semibold text-foreground">📋 Tu plan de proyecto</h2>
+              {Array.isArray(projectPlan) ? (
+                <div className="space-y-2">
+                  {projectPlan.map((item: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-md bg-secondary/30">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{item.name || item.asset_name || `Item ${i + 1}`}</p>
+                        {item.due_date && <p className="text-xs text-muted-foreground">Fecha: {item.due_date}</p>}
+                      </div>
+                      {item.status && <StatusBadge status={item.status} />}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap text-muted-foreground">
+                  {typeof projectPlan === "string" ? projectPlan : JSON.stringify(projectPlan, null, 2)}
+                </pre>
+              )}
+            </div>
+          )}
+
           {hasCampaigns && (
             <div className="space-y-4 mb-8">
               <h2 className="text-lg font-semibold text-foreground">Your Campaigns</h2>
@@ -287,7 +310,7 @@ export default function ClientDashboard() {
                       </div>
 
                       {label && (
-                        <p className={`text-xs font-medium flex items-center gap-1 ${label.startsWith("✅") ? "text-[hsl(var(--status-approved))]" : "text-[hsl(var(--status-pending-review))]"}`}>
+                        <p className={`text-xs font-medium flex items-center gap-1 ${label.startsWith("✅") ? "text-[hsl(142,71%,35%)]" : "text-[hsl(var(--status-pending-review))]"}`}>
                           {!label.startsWith("✅") && <AlertCircle className="w-3 h-3" />}
                           {label}
                         </p>
@@ -322,7 +345,6 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* No campaigns empty state */}
           {!hasCampaigns && allAssets.length === 0 && (
             <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
               <p className="text-2xl">🚀</p>
@@ -333,7 +355,6 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Uncategorized pending review cards */}
           {pendingGroups.length > 0 && (
             <div className="space-y-4 mb-8">
               <h2 className="text-lg font-semibold text-foreground">{hasCampaigns ? "Other Assets" : "Needs Your Review"}</h2>
@@ -364,7 +385,6 @@ export default function ClientDashboard() {
             </div>
           )}
 
-          {/* Approved assets */}
           {approvedAssets.length > 0 && (
             <div className="space-y-4 mb-8">
               <div>
@@ -394,48 +414,43 @@ export default function ClientDashboard() {
           )}
         </TabsContent>
 
-        <TabsContent value="briefing" className="mt-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-foreground">Your briefing summary</h2>
-            <p className="text-sm text-muted-foreground mt-1">This is the information you shared with us at the start of our collaboration.</p>
-          </div>
-
-          {!briefingAnswers ? (
-            <div className="bg-card rounded-lg border border-border p-8 text-center">
-              <p className="text-muted-foreground">Briefing information not available yet.</p>
-            </div>
+        <TabsContent value="briefing" className="mt-6 space-y-6">
+          {briefingAnswers ? (
+            Object.entries(briefingFields).map(([section, fields]) => (
+              <Collapsible key={section} defaultOpen>
+                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                  <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
+                    <h3 className="font-semibold text-foreground text-sm">{section}</h3>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="px-5 pb-5">
+                      {fields.map((f) => {
+                        const val = (f as any).source === "prospect"
+                          ? prospectData?.[f.key]
+                          : briefingAnswers[f.key];
+                        return <BriefingRow key={f.key} label={f.label} value={val} />;
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            ))
           ) : (
-            <div className="space-y-4">
-              {Object.entries(briefingFields).map(([section, fields]) => (
-                <Collapsible key={section} defaultOpen>
-                  <div className="bg-card rounded-lg border border-border overflow-hidden">
-                    <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
-                      <h3 className="font-semibold text-foreground">{section}</h3>
-                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-6 pb-4">
-                        {fields.map((f) => {
-                          const value = f.source === "prospect" ? prospectData?.[f.key] : briefingAnswers[f.key];
-                          return <BriefingRow key={f.key} label={f.label} value={value} />;
-                        })}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              ))}
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+              <p className="text-2xl">📋</p>
+              <h3 className="text-lg font-semibold text-foreground">Briefing not available</h3>
+              <p className="text-sm text-muted-foreground">Your briefing information will appear here once processed.</p>
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="collect" className="mt-6">
-          <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
-            <Paperclip className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-foreground font-medium">PRAGMA has requested files from you</p>
-            <p className="text-sm text-muted-foreground">Please upload the requested items to help us create your campaigns.</p>
-            <Button asChild>
-              <Link to="/client/collect">Upload my files →</Link>
-            </Button>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h3 className="font-semibold text-foreground mb-2">Files Requested by PRAGMA</h3>
+            <p className="text-sm text-muted-foreground">
+              Go to the <Link to="/client/collect" className="text-primary underline">upload page</Link> to submit the requested files.
+            </p>
           </div>
         </TabsContent>
       </Tabs>
