@@ -164,6 +164,8 @@ export default function AdminClientDetail() {
   const [kickoff, setKickoff] = useState<KickoffBrief | null>(null);
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [toolGenerations, setToolGenerations] = useState<ToolGeneration[]>([]);
+  const [analyzingTranscript, setAnalyzingTranscript] = useState(false);
 
   // Notes state (FEAT-04)
   const [notes, setNotes] = useState<ClientNote[]>([]);
