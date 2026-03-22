@@ -78,7 +78,7 @@ export default function AdminSettings() {
   const fetchAll = async () => {
     const [kbRes, docRes] = await Promise.all([
       supabase.from("knowledge_base").select("*").order("category"),
-      supabase.from("documents").select("*").order("created_at", { ascending: false }),
+      supabase.from("kb_documents" as any).select("*").order("created_at", { ascending: false }),
     ]);
     if (kbRes.data) setKbRows(kbRes.data as unknown as KBRow[]);
     if (docRes.data) setDocs(docRes.data as unknown as DocRow[]);
