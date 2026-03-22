@@ -120,6 +120,8 @@ export default function ClientCampaignReview() {
     fetchData();
   }, [id]);
 
+  const [showCelebration, setShowCelebration] = useState(false);
+
   const approveAsset = async (asset: Asset) => {
     setSubmitting(true);
     try {
@@ -128,6 +130,8 @@ export default function ClientCampaignReview() {
       if (error) throw error;
       setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
       setExpandedAsset(null);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
       toast.success(`${asset.asset_name} approved!`);
 
       try {
@@ -220,6 +224,15 @@ export default function ClientCampaignReview() {
 
   return (
     <div className="pb-24 md:pb-8">
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-4 animate-in zoom-in-50 duration-300 bg-card border border-border rounded-2xl p-12 shadow-lg">
+            <div className="text-6xl">🎉</div>
+            <h2 className="text-2xl font-bold text-foreground">¡Aprobado!</h2>
+            <p className="text-muted-foreground">El equipo PRAGMA recibirá tu confirmación.</p>
+          </div>
+        </div>
+      )}
       <Button variant="ghost" size="sm" asChild className="mb-4">
         <Link to="/client/dashboard"><ArrowLeft className="w-4 h-4 mr-1" /> Back to dashboard</Link>
       </Button>

@@ -114,6 +114,7 @@ export default function ClientDashboard() {
   const [projectPlan, setProjectPlan] = useState<any>(null);
   const [projectPlanShared, setProjectPlanShared] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
 
   useEffect(() => {
     const load = async () => {
@@ -206,8 +207,61 @@ export default function ClientDashboard() {
     return { border: "border-border", label: null };
   };
 
+  // UX-03: Client today actions
+  const clientTasks: { text: string; link: string }[] = [];
+  const pendingMaterials = pendingRequestCount;
+  if (pendingMaterials > 0) {
+    clientTasks.push({
+      text: `Subir ${pendingMaterials} archivo${pendingMaterials > 1 ? "s" : ""} solicitado${pendingMaterials > 1 ? "s" : ""}`,
+      link: "/client/collect"
+    });
+  }
+  const pendingReviewAssets = allAssets.filter(a => a.status === "pending_review");
+  if (pendingReviewAssets.length > 0) {
+    clientTasks.push({
+      text: `Revisar ${pendingReviewAssets.length} asset${pendingReviewAssets.length > 1 ? "s" : ""} listo${pendingReviewAssets.length > 1 ? "s" : ""}`,
+      link: "/client/dashboard"
+    });
+  }
+
+  // showTooltip already declared at top
+
   return (
     <div>
+      {/* UX-08: Onboarding tooltip */}
+      {showTooltip && (
+        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-start gap-3 mb-4">
+          <span className="text-xl">💬</span>
+          <div className="flex-1 text-sm">Haz clic en cualquier sección del asset para dejar un comentario.</div>
+          <button onClick={() => {
+            localStorage.setItem("pragma_tooltip_shown", "true");
+            setShowTooltip(false);
+          }} className="text-xs text-muted-foreground hover:text-foreground">
+            Entendido ✓
+          </button>
+        </div>
+      )}
+
+      {/* UX-03: Today's tasks */}
+      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Lo que toca hoy</h3>
+        {clientTasks.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="font-medium">✅ Todo al día — sin tareas pendientes. 🎯</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {clientTasks.map((task, i) => (
+              <a key={i} href={task.link} className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors border-l-4 border-l-primary">
+                <span className="text-sm text-foreground flex-1">{task.text}</span>
+                <span className="text-xs text-muted-foreground">→</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
       {allApproved && (
         <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
           <p className="text-lg font-bold">🎉 All assets approved!</p>
