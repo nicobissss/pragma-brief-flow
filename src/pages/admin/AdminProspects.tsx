@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { X } from "lucide-react";
 
 type Prospect = {
   id: string;
@@ -55,6 +57,9 @@ export default function AdminProspects() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [verticalFilter, setVerticalFilter] = useState("all");
+  const [marketFilter, setMarketFilter] = useState("all");
+  const [callStatusFilter, setCallStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
@@ -64,6 +69,7 @@ export default function AdminProspects() {
       let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
       if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
+      if (marketFilter !== "all") query = query.eq("market", marketFilter as any);
       if (!showArchived) query = query.not("status", "eq", "archived");
 
       const { data } = await query;
@@ -71,13 +77,42 @@ export default function AdminProspects() {
       setLoading(false);
     };
     fetch();
-  }, [statusFilter, verticalFilter, showArchived]);
+  }, [statusFilter, verticalFilter, marketFilter, showArchived]);
 
-  const filtered = prospects.filter(
+  const hasActiveFilters = statusFilter !== "all" || verticalFilter !== "all" || marketFilter !== "all" || callStatusFilter !== "all" || search !== "" || sortBy !== "newest";
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setVerticalFilter("all");
+    setMarketFilter("all");
+    setCallStatusFilter("all");
+    setSortBy("newest");
+    setSearch("");
+  };
+
+  let filtered = prospects.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.company_name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Call status filter (client-side)
+  if (callStatusFilter !== "all") {
+    if (callStatusFilter === "not_scheduled") {
+      filtered = filtered.filter(p => p.call_status === "not_scheduled");
+    } else if (callStatusFilter === "scheduled") {
+      filtered = filtered.filter(p => p.call_status === "scheduled");
+    } else if (callStatusFilter === "completed") {
+      filtered = filtered.filter(p => ["done_positive", "done_negative", "no_show"].includes(p.call_status));
+    }
+  }
+
+  // Sort
+  if (sortBy === "oldest") {
+    filtered = [...filtered].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  } else if (sortBy === "name_az") {
+    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   return (
     <div className="p-8">
@@ -111,6 +146,37 @@ export default function AdminProspects() {
             <SelectItem value="Deporte Offline">Deporte Offline</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={marketFilter} onValueChange={setMarketFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="País" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All markets</SelectItem>
+            <SelectItem value="es">🇪🇸 España</SelectItem>
+            <SelectItem value="it">🇮🇹 Italia</SelectItem>
+            <SelectItem value="ar">🇦🇷 Argentina</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={callStatusFilter} onValueChange={setCallStatusFilter}>
+          <SelectTrigger className="w-[170px]"><SelectValue placeholder="Call status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All call status</SelectItem>
+            <SelectItem value="not_scheduled">No programada</SelectItem>
+            <SelectItem value="scheduled">Programada</SelectItem>
+            <SelectItem value="completed">Completada</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Sort" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Más reciente</SelectItem>
+            <SelectItem value="oldest">Más antiguo</SelectItem>
+            <SelectItem value="name_az">Nombre A-Z</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+            <X className="w-3 h-3" /> Limpiar filtros
+          </Button>
+        )}
         <div className="flex items-center gap-2 ml-auto">
           <Switch id="show-archived" checked={showArchived} onCheckedChange={setShowArchived} />
           <Label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer">Mostrar archivados</Label>
@@ -139,8 +205,15 @@ export default function AdminProspects() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    No prospects found.
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <div className="space-y-2">
+                      <p className="text-2xl">👥</p>
+                      <p className="text-foreground font-medium">No hay prospects que coincidan.</p>
+                      <p className="text-sm text-muted-foreground">Try adjusting your filters.</p>
+                      {hasActiveFilters && (
+                        <Button variant="outline" size="sm" onClick={clearFilters}>Limpiar filtros</Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (

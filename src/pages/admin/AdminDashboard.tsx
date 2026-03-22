@@ -29,6 +29,7 @@ type ProspectCard = {
   vertical: string;
   created_at: string;
   call_status: string;
+  call_date: string | null;
   status: string;
 };
 
@@ -37,8 +38,9 @@ type ClientRow = {
   name: string;
   company_name: string;
   vertical: string;
+  pipeline_status: string | null;
   created_at: string;
-  assets: { asset_type: string; status: string; created_at: string }[];
+  assets: { id: string; asset_type: string; status: string; created_at: string; asset_title: string | null; asset_name: string; client_id: string }[];
 };
 
 type FollowUp = {
@@ -66,6 +68,15 @@ const PIPELINE_LABELS: Record<string, string> = {
   call_scheduled: "Call Scheduled",
   accepted: "Accepted",
   rejected: "Rejected",
+};
+
+const CLIENT_PIPELINE = ["kickoff", "materials", "production", "review", "completed"] as const;
+const CLIENT_PIPELINE_LABELS: Record<string, string> = {
+  kickoff: "Kickoff",
+  materials: "Materiales",
+  production: "Producción",
+  review: "Revisión",
+  completed: "Completado",
 };
 
 const VERTICAL_COLORS: Record<string, string> = {
@@ -101,6 +112,8 @@ function getActivityIcon(action: string) {
   return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
+type TodayAction = { text: string; link: string; type: "urgent" | "normal" };
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0 });
@@ -109,6 +122,7 @@ export default function AdminDashboard() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [todayActions, setTodayActions] = useState<TodayAction[]>([]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -116,9 +130,9 @@ export default function AdminDashboard() {
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
 
       const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes] = await Promise.all([
-        supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, status, follow_up_date"),
-        supabase.from("clients").select("id, name, company_name, vertical, created_at, status").eq("status", "active"),
-        supabase.from("assets").select("id, client_id, asset_type, status, created_at"),
+        supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, call_date, status, follow_up_date"),
+        supabase.from("clients").select("id, name, company_name, vertical, pipeline_status, created_at, status").eq("status", "active"),
+        supabase.from("assets").select("id, client_id, asset_type, asset_name, asset_title, status, created_at"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
       ]);
@@ -135,11 +149,34 @@ export default function AdminDashboard() {
       const waitingClient = allAssets.filter((a: any) => a.status === "pending_review").length;
       const overdueCount = allFollowUps.filter(f => isBefore(new Date(f.follow_up_date), startOfDay(new Date())) && !isToday(new Date(f.follow_up_date))).length;
 
-      // Build client rows with assets
       const clientRows: ClientRow[] = allClients.map((c: any) => ({
         ...c,
         assets: allAssets.filter((a: any) => a.client_id === c.id),
       }));
+
+      // Build today actions (UX-01)
+      const actions: TodayAction[] = [];
+      const newProspects = allProspects.filter(p => p.status === "new");
+      if (newProspects.length > 0) {
+        actions.push({
+          text: `${newProspects.length} prospect${newProspects.length > 1 ? "s" : ""} sin revisar`,
+          link: "/admin/prospects", type: "urgent"
+        });
+      }
+      const todayCalls = allProspects.filter(p => p.call_date && isToday(new Date(p.call_date)));
+      todayCalls.forEach(p => {
+        actions.push({
+          text: `Call con ${p.name} a las ${format(new Date(p.call_date), "HH:mm")}`,
+          link: `/admin/prospect/${p.id}`, type: "normal"
+        });
+      });
+      const pendingFeedback = allAssets.filter(a => a.status === "change_requested");
+      pendingFeedback.forEach(a => {
+        actions.push({
+          text: `Feedback pendiente: ${a.asset_title || a.asset_name}`,
+          link: `/admin/client/${a.client_id}`, type: "urgent"
+        });
+      });
 
       setKpis({
         totalProspects: allProspects.length,
@@ -155,6 +192,7 @@ export default function AdminDashboard() {
       setClients(clientRows);
       setFollowUps(allFollowUps);
       setActivity(allActivity);
+      setTodayActions(actions);
       setLoading(false);
     };
     fetchAll();
@@ -175,6 +213,11 @@ export default function AdminDashboard() {
     return acc;
   }, {} as Record<string, ProspectCard[]>);
 
+  const clientPipelineGroups = CLIENT_PIPELINE.reduce((acc, status) => {
+    acc[status] = clients.filter(c => (c.pipeline_status || "kickoff") === status);
+    return acc;
+  }, {} as Record<string, ClientRow[]>);
+
   const isOverdue = (dateStr: string) => isBefore(new Date(dateStr), startOfDay(new Date())) && !isToday(new Date(dateStr));
 
   return (
@@ -182,44 +225,50 @@ export default function AdminDashboard() {
       <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
       <p className="text-muted-foreground text-sm mb-6">PRAGMA operations overview</p>
 
+      {/* UX-01: Today's Work */}
+      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Lo que toca hoy</h3>
+        {todayActions.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="font-medium">✅ Todo al día</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {todayActions.map((action, i) => (
+              <div
+                key={i}
+                onClick={() => navigate(action.link)}
+                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-secondary/50 border-l-4 ${
+                  action.type === "urgent" ? "border-l-destructive" : "border-l-primary"
+                }`}
+              >
+                {action.type === "urgent" ? (
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                )}
+                <span className="text-sm text-foreground">{action.text}</span>
+                <span className="ml-auto text-xs text-muted-foreground">→</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main content (70%) */}
         <div className="flex-1 min-w-0 space-y-8">
 
-          {/* SECTION 1 — KPI Cards */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard
-              icon={<Users className="w-5 h-5" />}
-              label="Total Prospects"
-              value={kpis.totalProspects}
-              subtitle={`+${kpis.newThisWeek} this week`}
-              color="hsl(216 72% 22%)"
-            />
-            <KPICard
-              icon={<Building2 className="w-5 h-5" />}
-              label="Active Clients"
-              value={kpis.activeClients}
-              subtitle={`${kpis.verticalsCount} verticals covered`}
-              color="hsl(153 54% 16%)"
-            />
-            <KPICard
-              icon={<FileWarning className="w-5 h-5" />}
-              label="Assets Pending"
-              value={kpis.pendingAssets}
-              subtitle={`${kpis.waitingClientApproval} waiting client approval`}
-              color="hsl(25 95% 53%)"
-              pulse={kpis.pendingAssets > 0}
-            />
-            <KPICard
-              icon={<CalendarClock className="w-5 h-5" />}
-              label="Follow Ups Due"
-              value={kpis.followUpsDue}
-              subtitle={`${kpis.overdueCount} overdue`}
-              color={kpis.overdueCount > 0 ? "hsl(0 84% 60%)" : "hsl(215 16% 47%)"}
-            />
+            <KPICard icon={<Users className="w-5 h-5" />} label="Total Prospects" value={kpis.totalProspects} subtitle={`+${kpis.newThisWeek} this week`} color="hsl(216 72% 22%)" />
+            <KPICard icon={<Building2 className="w-5 h-5" />} label="Active Clients" value={kpis.activeClients} subtitle={`${kpis.verticalsCount} verticals covered`} color="hsl(153 54% 16%)" />
+            <KPICard icon={<FileWarning className="w-5 h-5" />} label="Assets Pending" value={kpis.pendingAssets} subtitle={`${kpis.waitingClientApproval} waiting client approval`} color="hsl(25 95% 53%)" pulse={kpis.pendingAssets > 0} />
+            <KPICard icon={<CalendarClock className="w-5 h-5" />} label="Follow Ups Due" value={kpis.followUpsDue} subtitle={`${kpis.overdueCount} overdue`} color={kpis.overdueCount > 0 ? "hsl(0 84% 60%)" : "hsl(215 16% 47%)"} />
           </div>
 
-          {/* SECTION 4 — Follow ups alert (above pipeline if any) */}
+          {/* Follow ups alert */}
           {followUps.length > 0 && (
             <div className="bg-[hsl(54,100%,89%)] border border-[hsl(45,100%,72%)] rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -254,7 +303,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* SECTION 2 — Prospect Pipeline */}
+          {/* Prospect Pipeline */}
           <div>
             <h2 className="text-lg font-bold text-foreground mb-4">Prospect Pipeline</h2>
             <div className="grid grid-cols-5 gap-3">
@@ -270,11 +319,7 @@ export default function AdminDashboard() {
                         <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">Empty</div>
                       ) : (
                         pipelineGroups[status].map(p => (
-                          <div
-                            key={p.id}
-                            onClick={() => navigate(`/admin/prospect/${p.id}`)}
-                            className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow"
-                          >
+                          <div key={p.id} onClick={() => navigate(`/admin/prospect/${p.id}`)} className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow">
                             <p className="text-sm font-semibold text-foreground leading-tight">{p.name}</p>
                             <p className="text-xs text-muted-foreground">{p.company_name}</p>
                             <div className="flex items-center gap-1.5 mt-2">
@@ -292,7 +337,48 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* SECTION 3 — Active Clients */}
+          {/* UX-02: Client Pipeline Kanban */}
+          {clients.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-foreground mb-4">Client Pipeline</h2>
+              <div className="grid grid-cols-5 gap-3">
+                {CLIENT_PIPELINE.map(status => (
+                  <div key={status} className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{CLIENT_PIPELINE_LABELS[status]}</span>
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{clientPipelineGroups[status].length}</Badge>
+                    </div>
+                    <ScrollArea className="max-h-[400px] pr-1">
+                      <div className="space-y-2">
+                        {clientPipelineGroups[status].length === 0 ? (
+                          <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">—</div>
+                        ) : (
+                          clientPipelineGroups[status].map(c => {
+                            const pendingCount = c.assets.filter(a => a.status === "pending_review" || a.status === "change_requested").length;
+                            return (
+                              <div key={c.id} onClick={() => navigate(`/admin/client/${c.id}`)} className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow">
+                                <p className="text-sm font-semibold text-foreground leading-tight">{c.name}</p>
+                                <p className="text-xs text-muted-foreground">{c.company_name}</p>
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <Badge className={`${VERTICAL_COLORS[c.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px] px-1.5 py-0`}>{c.vertical}</Badge>
+                                  {pendingCount > 0 && (
+                                    <Badge variant="destructive" className="text-[10px] h-4 px-1.5">{pendingCount} pending</Badge>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-1.5">Since {format(new Date(c.created_at), "dd MMM")}</p>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Clients Table */}
           {clients.length > 0 && (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4">Active Clients</h2>
@@ -350,7 +436,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* SECTION 5 — Activity Feed (right sidebar) */}
+        {/* Activity Feed (right sidebar) */}
         <div className="w-full lg:w-[30%] lg:min-w-[280px] hidden lg:block">
           <div className="bg-card rounded-lg border border-border p-4 sticky top-6">
             <h3 className="font-semibold text-foreground text-sm mb-4">Recent Activity</h3>
@@ -365,7 +451,6 @@ export default function AdminDashboard() {
                     onClick={() => {
                       if (item.entity_type === "prospect") navigate(`/admin/prospect/${item.entity_id}`);
                       else if (item.entity_type === "asset") {
-                        // Find the client that owns this asset and navigate to their Assets tab
                         supabase.from("assets").select("client_id").eq("id", item.entity_id).single().then(({ data }) => {
                           if (data?.client_id) navigate(`/admin/client/${data.client_id}?tab=assets`);
                         });
