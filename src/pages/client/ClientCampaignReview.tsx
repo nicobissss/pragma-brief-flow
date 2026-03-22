@@ -120,6 +120,8 @@ export default function ClientCampaignReview() {
     fetchData();
   }, [id]);
 
+  const [showCelebration, setShowCelebration] = useState(false);
+
   const approveAsset = async (asset: Asset) => {
     setSubmitting(true);
     try {
@@ -128,6 +130,8 @@ export default function ClientCampaignReview() {
       if (error) throw error;
       setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
       setExpandedAsset(null);
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
       toast.success(`${asset.asset_name} approved!`);
 
       try {
