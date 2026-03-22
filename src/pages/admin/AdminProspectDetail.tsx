@@ -167,12 +167,14 @@ export default function AdminProspectDetail() {
     if (!prospect) return;
     const { error } = await supabase.from("prospects").update({ status: "archived" as any }).eq("id", prospect.id);
     if (error) { toast.error(error.message); return; }
-    await supabase.from("events").insert({
-      event_type: "prospect.archived",
-      entity_type: "prospect",
-      entity_id: prospect.id,
-      payload: { name: prospect.name },
-    } as any).catch(() => {});
+    try {
+      await supabase.from("events").insert({
+        event_type: "prospect.archived",
+        entity_type: "prospect",
+        entity_id: prospect.id,
+        payload: { name: prospect.name },
+      } as any);
+    } catch (_) {}
     toast.success("Prospect archived");
     navigate("/admin/prospects");
   };
