@@ -1,22 +1,31 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { STRICT_RULES, getFlowForSubNiche } from "../_shared/strict-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface ContextSources {
-  transcript: boolean;
-  briefing_answers: boolean;
-  proposal: boolean;
-  brand_colors: boolean;
-  brand_tags: boolean;
-  website_context: boolean;
-  pricing_pdf: boolean;
-  photos: { included: boolean; count: number };
-  emails: boolean;
-  social_posts: { included: boolean; count: number };
+async function buildDynamicRules(supabase: any): Promise<string> {
+  const [flowsRes, rulesRes] = await Promise.all([
+    supabase.from("pragma_flows").select("*").eq("is_active", true),
+    supabase.from("pragma_rules").select("*").eq("is_active", true),
+  ]);
+
+  const tools = (rulesRes.data || [])
+    .filter((r: any) => r.category === "tools_available")
+    .map((r: any) => `- ${r.name}: ${r.content}`)
+    .join("\n");
+
+  const globalRules = (rulesRes.data || [])
+    .filter((r: any) => r.category === "global_rules")
+    .map((r: any) => r.content)
+    .join("\n");
+
+  const flows = (flowsRes.data || [])
+    .map((f: any) => `- ${f.name} (~${f.estimated_total_days} days): ${f.description}`)
+    .join("\n");
+
+  return `TOOLS AVAILABLE:\n${tools || "- Pragma Calendar\n- Landing Pragma\n- Pragma Visual Email\n- Social Engine Pragma\n- Pragma SEO & GEO\n- Pragma Learn\n- Voice Bot"}\n\nFLOWS AVAILABLE:\n${flows || "See knowledge base"}\n\nRULES:\n${globalRules || "Follow PRAGMA methodology"}`;
 }
 
 Deno.serve(async (req) => {
@@ -55,91 +64,105 @@ Deno.serve(async (req) => {
       proposal = proposalRes.data;
     }
 
-    // Track which sources are available
-    const sources: ContextSources = {
-      transcript: !!(kickoff?.transcript_text?.trim()),
-      briefing_answers: Object.keys(briefingAnswers).length > 0,
-      proposal: !!proposal,
-      brand_colors: !!(materials.primary_color || materials.secondary_color),
-      brand_tags: !!(materials.brand_tags?.length),
-      website_context: !!(materials.website_context?.trim()),
-      pricing_pdf: !!(materials.pricing_pdf_text?.trim()),
-      photos: { included: !!(materials.photos?.length), count: materials.photos?.length || 0 },
-      emails: !!(materials.email_text?.trim()),
-      social_posts: { included: !!(materials.social_posts?.length), count: materials.social_posts?.length || 0 },
-    };
+    // Fetch additional context in parallel
+    const [kbRes, approvedAssetsRes, questionsRes, campaignRes] = await Promise.all([
+      supabaseAdmin.from("knowledge_base").select("category, content").order("category"),
+      supabaseAdmin.from("assets").select("asset_type, asset_title, content").eq("client_id", client_id).eq("status", "approved").limit(5),
+      supabaseAdmin.from("kickoff_questions").select("category, question_text, is_checked").eq("client_id", client_id).eq("is_checked", true),
+      supabaseAdmin.from("campaigns").select("name, objective, target_audience, key_message").eq("client_id", client_id).eq("status", "active").maybeSingle(),
+    ]);
 
     // Build dynamic context blocks
     const contextBlocks: string[] = [];
 
-    // Client info (always included)
+    // Client info
     contextBlocks.push(`CLIENT INFO:\nName: ${client.name}\nCompany: ${client.company_name}\nVertical: ${client.vertical} / ${client.sub_niche}\nMarket: ${client.market}`);
 
     // Briefing answers
-    if (sources.briefing_answers) {
+    if (Object.keys(briefingAnswers).length > 0) {
       contextBlocks.push(`CLIENT BRIEFING:\n${JSON.stringify(briefingAnswers, null, 2)}`);
     }
 
     // Proposal decisions
-    if (sources.proposal) {
+    if (proposal) {
       const rawFlow = proposal.recommended_flow;
       const flowDisplay = typeof rawFlow === "string" ? rawFlow : JSON.stringify(rawFlow || "N/A");
-      const rawTimeline = proposal.timeline;
-      const timelineDisplay = typeof rawTimeline === "string" ? rawTimeline : JSON.stringify(rawTimeline || "N/A");
-      contextBlocks.push(`PROPOSAL DECISIONS:\n- Recommended Flow: ${flowDisplay}\n- Tools: ${JSON.stringify(proposal.recommended_tools || [])}\n- Pricing: ${JSON.stringify(proposal.pricing || {})}\n- Timeline: ${timelineDisplay}`);
+      contextBlocks.push(`PROPOSAL DECISIONS:\n- Recommended Flow: ${flowDisplay}\n- Tools: ${JSON.stringify(proposal.recommended_tools || [])}\n- Pricing: ${JSON.stringify(proposal.pricing || {})}`);
     }
 
     // Transcript
-    if (sources.transcript) {
+    if (kickoff?.transcript_text?.trim()) {
       contextBlocks.push(`KICKOFF TRANSCRIPT:\n${kickoff.transcript_text.slice(0, 8000)}`);
     }
 
     // Brand identity
-    if (sources.brand_colors || sources.brand_tags) {
+    if (materials.primary_color || materials.secondary_color || materials.brand_tags?.length) {
       let block = "BRAND IDENTITY:";
       if (materials.primary_color) block += `\nPrimary color: ${materials.primary_color}`;
       if (materials.secondary_color) block += `\nSecondary color: ${materials.secondary_color}`;
       if (materials.brand_tags?.length) block += `\nBrand personality: ${materials.brand_tags.join(", ")}`;
-      block += "\nApply this visual identity consistently in all prompts.";
       contextBlocks.push(block);
     }
 
     // Website context
-    if (sources.website_context) {
+    if (materials.website_context?.trim()) {
       contextBlocks.push(`WEBSITE ANALYSIS:\n${materials.website_context}\nNote: match this tone of voice in all copy.`);
     }
 
     // Pricing PDF
-    if (sources.pricing_pdf) {
-      contextBlocks.push(`ACTUAL SERVICES & PRICING:\n${materials.pricing_pdf_text}\nNote: use these exact services and prices in all copy — do not invent or approximate.`);
+    if (materials.pricing_pdf_text?.trim()) {
+      contextBlocks.push(`ACTUAL SERVICES & PRICING:\n${materials.pricing_pdf_text}\nNote: use these exact services and prices in all copy.`);
     }
 
     // Photos
-    if (sources.photos.included) {
+    if (materials.photos?.length) {
       const descs = materials.photos
         .map((p: any, i: number) => `${i + 1}. ${p.description || "(no description)"}`)
         .join("\n");
-      contextBlocks.push(`AVAILABLE VISUAL ASSETS (${sources.photos.count} assets):\n${descs}\nNote: reference these specific assets in prompts with placeholders like [PHOTO: description of which photo to use here].`);
+      contextBlocks.push(`AVAILABLE VISUAL ASSETS (${materials.photos.length}):\n${descs}`);
     }
 
     // Emails
-    if (sources.emails) {
-      contextBlocks.push(`CURRENT EMAIL STYLE:\n${materials.email_text}\nNote: analyze the tone, length, and style. Mirror this in generated email prompts.`);
+    if (materials.email_text?.trim()) {
+      contextBlocks.push(`CURRENT EMAIL STYLE:\n${materials.email_text}\nMirror this tone.`);
     }
 
     // Social posts
-    if (sources.social_posts.included) {
+    if (materials.social_posts?.length) {
       const captions = materials.social_posts
         .map((p: any, i: number) => `${i + 1}. ${p.caption || "(no caption)"}`)
         .join("\n");
-      contextBlocks.push(`CURRENT SOCIAL STYLE (${sources.social_posts.count} posts):\n${captions}\nNote: mirror this tone and content style in social prompts.`);
+      contextBlocks.push(`CURRENT SOCIAL STYLE (${materials.social_posts.length} posts):\n${captions}`);
     }
 
-    // Fetch knowledge base
-    const { data: kbRows } = await supabaseAdmin.from("knowledge_base").select("category, content").order("category");
+    // Voice reference and client rules
+    if (kickoff?.voice_reference) {
+      contextBlocks.push(`VOICE REFERENCE (how client speaks):\n${kickoff.voice_reference}`);
+    }
+    if (kickoff?.client_rules && Array.isArray(kickoff.client_rules) && kickoff.client_rules.length > 0) {
+      contextBlocks.push(`CLIENT RULES (always respect):\n${(kickoff.client_rules as string[]).join("\n")}`);
+    }
+
+    // Approved assets for consistency
+    if (approvedAssetsRes.data?.length) {
+      contextBlocks.push(`APPROVED ASSETS (maintain consistency):\n${JSON.stringify(approvedAssetsRes.data)}`);
+    }
+
+    // Kickoff questions covered
+    if (questionsRes.data?.length) {
+      contextBlocks.push(`KICKOFF QUESTIONS COVERED:\n${questionsRes.data.map((q: any) => `[${q.category}] ${q.question_text}`).join("\n")}`);
+    }
+
+    // Active campaign
+    if (campaignRes.data) {
+      const c = campaignRes.data;
+      contextBlocks.push(`ACTIVE CAMPAIGN:\nObjective: ${c.objective}\nTarget: ${c.target_audience}\nKey message: ${c.key_message}`);
+    }
+
+    // Knowledge base
     let kbText = "";
-    if (kbRows) {
-      for (const row of kbRows) {
+    if (kbRes.data) {
+      for (const row of kbRes.data) {
         if (row.content?.trim()) kbText += `\n### ${row.category}\n${row.content}\n`;
       }
     }
@@ -147,23 +170,65 @@ Deno.serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    const assignedFlow = getFlowForSubNiche(client.vertical, client.sub_niche);
+    // Build dynamic rules from DB
+    const dynamicRules = await buildDynamicRules(supabaseAdmin);
 
     const systemPrompt = `You are PRAGMA's internal prompt generation engine. Your job is to create highly specific, ready-to-use prompts for each marketing tool that PRAGMA will deploy for this client.
 
-${STRICT_RULES}
-
-The assigned flow for this client based on their vertical "${client.vertical}" and sub-niche "${client.sub_niche}" is: "${assignedFlow}". Generate prompts ONLY aligned with this flow. Do NOT reference strategies from other flows.
+${dynamicRules}
 
 ${kbText ? `--- PRAGMA KNOWLEDGE BASE ---\n${kbText}\n--- END KNOWLEDGE BASE ---\n` : ""}
-Each prompt must be detailed enough that another AI (or a human copywriter) can execute it immediately without needing additional context. Include specific brand colors, tone of voice, service names, prices, and photo references when available.
 
-Generate prompts ONLY for tools from the approved list above (Pragma Calendar, Landing Pragma, Pragma Visual Email, Social Engine Pragma, Pragma SEO & GEO, Pragma Learn, Voice Bot). Only include tools that are applicable based on the proposal.
+CRITICAL: Return ONLY valid JSON with this exact structure:
 
-For each tool, provide:
-- A detailed system prompt that sets the context
-- 3-5 specific task prompts that can be executed immediately
-- Any visual/design instructions based on available materials`;
+{
+  "suggested_services": [
+    {
+      "tool_name": "Slotty",
+      "recommended": true,
+      "reason": "Explain WHY this tool fits this client based on what they said in the call — cite specific quotes or details",
+      "priority": 1
+    }
+  ],
+  "prompts": {
+    "slotty": {
+      "tool_name": "Slotty",
+      "objective": "What Slotty will achieve for this client",
+      "workspace_config": {
+        "business_name": "...",
+        "services": [{"name": "...", "duration_minutes": 30, "description": "..."}],
+        "working_hours": {"mon-fri": "09:00-18:00"},
+        "slot_interval_minutes": 30,
+        "buffer_minutes": 5,
+        "cancellation_policy": "...",
+        "confirmation_message": "...",
+        "reminder_24h_message": "...",
+        "reminder_2h_message": "..."
+      },
+      "brand_assets_needed": ["logo", "primary_color", "brand_name"]
+    },
+    "landing_email": {
+      "tool_name": "Landing + Email",
+      "objective": "...",
+      "system_prompt": "Full system prompt for Landing Pragma and email generation",
+      "landing_task_prompts": ["Task 1", "Task 2", "Task 3"],
+      "email_sequence_prompts": ["Email 1", "Email 2", "Email 3"],
+      "avoid": "..."
+    },
+    "blog": {
+      "tool_name": "Blog System",
+      "objective": "...",
+      "system_prompt": "Full system prompt for blog post generation",
+      "topics": ["Topic 1", "Topic 2", "Topic 3"],
+      "keyword_focus": ["keyword 1", "keyword 2"],
+      "publishing_frequency": "2x per month",
+      "article_structure": "...",
+      "avoid": "..."
+    }
+  }
+}
+
+Only include tools that are relevant for this client based on their vertical, sub-niche, and what was discussed. Do NOT include tools that aren't applicable.`;
 
     const userPrompt = `Generate tool-specific prompts for this client using ALL the context below.\n\n${contextBlocks.join("\n\n---\n\n")}`;
 
@@ -191,26 +256,63 @@ For each tool, provide:
     const aiData = await aiResponse.json();
     const textContent = aiData.content?.find((b: any) => b.type === "text")?.text || "";
 
-    // Save generated prompts to kickoff_briefs
-    const promptData = {
-      raw_text: textContent,
-      generated_at: new Date().toISOString(),
-      context_sources: sources,
-    };
-
-    if (kickoff) {
-      await supabaseAdmin.from("kickoff_briefs").update({
-        generated_prompts: promptData,
-      }).eq("id", kickoff.id);
-    } else {
-      await supabaseAdmin.from("kickoff_briefs").insert({
-        client_id,
-        generated_prompts: promptData,
-      });
+    let result;
+    try {
+      // Try to parse JSON, stripping markdown fences if present
+      const cleaned = textContent.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
+      result = JSON.parse(cleaned);
+    } catch (_e) {
+      // Fallback: save as raw text for backward compat
+      const promptData = {
+        raw_text: textContent,
+        generated_at: new Date().toISOString(),
+      };
+      if (kickoff) {
+        await supabaseAdmin.from("kickoff_briefs").update({ generated_prompts: promptData }).eq("id", kickoff.id);
+      } else {
+        await supabaseAdmin.from("kickoff_briefs").insert({ client_id, generated_prompts: promptData });
+      }
+      return new Response(
+        JSON.stringify({ success: true, prompts: textContent, structured: false }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
+    // Save suggested_services + generated_prompts
+    const updateData: any = { generated_prompts: result };
+    if (result.suggested_services) {
+      updateData.suggested_services = result.suggested_services;
+    }
+
+    if (kickoff) {
+      await supabaseAdmin.from("kickoff_briefs").update(updateData).eq("id", kickoff.id);
+    } else {
+      await supabaseAdmin.from("kickoff_briefs").insert({ client_id, ...updateData });
+    }
+
+    // Save each prompt as separate tool_generation
+    if (result.prompts) {
+      const insertions = Object.values(result.prompts).map((prompt: any) => ({
+        client_id,
+        tool_name: prompt.tool_name || "Unknown",
+        prompt,
+        status: "prompt_ready",
+      }));
+      if (insertions.length > 0) {
+        await supabaseAdmin.from("tool_generations").insert(insertions);
+      }
+    }
+
+    // Context snapshot
+    await supabaseAdmin.from("client_context_snapshots").insert({
+      client_id,
+      snapshot_type: "kickoff_prompts",
+      context_data: result,
+      tokens_used: (aiData.usage?.input_tokens || 0) + (aiData.usage?.output_tokens || 0),
+    });
+
     return new Response(
-      JSON.stringify({ success: true, prompts: textContent, context_sources: sources }),
+      JSON.stringify({ success: true, prompts: result, structured: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

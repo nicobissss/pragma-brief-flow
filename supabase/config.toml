@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.webhook-receiver]
 verify_jwt = false
+
+[functions.analyze-kickoff-transcript]
+verify_jwt = false
+
+[functions.suggest-client-rule]
+verify_jwt = false
+
+[functions.generate-project-plan]
+verify_jwt = false

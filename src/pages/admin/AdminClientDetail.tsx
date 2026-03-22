@@ -81,6 +81,20 @@ type KickoffBrief = {
   client_rules: any;
   client_materials: any;
   context_completeness_score: number | null;
+  suggested_services: any;
+  suggested_services_approved: boolean | null;
+  voice_reference: string | null;
+  preferred_tone: string | null;
+};
+
+type ToolGeneration = {
+  id: string;
+  client_id: string | null;
+  tool_name: string;
+  prompt: any;
+  status: string | null;
+  sent_at: string | null;
+  created_at: string | null;
 };
 
 type AssetRow = {
@@ -150,6 +164,8 @@ export default function AdminClientDetail() {
   const [kickoff, setKickoff] = useState<KickoffBrief | null>(null);
   const [assets, setAssets] = useState<AssetRow[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [toolGenerations, setToolGenerations] = useState<ToolGeneration[]>([]);
+  const [analyzingTranscript, setAnalyzingTranscript] = useState(false);
 
   // Notes state (FEAT-04)
   const [notes, setNotes] = useState<ClientNote[]>([]);
@@ -184,6 +200,7 @@ export default function AdminClientDetail() {
       const assetsPromise = supabase.from("assets").select("id, asset_name, asset_title, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id, strategic_note, strategic_note_approved, assigned_to, due_date, incorporated").eq("client_id", id!);
       const campaignsPromise = (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false });
       const notesPromise = supabase.from("client_notes").select("*").eq("client_id", id!).order("created_at", { ascending: false });
+      const toolGensPromise = supabase.from("tool_generations").select("*").eq("client_id", id!).order("created_at", { ascending: false });
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
@@ -193,11 +210,12 @@ export default function AdminClientDetail() {
         proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
       }
 
-      const [kickoffRes, assetsRes, campaignsRes, notesRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise]);
+      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise]);
       const kickoffData = kickoffRes.data;
       const assetsData = (assetsRes.data || []) as AssetRow[];
       setCampaigns((campaignsRes.data || []) as any[]);
       setNotes((notesRes.data || []) as ClientNote[]);
+      setToolGenerations((toolGensRes.data || []) as ToolGeneration[]);
 
       if (kickoffData) {
         setKickoff(kickoffData as unknown as KickoffBrief);
@@ -267,7 +285,17 @@ export default function AdminClientDetail() {
       });
       if (error) throw error;
       if (data?.prompts) {
-        setGeneratedPrompts(data.prompts);
+        if (data.structured) {
+          setGeneratedPrompts(JSON.stringify(data.prompts, null, 2));
+          // Refresh tool generations
+          const { data: tg } = await supabase.from("tool_generations").select("*").eq("client_id", client.id).order("created_at", { ascending: false });
+          setToolGenerations((tg || []) as ToolGeneration[]);
+          // Refresh kickoff for suggested_services
+          const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
+          if (kb) setKickoff(kb as unknown as KickoffBrief);
+        } else {
+          setGeneratedPrompts(data.prompts);
+        }
         if (data.context_sources) setContextSources(data.context_sources);
         toast.success("Prompts generated successfully!");
         setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
@@ -279,6 +307,74 @@ export default function AdminClientDetail() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleAnalyzeTranscript = async () => {
+    if (!client) return;
+    setAnalyzingTranscript(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-kickoff-transcript", {
+        body: { client_id: client.id },
+      });
+      if (error) throw error;
+      if (data?.ok) {
+        toast.success("Transcripción analizada");
+        // Refresh kickoff
+        const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
+        if (kb) setKickoff(kb as unknown as KickoffBrief);
+        // Auto-add suggested rules
+        if (data.suggested_client_rules?.length && kickoff) {
+          const existing = Array.isArray(kickoff.client_rules) ? kickoff.client_rules : [];
+          const merged = [...existing, ...data.suggested_client_rules];
+          await supabase.from("kickoff_briefs").update({ client_rules: merged } as any).eq("id", kickoff.id);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Error analyzing transcript");
+    } finally {
+      setAnalyzingTranscript(false);
+    }
+  };
+
+  const handleSendToSlotty = async (generation: ToolGeneration) => {
+    if (!client) return;
+    const prompt = generation.prompt;
+    const { data: matData } = await supabase.from("kickoff_briefs").select("client_materials").eq("client_id", client.id).maybeSingle();
+    const clientMaterials = matData?.client_materials || {};
+    const brandAssets = {
+      brand_name: client.company_name,
+      primary_color: (clientMaterials as any).primary_color || null,
+      logo_url: (clientMaterials as any).logo_url || null,
+      photos: ((clientMaterials as any).photos || []).map((p: any) => p.url).filter(Boolean),
+    };
+    const { error } = await supabase.from("slotty_workspace_requests").insert({
+      client_id: client.id,
+      client_name: client.name,
+      client_email: client.email,
+      workspace_config: prompt.workspace_config || prompt,
+      brand_assets: brandAssets,
+      status: "pending",
+    } as any);
+    if (error) { toast.error("Error al enviar a Slotty"); return; }
+    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", generation.id);
+    setToolGenerations(toolGenerations.map(t => t.id === generation.id ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success("Solicitud enviada a Slotty");
+  };
+
+  const handleMarkSent = async (genId: string) => {
+    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", genId);
+    setToolGenerations(toolGenerations.map(t => t.id === genId ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success("Marcado como enviado");
+  };
+
+  const handleApproveAllGens = async () => {
+    const ids = toolGenerations.filter(t => t.status === "prompt_ready").map(t => t.id);
+    if (ids.length === 0) return;
+    for (const gid of ids) {
+      await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", gid);
+    }
+    setToolGenerations(toolGenerations.map(t => ids.includes(t.id) ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    toast.success(`${ids.length} prompts marcados como enviados`);
   };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -848,13 +944,24 @@ export default function AdminClientDetail() {
 
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              Generated Prompts
-            </h3>
+          {/* Prerequisite checklist */}
+          <div className="bg-card rounded-lg border border-border p-5 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prerequisitos</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <ContextLine label="Transcripción cargada y analizada" included={!!kickoff?.transcript_text && !!kickoff?.voice_reference} />
+              <ContextLine label="Servicios aprobados" included={!!kickoff?.suggested_services_approved} />
+              <ContextLine label="Al menos 1 tool activado" included={toolGenerations.length > 0 || !!(kickoff?.suggested_services as any[])?.some?.((s: any) => s.recommended)} />
+              <ContextLine label="Materiales subidos" included={!!((materials as any)?.photos?.length || (materials as any)?.website_context)} />
+              <ContextLine label={`Contexto ≥ 60% (${completenessPct}%)`} included={completenessPct >= 60} />
+            </div>
 
-            <div className="mb-4">
+            <div className="flex flex-wrap gap-2 pt-2">
+              {kickoff?.transcript_text && !kickoff?.voice_reference && (
+                <Button variant="outline" size="sm" onClick={handleAnalyzeTranscript} disabled={analyzingTranscript}>
+                  {analyzingTranscript ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Sparkles className="w-4 h-4 mr-1" />}
+                  Analizar transcripción
+                </Button>
+              )}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -869,65 +976,202 @@ export default function AdminClientDetail() {
                         {generating ? (
                           <><Loader2 className="w-4 h-4 animate-spin mr-2" />Claude is analyzing...</>
                         ) : generatedPrompts ? (
-                          <><RefreshCw className="w-4 h-4 mr-2" />Regenerate Prompts</>
+                          <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
                         ) : (
-                          <><Sparkles className="w-4 h-4 mr-2" />Generate Prompts</>
+                          <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>
                         )}
                       </Button>
                     </span>
                   </TooltipTrigger>
                   {transcriptText.trim().length < 50 && (
                     <TooltipContent>
-                      <p>Paste a transcript in the Kickoff tab first (min 50 characters)</p>
+                      <p>Pega una transcripción en el tab Kickoff primero (mín. 50 caracteres)</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
               </TooltipProvider>
+            </div>
+          </div>
 
-              {contextSources && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => setShowContextSources(!showContextSources)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showContextSources ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    Context used for generation
-                  </button>
-                  {showContextSources && (
-                    <div className="mt-2 p-3 rounded-md bg-secondary/50 text-xs space-y-1">
-                      <ContextLine label="Transcript" included={contextSources.transcript} />
-                      <ContextLine label="Briefing answers" included={contextSources.briefing_answers} />
-                      <ContextLine label="Proposal" included={contextSources.proposal} />
-                      <ContextLine label="Brand colors" included={contextSources.brand_colors} />
-                      <ContextLine label="Brand personality" included={contextSources.brand_tags} />
-                      <ContextLine label="Website analysis" included={contextSources.website_context} />
-                      <ContextLine label="Pricing PDF" included={contextSources.pricing_pdf} />
-                      <ContextLine label={`Photos${contextSources.photos?.count ? ` (${contextSources.photos.count} assets)` : ""}`} included={contextSources.photos?.included} />
-                      <ContextLine label="Existing emails" included={contextSources.emails} />
-                      <ContextLine label={`Social posts${contextSources.social_posts?.count ? ` (${contextSources.social_posts.count} posts)` : ""}`} included={contextSources.social_posts?.included} />
+          {/* Suggested services */}
+          {kickoff?.suggested_services && Array.isArray(kickoff.suggested_services) && kickoff.suggested_services.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Servicios sugeridos</h3>
+              {(kickoff.suggested_services as any[]).map((svc: any, i: number) => (
+                <div key={i} className="bg-card rounded-lg border border-border p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{svc.recommended ? "✅" : "⚪"}</span>
+                      <span className="font-semibold text-foreground">{svc.tool_name}</span>
                     </div>
-                  )}
+                    <Badge variant="outline" className="text-xs">Prioridad: {svc.priority}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground italic">{svc.reason}</p>
                 </div>
+              ))}
+              {!kickoff.suggested_services_approved && (
+                <Button size="sm" onClick={async () => {
+                  await supabase.from("kickoff_briefs").update({ suggested_services_approved: true } as any).eq("id", kickoff.id);
+                  setKickoff({ ...kickoff, suggested_services_approved: true });
+                  toast.success("Servicios aprobados");
+                }}>
+                  Aprobar servicios
+                </Button>
+              )}
+              {kickoff.suggested_services_approved && (
+                <Badge className="badge-accepted text-xs">✅ Servicios aprobados</Badge>
               )}
             </div>
+          )}
 
-            {generatedPrompts && (
-              <div ref={promptsRef}>
-                <div className="flex justify-end mb-2">
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(generatedPrompts); toast.success("Copied!"); }}>
-                    <Copy className="w-4 h-4 mr-2" />Copy all
+          {/* Tool generation cards */}
+          {toolGenerations.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prompts por herramienta</h3>
+                {toolGenerations.some(t => t.status === "prompt_ready") && (
+                  <Button size="sm" variant="outline" onClick={handleApproveAllGens}>
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Aprobar todos
                   </Button>
-                </div>
-                <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap bg-secondary/20 rounded-lg p-4 border border-border">
-                  {generatedPrompts}
-                </div>
+                )}
               </div>
-            )}
+              {toolGenerations.map((gen) => {
+                const prompt = gen.prompt || {};
+                const toolIcons: Record<string, string> = { Slotty: "🔧", "Landing + Email": "🏠", "Blog System": "📝" };
+                const toolBorderColors: Record<string, string> = {
+                  Slotty: "hsl(var(--primary))",
+                  "Landing + Email": "hsl(152, 44%, 23%)",
+                  "Blog System": "hsl(38, 92%, 50%)",
+                };
+                const isSlotty = gen.tool_name.toLowerCase().includes("slotty");
+                return (
+                  <Collapsible key={gen.id}>
+                    <div
+                      className="bg-card rounded-lg border border-border overflow-hidden"
+                      style={{ borderLeftWidth: "4px", borderLeftColor: toolBorderColors[gen.tool_name] || "hsl(var(--primary))" }}
+                    >
+                      <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{toolIcons[gen.tool_name] || "⚙️"}</span>
+                          <span className="font-semibold text-foreground">{gen.tool_name}</span>
+                          <Badge variant={gen.status === "sent" ? "default" : "outline"} className="text-xs">
+                            {gen.status === "sent" ? "✅ Enviado" : gen.status}
+                          </Badge>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 space-y-3">
+                          {prompt.objective && (
+                            <p className="text-sm text-muted-foreground"><strong>Objetivo:</strong> {prompt.objective}</p>
+                          )}
 
-            {!generatedPrompts && !generating && (
-              <p className="text-sm text-muted-foreground">No prompts generated yet. Add a transcript in the Kickoff tab and click Generate.</p>
-            )}
-          </div>
+                          {/* Slotty specific */}
+                          {prompt.workspace_config && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver configuración completa
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
+                                  {JSON.stringify(prompt.workspace_config, null, 2)}
+                                </pre>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+
+                          {/* Landing + Email specific */}
+                          {prompt.system_prompt && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver prompt sistema
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
+                                  {prompt.system_prompt}
+                                </pre>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          {prompt.landing_task_prompts && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver tasks landing ({prompt.landing_task_prompts.length})
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
+                                  {prompt.landing_task_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                                </ul>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                          {prompt.email_sequence_prompts && (
+                            <Collapsible>
+                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
+                                <ChevronDown className="w-3 h-3" /> Ver tasks email ({prompt.email_sequence_prompts.length})
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
+                                  {prompt.email_sequence_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                                </ul>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+
+                          {/* Blog specific */}
+                          {prompt.topics && (
+                            <div className="text-sm"><strong className="text-foreground">Topics:</strong> <span className="text-muted-foreground">{prompt.topics.join(", ")}</span></div>
+                          )}
+                          {prompt.keyword_focus && (
+                            <div className="text-sm"><strong className="text-foreground">Keywords:</strong> <span className="text-muted-foreground">{prompt.keyword_focus.join(", ")}</span></div>
+                          )}
+
+                          <div className="flex gap-2 pt-2">
+                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(JSON.stringify(prompt, null, 2)); toast.success("JSON copiado"); }}>
+                              <Copy className="w-4 h-4 mr-1" /> Copiar JSON
+                            </Button>
+                            {isSlotty && gen.status !== "sent" && (
+                              <Button size="sm" onClick={() => handleSendToSlotty(gen)}>
+                                Crear workspace en Slotty →
+                              </Button>
+                            )}
+                            {!isSlotty && gen.status !== "sent" && (
+                              <Button size="sm" variant="outline" onClick={() => handleMarkSent(gen.id)}>
+                                Marcar como enviado →
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Legacy raw text prompts */}
+          {generatedPrompts && typeof generatedPrompts === "string" && !toolGenerations.length && (
+            <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold text-foreground text-sm">Prompts (texto)</h3>
+                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(generatedPrompts); toast.success("Copied!"); }}>
+                  <Copy className="w-4 h-4 mr-1" /> Copy all
+                </Button>
+              </div>
+              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap bg-secondary/20 rounded-lg p-4 border border-border text-xs">
+                {generatedPrompts}
+              </div>
+            </div>
+          )}
+
+          {!generatedPrompts && !generating && toolGenerations.length === 0 && (
+            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
+              <span className="text-4xl">📋</span>
+              <h3 className="font-semibold text-foreground">No hay prompts generados</h3>
+              <p className="text-sm text-muted-foreground">Completa los prerequisitos y haz click en "Generar Prompts"</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* TAB 4 — Assets */}
