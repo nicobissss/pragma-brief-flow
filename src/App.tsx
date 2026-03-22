@@ -30,7 +30,6 @@ const App = () => (
         <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/briefing" element={<BriefingPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             <Route path="/admin" element={<AdminLayout />}>
