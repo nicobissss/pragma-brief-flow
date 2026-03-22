@@ -132,7 +132,7 @@ export default function AdminProspectDetail() {
       setAcceptDialogOpen(false);
 
       if (data?.client_id) {
-        navigate(`/admin/client/${data.client_id}/kickoff`);
+        navigate(`/admin/client/${data.client_id}`);
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to accept prospect");
