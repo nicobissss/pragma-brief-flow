@@ -64,7 +64,7 @@ export default function AdminClients() {
               {clients.map((c) => (
                 <tr
                   key={c.id}
-                  className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer"
+                  className="border-b border-border last:border-0 hover:bg-secondary/30 cursor-pointer transition-colors"
                   onClick={() => navigate(`/admin/client/${c.id}`)}
                 >
                   <td className="p-3 font-medium text-foreground">{c.name}</td>
