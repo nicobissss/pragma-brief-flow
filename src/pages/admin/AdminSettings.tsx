@@ -8,10 +8,11 @@ import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
 import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
 import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
+import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
 
 const CATEGORIES = [
-  { key: "flows_processes", title: "Flows & Processes" },
-  { key: "pricing", title: "Pricing" },
+  { key: "flows_processes", title: "Flows & Procesos" },
+  { key: "pricing", title: "Precios" },
   { key: "suite_tools", title: "Suite Tools" },
   { key: "pitch_guidelines", title: "Pitch Guidelines" },
 ] as const;
@@ -33,7 +34,7 @@ function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
       .eq("id", row.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(`${title} saved`);
+    toast.success(`${title} guardado`);
     setEditing(false);
     onSaved();
   };
@@ -44,16 +45,16 @@ function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
         <h3 className="font-semibold text-foreground">{title}</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            Updated {new Date(row.updated_at).toLocaleDateString()}
+            Actualizado {new Date(row.updated_at).toLocaleDateString()}
           </span>
           {!editing ? (
             <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-              <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
             </Button>
           ) : (
             <Button size="sm" onClick={save} disabled={saving}>
               {saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-              Save
+              Guardar
             </Button>
           )}
         </div>
@@ -64,7 +65,7 @@ function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
         disabled={!editing}
         rows={8}
         className="font-mono text-sm"
-        placeholder={`Enter ${title.toLowerCase()} content here...`}
+        placeholder={`Escribe el contenido de ${title.toLowerCase()} aquí...`}
       />
     </div>
   );
@@ -94,7 +95,7 @@ export default function AdminSettings() {
     if (!file) return;
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["pdf", "txt", "md"].includes(ext || "")) {
-      toast.error("Only PDF, TXT, and MD files are accepted.");
+      toast.error("Solo se aceptan archivos PDF, TXT y MD.");
       return;
     }
     setUploading(true);
@@ -112,7 +113,7 @@ export default function AdminSettings() {
       extracted_text: extractedText,
     });
     if (insertErr) { toast.error(insertErr.message); setUploading(false); return; }
-    toast.success("Document uploaded");
+    toast.success("Documento subido");
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
     fetchAll();
@@ -129,21 +130,22 @@ export default function AdminSettings() {
     const { error } = await supabase.from("documents").delete().eq("id", doc.id);
     if (error) { toast.error(error.message); return; }
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
-    toast.success("Document deleted");
+    toast.success("Documento eliminado");
   };
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading) return <div className="p-8 text-muted-foreground">Cargando...</div>;
 
   return (
     <div className="p-8 max-w-4xl">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Configuración</h1>
       <p className="text-muted-foreground mb-6">
-        Manage the knowledge base, email templates, and integrations.
+        Gestiona la base de conocimiento, flows, reglas e integraciones.
       </p>
 
       <Tabs defaultValue="knowledge">
         <TabsList>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
+          <TabsTrigger value="flows">Flows & Reglas</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
         </TabsList>
 
@@ -157,19 +159,19 @@ export default function AdminSettings() {
 
           {/* Document upload */}
           <div>
-            <h2 className="text-lg font-semibold text-foreground mb-4">Documents</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Documentos</h2>
             <div className="bg-card rounded-2xl border border-border p-6 mb-4">
               <div className="flex items-center gap-4">
                 <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" />
                 <Button onClick={() => fileRef.current?.click()} disabled={uploading} variant="outline">
                   {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                  Upload Document
+                  Subir documento
                 </Button>
-                <span className="text-xs text-muted-foreground">PDF, TXT, MD accepted</span>
+                <span className="text-xs text-muted-foreground">PDF, TXT, MD aceptados</span>
               </div>
             </div>
             {docs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+              <p className="text-sm text-muted-foreground">No hay documentos subidos.</p>
             ) : (
               <div className="space-y-2">
                 {docs.map((doc) => (
@@ -178,12 +180,12 @@ export default function AdminSettings() {
                       <FileText className="w-4 h-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium text-foreground">{doc.filename}</p>
-                        <p className="text-xs text-muted-foreground">Uploaded {new Date(doc.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground">Subido {new Date(doc.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{doc.is_active ? "Active" : "Inactive"}</span>
+                        <span className="text-xs text-muted-foreground">{doc.is_active ? "Activo" : "Inactivo"}</span>
                         <Switch checked={doc.is_active} onCheckedChange={() => toggleActive(doc)} />
                       </div>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteDoc(doc)}>
@@ -200,6 +202,10 @@ export default function AdminSettings() {
           <div className="border-t border-border pt-8">
             <BriefingQuestionsManager />
           </div>
+        </TabsContent>
+
+        <TabsContent value="flows" className="mt-6">
+          <FlowsRulesTab />
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-6">
