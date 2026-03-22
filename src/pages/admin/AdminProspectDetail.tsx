@@ -5,6 +5,10 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 const MARKETS = [
   { value: "es", label: "España" },
   { value: "it", label: "Italia" },
@@ -13,12 +17,7 @@ const MARKETS = [
 import { toast } from "sonner";
 import { Loader2, Archive, ChevronLeft } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
@@ -62,12 +61,12 @@ export default function AdminProspectDetail() {
   const [generating, setGenerating] = useState(false);
   const [loadingProposal, setLoadingProposal] = useState(true);
 
-  // Modal states
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -127,17 +126,13 @@ export default function AdminProspectDetail() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setProspect({ ...prospect, status: "accepted" });
       toast.success(
         `Client account created successfully.\nEmail: ${prospect.email}\nPassword: Pragma2026!\nThey will be prompted to change it on first login.`,
         { duration: 10000 }
       );
       setAcceptDialogOpen(false);
-
-      if (data?.client_id) {
-        navigate(`/admin/client/${data.client_id}`);
-      }
+      if (data?.client_id) navigate(`/admin/client/${data.client_id}`);
     } catch (e: any) {
       toast.error(e.message || "Failed to accept prospect");
     } finally {
@@ -157,7 +152,6 @@ export default function AdminProspectDetail() {
         },
       }).eq("id", prospect.id);
       if (error) throw error;
-
       setProspect({ ...prospect, status: "rejected" });
       toast.success("Prospect rejected");
       setRejectDialogOpen(false);
@@ -170,8 +164,17 @@ export default function AdminProspectDetail() {
   };
 
   const handleArchive = async () => {
-    const ok = await updateStatus("archived");
-    if (ok) toast.success("Prospect archived");
+    if (!prospect) return;
+    const { error } = await supabase.from("prospects").update({ status: "archived" as any }).eq("id", prospect.id);
+    if (error) { toast.error(error.message); return; }
+    await supabase.from("events").insert({
+      event_type: "prospect.archived",
+      entity_type: "prospect",
+      entity_id: prospect.id,
+      payload: { name: prospect.name },
+    } as any).catch(() => {});
+    toast.success("Prospect archived");
+    navigate("/admin/prospects");
   };
 
   const handleSaveProposal = async (updatedData: ProposalData) => {
@@ -226,8 +229,8 @@ export default function AdminProspectDetail() {
         <div className="flex items-center gap-2">
           <StatusBadge status={prospect.status} />
           {prospect.status !== "archived" && (
-            <Button variant="ghost" size="icon" onClick={handleArchive} title="Archive">
-              <Archive className="w-4 h-4 text-muted-foreground" />
+            <Button variant="outline" size="sm" onClick={() => setArchiveDialogOpen(true)}>
+              <Archive className="w-4 h-4 mr-1" /> Archivar
             </Button>
           )}
         </div>
@@ -330,7 +333,6 @@ export default function AdminProspectDetail() {
               )}
               <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
 
-              {/* Sales Call Card — between proposal and action buttons */}
               <SalesCallCard
                 prospectId={prospect.id}
                 callStatus={prospect.call_status as any}
@@ -348,15 +350,14 @@ export default function AdminProspectDetail() {
                 <Button
                   onClick={() => setAcceptDialogOpen(true)}
                   variant="outline"
-                  className="border-status-accepted text-status-accepted hover:bg-status-accepted/10"
+                  className="border-[hsl(142,71%,35%)] text-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,35%)]/10"
                   disabled={prospect.status === "accepted"}
                 >
                   Prospect Accepted
                 </Button>
                 <Button
                   onClick={() => setRejectDialogOpen(true)}
-                  variant="outline"
-                  className="border-status-rejected text-status-rejected hover:bg-status-rejected/10"
+                  variant="destructive"
                   disabled={prospect.status === "rejected"}
                 >
                   Prospect Rejected
@@ -366,6 +367,22 @@ export default function AdminProspectDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Archive confirmation */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Archivar prospect?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{prospect.name}</strong> será archivado. Podrás verlo activando "Mostrar archivados" en la lista.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchive}>Archivar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Accept confirmation dialog */}
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>

@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -54,6 +56,7 @@ export default function AdminProspects() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [verticalFilter, setVerticalFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,13 +64,14 @@ export default function AdminProspects() {
       let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
       if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
+      if (!showArchived) query = query.not("status", "eq", "archived");
 
       const { data } = await query;
       setProspects((data || []) as Prospect[]);
       setLoading(false);
     };
     fetch();
-  }, [statusFilter, verticalFilter]);
+  }, [statusFilter, verticalFilter, showArchived]);
 
   const filtered = prospects.filter(
     (p) =>
@@ -79,7 +83,7 @@ export default function AdminProspects() {
     <div className="p-8">
       <h1 className="text-2xl font-bold text-foreground mb-6">Prospects</h1>
 
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-6 items-center">
         <Input
           placeholder="Search by name or company..."
           value={search}
@@ -107,6 +111,10 @@ export default function AdminProspects() {
             <SelectItem value="Deporte Offline">Deporte Offline</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2 ml-auto">
+          <Switch id="show-archived" checked={showArchived} onCheckedChange={setShowArchived} />
+          <Label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer">Mostrar archivados</Label>
+        </div>
       </div>
 
       {loading ? (
