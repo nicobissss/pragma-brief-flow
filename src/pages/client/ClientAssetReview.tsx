@@ -33,6 +33,7 @@ const EMAIL_SECTIONS = ["Subject line", "Preview text", "Body content", "CTA but
 
 export default function ClientAssetReview() {
   const { type } = useParams<{ type: string }>();
+  const navigate = useNavigate();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
