@@ -224,8 +224,7 @@ export default function ClientDashboard() {
     });
   }
 
-  // UX-08: Onboarding tooltip
-  const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
+  // showTooltip already declared at top
 
   return (
     <div>
