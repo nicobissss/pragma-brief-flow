@@ -227,6 +227,25 @@ export default function ClientDashboard() {
             <Progress value={progressPercent} className="h-2.5 [&>div]:bg-[hsl(142,71%,35%)]" />
           </div>
         )}
+
+        {/* Pipeline progress tracker */}
+        <div className="mt-6 flex items-center gap-0 max-w-2xl">
+          {["Contacto inicial", "Kickoff call", "Materiales subidos", "En producción", "Revisión y aprobación"].map((label, i) => {
+            const stepDone = totalAssets > 0
+              ? i <= (allApproved ? 4 : approvedCount > 0 ? 3 : hasCampaigns ? 2 : 1)
+              : i === 0;
+            return (
+              <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${stepDone ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                  {i + 1}
+                </div>
+                <span className={`text-[10px] text-center leading-tight ${stepDone ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <Tabs defaultValue="assets">
@@ -409,18 +428,16 @@ export default function ClientDashboard() {
           )}
         </TabsContent>
 
-        {pendingRequestCount > 0 && (
-          <TabsContent value="collect" className="mt-6">
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
-              <Paperclip className="w-8 h-8 text-muted-foreground mx-auto" />
-              <p className="text-foreground font-medium">PRAGMA has requested files from you</p>
-              <p className="text-sm text-muted-foreground">Please upload the requested items to help us create your campaigns.</p>
-              <Button asChild>
-                <Link to="/client/collect">Upload my files →</Link>
-              </Button>
-            </div>
-          </TabsContent>
-        )}
+        <TabsContent value="collect" className="mt-6">
+          <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
+            <Paperclip className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-foreground font-medium">PRAGMA has requested files from you</p>
+            <p className="text-sm text-muted-foreground">Please upload the requested items to help us create your campaigns.</p>
+            <Button asChild>
+              <Link to="/client/collect">Upload my files →</Link>
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

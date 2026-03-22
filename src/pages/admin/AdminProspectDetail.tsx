@@ -5,7 +5,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { MARKETS } from "@/lib/briefing-data";
+const MARKETS = [
+  { value: "es", label: "España" },
+  { value: "it", label: "Italia" },
+  { value: "ar", label: "Argentina" },
+] as const;
 import { toast } from "sonner";
 import { Loader2, Archive, ChevronLeft } from "lucide-react";
 import {
@@ -236,6 +240,34 @@ export default function AdminProspectDetail() {
         </TabsList>
 
         <TabsContent value="briefing" className="mt-6 space-y-6">
+          {/* Pre-cualificación card */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Pre-cualificación
+            </h3>
+            <div className="space-y-2">
+              {([
+                ["País", prospect.market === "es" ? "España" : prospect.market === "it" ? "Italia" : "Argentina"],
+                ["Sector", prospect.vertical],
+                ["Especialización", prospect.sub_niche],
+                ["Ticket medio", answers.average_ticket
+                  ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}`
+                  : null],
+              ] as [string, string | null][]).filter(([, v]) => v).map(([label, value]) => (
+                <div key={label} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-medium">{value}</span>
+                </div>
+              ))}
+              {answers.description && (
+                <div className="pt-2 border-t border-border text-sm space-y-1">
+                  <span className="text-muted-foreground text-xs uppercase tracking-wide">Descripción</span>
+                  <p>{answers.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-card rounded-lg border border-border p-6">
             <h3 className="font-semibold text-foreground mb-4">About the Business</h3>
             <InfoRow label="Full name" value={prospect.name} />

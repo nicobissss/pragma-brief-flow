@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,11 @@ import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
-import { MARKETS } from "@/lib/briefing-data";
+const MARKETS = [
+  { value: "es", label: "España" },
+  { value: "it", label: "Italia" },
+  { value: "ar", label: "Argentina" },
+] as const;
 
 // ─── Types ───────────────────────────────────────────────
 type Client = {
@@ -391,6 +396,41 @@ export default function AdminClientDetail() {
         <TabsContent value="prospect" className="mt-6 space-y-6">
           {prospect ? (
             <>
+              {/* Pre-cualificación collapsible */}
+              <Collapsible>
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                  <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Ver pre-cualificación
+                    </h3>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="px-5 pb-5 space-y-2">
+                      {([
+                        ["País", client.market === "es" ? "España" : client.market === "it" ? "Italia" : "Argentina"],
+                        ["Sector", client.vertical],
+                        ["Especialización", client.sub_niche],
+                        ["Ticket medio", answers.average_ticket
+                          ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}`
+                          : null],
+                      ] as [string, string | null][]).filter(([, v]) => v).map(([label, value]) => (
+                        <div key={label} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-medium">{value}</span>
+                        </div>
+                      ))}
+                      {answers.description && (
+                        <div className="pt-2 border-t border-border text-sm space-y-1">
+                          <span className="text-muted-foreground text-xs uppercase tracking-wide">Descripción</span>
+                          <p>{answers.description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+
               {/* Briefing answers */}
               <div className="bg-card rounded-lg border border-border p-6">
                 <h3 className="font-semibold text-foreground mb-4">About the Business</h3>

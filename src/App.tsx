@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import BriefingPage from "./pages/Briefing";
 import LoginPage from "./pages/Login";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -31,7 +30,6 @@ const App = () => (
         <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/briefing" element={<BriefingPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             <Route path="/admin" element={<AdminLayout />}>
