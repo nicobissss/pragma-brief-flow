@@ -102,11 +102,31 @@ export default function AdminDataDashboard() {
             <p className="text-sm text-muted-foreground">Vista completa di tutti i dati del sistema</p>
           </div>
         </div>
-        <Button variant="outline" onClick={loadAll} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Aggiorna
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={generateReview} disabled={generatingReview}>
+            {generatingReview ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generando review...</>
+            ) : (
+              <><Sparkles className="w-4 h-4 mr-2" />📊 Review mensile</>
+            )}
+          </Button>
+          <Button variant="outline" onClick={loadAll} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Aggiorna
+          </Button>
+        </div>
       </div>
+
+      {monthlyReview && (
+        <div className="bg-card border border-border rounded-xl p-6 space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">
+            Review mensile — {new Date().toLocaleDateString("it-IT", { month: "long", year: "numeric" })}
+          </h2>
+          <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
+            {monthlyReview}
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="prospects">
         <TabsList className="flex-wrap h-auto gap-1">
