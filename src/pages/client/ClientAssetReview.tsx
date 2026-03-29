@@ -28,6 +28,19 @@ const typeLabels: Record<string, string> = {
   blog_article: "Blog Articles",
 };
 
+const QUICK_OPTIONS = ["Sì, mi rappresenta", "Il tono non è giusto", "Cambierei il titolo", "Troppo lungo", "Troppo formale", "Altro"];
+
+function getGuidedQuestion(assetType: string): string {
+  const questions: Record<string, string> = {
+    landing_page: "Il titolo principale cattura il problema del tuo cliente ideale?",
+    email_flow: "Il tono di voce ti rappresenta? Ti sentiresti a tuo agio se il tuo cliente leggesse questo?",
+    social_post: "Questo post potrebbe essere scritto da te? Si adatta al tuo stile sui social?",
+    blog_article: "Questo articolo risponde alle domande che ti fanno più spesso i tuoi clienti?",
+    other: "Questo asset ti rappresenta e comunica quello che vuoi dire?",
+  };
+  return questions[assetType] || questions.other;
+}
+
 const LANDING_PAGE_SECTIONS = ["Hero", "Benefits", "Social proof", "Offer/pricing", "Footer CTA"];
 const EMAIL_SECTIONS = ["Subject line", "Preview text", "Body content", "CTA button"];
 
@@ -387,13 +400,35 @@ export default function ClientAssetReview() {
               )}
             </div>
 
-            {/* General comment */}
-            <div className="px-4 pb-4">
+            {/* Guided feedback */}
+            <div className="px-4 pb-4 space-y-4">
+              <div className="bg-primary/10 border border-primary/20 rounded-xl p-4">
+                <p className="text-sm font-medium text-foreground">
+                  💬 {getGuidedQuestion(asset.asset_type)}
+                </p>
+              </div>
+
+              <div className="flex gap-2 flex-wrap">
+                {QUICK_OPTIONS.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => setGeneralComments(prev => ({
+                      ...prev,
+                      [asset.id]: prev[asset.id] ? `${prev[asset.id]}. ${option}` : option
+                    }))}
+                    className="px-3 py-1.5 text-sm border border-border rounded-full hover:bg-secondary transition-colors"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+
               <Textarea
-                placeholder="General comments (optional)"
+                placeholder="Aggiungi dettagli specifici (opzionale)..."
                 value={generalComments[asset.id] || ""}
                 onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
                 className="min-h-[60px] text-sm"
+                rows={3}
               />
             </div>
 
