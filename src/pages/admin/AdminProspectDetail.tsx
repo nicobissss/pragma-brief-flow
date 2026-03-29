@@ -378,6 +378,31 @@ export default function AdminProspectDetail() {
         </TabsContent>
       </Tabs>
 
+      {/* Accept CTA at the bottom */}
+      {prospect.status !== "accepted" && prospect.status !== "archived" && (
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">¿Listo para aceptar este prospect?</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Se creará su cuenta de cliente y recibirá el email de bienvenida.
+              </p>
+            </div>
+            <Button
+              onClick={() => setAcceptDialogOpen(true)}
+              disabled={accepting}
+              className="bg-green-600 hover:bg-green-700 text-white rounded-full px-6"
+            >
+              {accepting ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Procesando...</>
+              ) : (
+                "Aceptar prospect →"
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Archive confirmation */}
       <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
         <AlertDialogContent>
