@@ -193,6 +193,7 @@ export default function AdminClientDetail() {
     seasonal_context: "",
   });
   const [briefSaved, setBriefSaved] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
   const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
