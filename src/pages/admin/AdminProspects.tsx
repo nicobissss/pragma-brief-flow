@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import CreateProspectDialog from "@/components/admin/CreateProspectDialog";
 
 type Prospect = {
   id: string;
@@ -123,7 +124,10 @@ export default function AdminProspects() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-6">Prospects</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Prospects</h1>
+        <CreateProspectDialog onCreated={loadProspects} />
+      </div>
 
       <div className="flex flex-wrap gap-3 mb-6 items-center">
         <Input
