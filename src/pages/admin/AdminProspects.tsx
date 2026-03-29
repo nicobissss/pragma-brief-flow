@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { X } from "lucide-react";
+import { X, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 type Prospect = {
   id: string;
@@ -64,20 +65,26 @@ export default function AdminProspects() {
   const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetch = async () => {
-      let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
-      if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
-      if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
-      if (marketFilter !== "all") query = query.eq("market", marketFilter as any);
-      if (!showArchived) query = query.not("status", "eq", "archived");
+  const loadProspects = useCallback(async () => {
+    setLoading(true);
+    let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
+    if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
+    if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
+    if (marketFilter !== "all") query = query.eq("market", marketFilter as any);
+    if (!showArchived) query = query.not("status", "eq", "archived");
 
-      const { data } = await query;
-      setProspects((data || []) as Prospect[]);
-      setLoading(false);
-    };
-    fetch();
+    const { data } = await query;
+    setProspects((data || []) as Prospect[]);
+    setLoading(false);
   }, [statusFilter, verticalFilter, marketFilter, showArchived]);
+
+  useEffect(() => { loadProspects(); }, [loadProspects]);
+
+  const unarchive = async (prospectId: string) => {
+    await supabase.from("prospects").update({ status: "new" as any }).eq("id", prospectId);
+    toast.success("Prospect ripristinato");
+    loadProspects();
+  };
 
   const hasActiveFilters = statusFilter !== "all" || verticalFilter !== "all" || marketFilter !== "all" || callStatusFilter !== "all" || search !== "" || sortBy !== "newest";
 
@@ -200,12 +207,13 @@ export default function AdminProspects() {
                 <TableHead>Call</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                {showArchived && <TableHead className="w-10"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={showArchived ? 9 : 8} className="text-center py-8">
                     <div className="space-y-2">
                       <p className="text-2xl">👥</p>
                       <p className="text-foreground font-medium">No hay prospects que coincidan.</p>
@@ -235,6 +243,25 @@ export default function AdminProspects() {
                     <TableCell className="text-muted-foreground text-sm">
                       {format(new Date(p.created_at), "dd MMM yyyy")}
                     </TableCell>
+                    {showArchived && (
+                      <TableCell>
+                        {p.status === "archived" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => { e.stopPropagation(); unarchive(p.id); }}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ripristinare</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
