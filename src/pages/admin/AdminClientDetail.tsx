@@ -193,6 +193,7 @@ export default function AdminClientDetail() {
     seasonal_context: "",
   });
   const [briefSaved, setBriefSaved] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
   const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
@@ -275,6 +276,55 @@ export default function AdminClientDetail() {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const autoGenerateBrief = async () => {
+    if (!client) return;
+    setGeneratingBrief(true);
+    try {
+      const context = `
+Client: ${client.name} (${client.company_name})
+Vertical: ${client.vertical} / ${client.sub_niche}
+Market: ${client.market}
+Briefing answers: ${JSON.stringify(prospect?.briefing_answers || {})}
+Voice reference: ${kickoff?.voice_reference || "not available"}
+Client rules: ${JSON.stringify(kickoff?.client_rules || [])}
+Preferred tone: ${kickoff?.preferred_tone || "not set"}
+Transcript excerpt: ${kickoff?.transcript_text?.slice(0, 2000) || "not available"}
+      `.trim();
+
+      const response = await supabase.functions.invoke("claude-proxy", {
+        body: {
+          prompt: `Based on this client context, generate a campaign brief with 4 fields.
+Return ONLY valid JSON with these exact keys:
+
+{
+  "campaign_objective": "Specific objective for this first campaign — what we want to achieve and in what timeframe. Be concrete.",
+  "target_moment": "The specific moment when their end client decides to buy — what triggers the purchase decision.",
+  "main_hook": "The main angle for this campaign — what makes it different, what emotion or urgency it leverages.",
+  "seasonal_context": "Any relevant seasonal or contextual factor (leave empty string if none applies right now)."
+}
+
+Write in the same language as the client's market (Italian for it, Spanish for es, Spanish for ar).
+Be specific to their vertical and situation — not generic.
+
+CLIENT CONTEXT:
+${context}`
+        }
+      });
+
+      if (response.data?.text) {
+        const cleaned = response.data.text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
+        const generated = JSON.parse(cleaned);
+        setCampaignBrief(generated);
+        toast.success("Brief generato — rivedi e modifica prima di salvare");
+      }
+    } catch (e: any) {
+      toast.error("Errore nella generazione — compila manualmente");
+      console.error(e);
+    } finally {
+      setGeneratingBrief(false);
     }
   };
 
@@ -954,16 +1004,34 @@ export default function AdminClientDetail() {
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
           {/* Campaign Brief */}
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
+           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Target className="w-4 h-4 text-primary" />
               </div>
               <h3 className="font-semibold">Brief di questa campagna</h3>
-              <span className="text-xs text-muted-foreground ml-auto">
+              <span className="text-xs text-muted-foreground ml-auto mr-2">
                 Compilare prima di generare i prompts
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={autoGenerateBrief}
+                disabled={generatingBrief}
+              >
+                {generatingBrief ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</>
+                ) : (
+                  <><Sparkles className="w-4 h-4 mr-1" />Genera con Claude</>
+                )}
+              </Button>
             </div>
+
+            {generatingBrief && (
+              <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground animate-pulse">
+                Claude sta analizzando il contesto del cliente...
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
