@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw,
@@ -998,29 +999,46 @@ export default function AdminClientDetail() {
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Servicios sugeridos</h3>
               {(kickoff.suggested_services as any[]).map((svc: any, i: number) => (
-                <div key={i} className="bg-card rounded-lg border border-border p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{svc.recommended ? "✅" : "⚪"}</span>
-                      <span className="font-semibold text-foreground">{svc.tool_name}</span>
+                <div key={i} className="bg-card border border-border rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-foreground">{svc.tool_name}</h4>
+                        <Badge variant="outline" className="text-xs">Prioridad: {svc.priority}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{svc.reason}</p>
                     </div>
-                    <Badge variant="outline" className="text-xs">Prioridad: {svc.priority}</Badge>
+                    <Switch
+                      checked={svc.approved || false}
+                      onCheckedChange={async (checked) => {
+                        const updated = (kickoff.suggested_services as any[]).map((s: any, j: number) =>
+                          j === i ? { ...s, approved: checked } : s
+                        );
+                        setKickoff({ ...kickoff, suggested_services: updated });
+                        await supabase.from("kickoff_briefs")
+                          .update({ suggested_services: updated } as any)
+                          .eq("client_id", client.id);
+                      }}
+                    />
                   </div>
-                  <p className="text-sm text-muted-foreground italic">{svc.reason}</p>
+                  {svc.approved && (
+                    <span className="text-xs text-green-600 font-medium mt-2 block">Activado</span>
+                  )}
                 </div>
               ))}
-              {!kickoff.suggested_services_approved && (
-                <Button size="sm" onClick={async () => {
-                  await supabase.from("kickoff_briefs").update({ suggested_services_approved: true } as any).eq("id", kickoff.id);
-                  setKickoff({ ...kickoff, suggested_services_approved: true });
-                  toast.success("Servicios aprobados");
-                }}>
-                  Aprobar servicios
-                </Button>
-              )}
-              {kickoff.suggested_services_approved && (
-                <Badge className="badge-accepted text-xs">✅ Servicios aprobados</Badge>
-              )}
+              {!(kickoff.suggested_services as any[]).some((s: any) => s.approved) ? null : 
+                !kickoff.suggested_services_approved ? (
+                  <Button size="sm" onClick={async () => {
+                    await supabase.from("kickoff_briefs").update({ suggested_services_approved: true } as any).eq("id", kickoff.id);
+                    setKickoff({ ...kickoff, suggested_services_approved: true });
+                    toast.success("Servicios aprobados");
+                  }}>
+                    Aprobar servicios
+                  </Button>
+                ) : (
+                  <Badge className="badge-accepted text-xs">✅ Servicios aprobados</Badge>
+                )
+              }
             </div>
           )}
 
