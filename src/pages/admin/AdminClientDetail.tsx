@@ -279,6 +279,55 @@ export default function AdminClientDetail() {
     }
   };
 
+  const autoGenerateBrief = async () => {
+    if (!client) return;
+    setGeneratingBrief(true);
+    try {
+      const context = `
+Client: ${client.name} (${client.company_name})
+Vertical: ${client.vertical} / ${client.sub_niche}
+Market: ${client.market}
+Briefing answers: ${JSON.stringify(prospect?.briefing_answers || {})}
+Voice reference: ${kickoff?.voice_reference || "not available"}
+Client rules: ${JSON.stringify(kickoff?.client_rules || [])}
+Preferred tone: ${kickoff?.preferred_tone || "not set"}
+Transcript excerpt: ${kickoff?.transcript_text?.slice(0, 2000) || "not available"}
+      `.trim();
+
+      const response = await supabase.functions.invoke("claude-proxy", {
+        body: {
+          prompt: `Based on this client context, generate a campaign brief with 4 fields.
+Return ONLY valid JSON with these exact keys:
+
+{
+  "campaign_objective": "Specific objective for this first campaign — what we want to achieve and in what timeframe. Be concrete.",
+  "target_moment": "The specific moment when their end client decides to buy — what triggers the purchase decision.",
+  "main_hook": "The main angle for this campaign — what makes it different, what emotion or urgency it leverages.",
+  "seasonal_context": "Any relevant seasonal or contextual factor (leave empty string if none applies right now)."
+}
+
+Write in the same language as the client's market (Italian for it, Spanish for es, Spanish for ar).
+Be specific to their vertical and situation — not generic.
+
+CLIENT CONTEXT:
+${context}`
+        }
+      });
+
+      if (response.data?.text) {
+        const cleaned = response.data.text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
+        const generated = JSON.parse(cleaned);
+        setCampaignBrief(generated);
+        toast.success("Brief generato — rivedi e modifica prima di salvare");
+      }
+    } catch (e: any) {
+      toast.error("Errore nella generazione — compila manualmente");
+      console.error(e);
+    } finally {
+      setGeneratingBrief(false);
+    }
+  };
+
   const handleGeneratePrompts = async () => {
     if (!client) return;
     setGenerating(true);
