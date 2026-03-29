@@ -207,12 +207,13 @@ export default function AdminProspects() {
                 <TableHead>Call</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                {showArchived && <TableHead className="w-10"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={showArchived ? 9 : 8} className="text-center py-8">
                     <div className="space-y-2">
                       <p className="text-2xl">👥</p>
                       <p className="text-foreground font-medium">No hay prospects que coincidan.</p>
@@ -242,6 +243,25 @@ export default function AdminProspects() {
                     <TableCell className="text-muted-foreground text-sm">
                       {format(new Date(p.created_at), "dd MMM yyyy")}
                     </TableCell>
+                    {showArchived && (
+                      <TableCell>
+                        {p.status === "archived" && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => { e.stopPropagation(); unarchive(p.id); }}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Ripristinare</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
