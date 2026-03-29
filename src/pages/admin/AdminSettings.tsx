@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
-import { BriefingQuestionsManager } from "@/components/admin/BriefingQuestionsManager";
+
 import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
 
@@ -196,11 +196,6 @@ export default function AdminSettings() {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Briefing Questions */}
-          <div className="border-t border-border pt-8">
-            <BriefingQuestionsManager />
           </div>
         </TabsContent>
 
