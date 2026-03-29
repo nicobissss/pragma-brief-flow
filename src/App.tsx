@@ -11,6 +11,7 @@ import AdminProspects from "./pages/admin/AdminProspects";
 import AdminProspectDetail from "./pages/admin/AdminProspectDetail";
 import AdminClients from "./pages/admin/AdminClients";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminDataDashboard from "./pages/admin/AdminDataDashboard";
 import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import ClientLayout from "./layouts/ClientLayout";
 import ClientDashboard from "./pages/client/ClientDashboard";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="clients" element={<AdminClients />} />
               <Route path="client/:id" element={<AdminClientDetail />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="data" element={<AdminDataDashboard />} />
             </Route>
 
             <Route path="/client" element={<ClientLayout />}>
