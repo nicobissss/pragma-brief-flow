@@ -1004,16 +1004,34 @@ ${context}`
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
           {/* Campaign Brief */}
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
+           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Target className="w-4 h-4 text-primary" />
               </div>
               <h3 className="font-semibold">Brief di questa campagna</h3>
-              <span className="text-xs text-muted-foreground ml-auto">
+              <span className="text-xs text-muted-foreground ml-auto mr-2">
                 Compilare prima di generare i prompts
               </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={autoGenerateBrief}
+                disabled={generatingBrief}
+              >
+                {generatingBrief ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</>
+                ) : (
+                  <><Sparkles className="w-4 h-4 mr-1" />Genera con Claude</>
+                )}
+              </Button>
             </div>
+
+            {generatingBrief && (
+              <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground animate-pulse">
+                Claude sta analizzando il contesto del cliente...
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
