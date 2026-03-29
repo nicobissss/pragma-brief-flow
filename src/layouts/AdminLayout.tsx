@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, FileText, LogOut, LayoutDashboard, Settings } from "lucide-react";
+import { Users, FileText, LogOut, LayoutDashboard, Settings, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLayout() {
@@ -42,6 +42,7 @@ export default function AdminLayout() {
     { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/admin/prospects", icon: Users, label: "Prospects" },
     { to: "/admin/clients", icon: FileText, label: "Clients" },
+    { to: "/admin/data", icon: Database, label: "Data" },
     { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 
