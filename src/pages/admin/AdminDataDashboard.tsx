@@ -28,24 +28,27 @@ export default function AdminDataDashboard() {
   const [generations, setGenerations] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [emailLog, setEmailLog] = useState<any[]>([]);
+  const [kickoffs, setKickoffs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [prospectFilter, setProspectFilter] = useState("all");
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c, g, e, em] = await Promise.all([
+    const [p, c, g, e, em, k] = await Promise.all([
       supabase.from("prospects").select("*").order("created_at", { ascending: false }),
       supabase.from("clients").select("*").order("created_at", { ascending: false }),
       supabase.from("tool_generations").select("*, clients(name)").order("created_at", { ascending: false }),
       supabase.from("events").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("email_log").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("kickoff_briefs").select("*, clients(name, email)").order("created_at", { ascending: false }),
     ]);
     setProspects(p.data || []);
     setClients(c.data || []);
     setGenerations(g.data || []);
     setEvents(e.data || []);
     setEmailLog(em.data || []);
+    setKickoffs(k.data || []);
     setLoading(false);
   };
 
@@ -71,6 +74,8 @@ export default function AdminDataDashboard() {
     ? prospects
     : prospects.filter(p => p.status === prospectFilter);
 
+  const briefingProspects = prospects.filter(p => p.briefing_answers && Object.keys(p.briefing_answers as object).length > 0);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -90,12 +95,14 @@ export default function AdminDataDashboard() {
       </div>
 
       <Tabs defaultValue="prospects">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="prospects">Prospects ({prospects.length})</TabsTrigger>
           <TabsTrigger value="clients">Clienti ({clients.length})</TabsTrigger>
           <TabsTrigger value="prompts">Prompts ({generations.length})</TabsTrigger>
           <TabsTrigger value="events">Events ({events.length})</TabsTrigger>
           <TabsTrigger value="email">Email log ({emailLog.length})</TabsTrigger>
+          <TabsTrigger value="briefing">Briefing ({briefingProspects.length})</TabsTrigger>
+          <TabsTrigger value="kickoff">Kickoff ({kickoffs.length})</TabsTrigger>
         </TabsList>
 
         {/* TAB PROSPECTS */}
@@ -123,9 +130,11 @@ export default function AdminDataDashboard() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Vertical</TableHead>
+                  <TableHead>Sub-niche</TableHead>
                   <TableHead>Mercato</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Call</TableHead>
+                  <TableHead>Call date</TableHead>
                   <TableHead>Ticket</TableHead>
                   <TableHead>Creato</TableHead>
                 </TableRow>
@@ -136,15 +145,17 @@ export default function AdminDataDashboard() {
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.email}</TableCell>
                     <TableCell>{p.vertical}</TableCell>
+                    <TableCell>{p.sub_niche}</TableCell>
                     <TableCell>{p.market}</TableCell>
                     <TableCell><Badge variant="outline">{p.status}</Badge></TableCell>
                     <TableCell><Badge variant="secondary">{p.call_status || "not_booked"}</Badge></TableCell>
+                    <TableCell>{p.call_date ? new Date(p.call_date).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>{(p.briefing_answers as any)?.average_ticket || "—"} {(p.briefing_answers as any)?.ticket_currency || ""}</TableCell>
                     <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
                 {filteredProspects.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nessun prospect</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nessun prospect</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -162,6 +173,7 @@ export default function AdminDataDashboard() {
                   <TableHead>Vertical</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Pipeline</TableHead>
+                  <TableHead>Max revisioni</TableHead>
                   <TableHead>Piano</TableHead>
                   <TableHead>Creato</TableHead>
                 </TableRow>
@@ -174,12 +186,13 @@ export default function AdminDataDashboard() {
                     <TableCell>{c.vertical}</TableCell>
                     <TableCell><Badge variant="outline">{c.status}</Badge></TableCell>
                     <TableCell><Badge variant="secondary">{c.pipeline_status || "kickoff"}</Badge></TableCell>
+                    <TableCell>{c.max_revision_rounds ?? 3}</TableCell>
                     <TableCell>{c.project_plan_shared ? "✅ Condiviso" : "—"}</TableCell>
                     <TableCell>{new Date(c.created_at).toLocaleDateString()}</TableCell>
                   </TableRow>
                 ))}
                 {clients.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nessun cliente</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nessun cliente</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -222,9 +235,72 @@ export default function AdminDataDashboard() {
                     {expandedRow === g.id && (
                       <TableRow key={`${g.id}-expanded`}>
                         <TableCell colSpan={6}>
-                          <pre className="bg-secondary/50 p-4 rounded-lg text-xs overflow-auto max-h-80">
-                            {JSON.stringify(g.prompt, null, 2)}
-                          </pre>
+                          <div className="bg-secondary/50 p-4 rounded-lg space-y-4">
+                            {(g.prompt as any)?.objective && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Obiettivo</p>
+                                <p className="text-sm">{(g.prompt as any).objective}</p>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.workspace_config && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Config Slotty</p>
+                                <pre className="text-xs overflow-auto max-h-40 bg-background p-2 rounded">
+                                  {JSON.stringify((g.prompt as any).workspace_config, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.system_prompt && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">System Prompt</p>
+                                <pre className="text-xs whitespace-pre-wrap overflow-auto max-h-60 bg-background p-2 rounded">
+                                  {(g.prompt as any).system_prompt}
+                                </pre>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.landing_task_prompts && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Task Prompts Landing</p>
+                                <div className="space-y-1">
+                                  {((g.prompt as any).landing_task_prompts as string[]).map((t, i) => (
+                                    <p key={i} className="text-xs bg-background p-2 rounded">{t}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.email_sequence_prompts && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Task Prompts Email</p>
+                                <div className="space-y-1">
+                                  {((g.prompt as any).email_sequence_prompts as string[]).map((t, i) => (
+                                    <p key={i} className="text-xs bg-background p-2 rounded">{t}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.topics && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Topics Blog</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {((g.prompt as any).topics as string[]).map((t, i) => (
+                                    <Badge key={i} variant="secondary">{t}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(g.prompt as any)?.avoid && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Da evitare</p>
+                                <p className="text-sm">{(g.prompt as any).avoid}</p>
+                              </div>
+                            )}
+                            {/* Fallback: raw JSON if no structured fields */}
+                            {g.prompt && !(g.prompt as any)?.objective && !(g.prompt as any)?.system_prompt && (
+                              <pre className="text-xs overflow-auto max-h-80">
+                                {JSON.stringify(g.prompt, null, 2)}
+                              </pre>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
@@ -318,6 +394,114 @@ export default function AdminDataDashboard() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </TabsContent>
+
+        {/* TAB BRIEFING ANSWERS */}
+        <TabsContent value="briefing">
+          <div className="space-y-4">
+            {briefingProspects.map((p) => (
+              <div key={p.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground">{p.email} · {p.vertical} / {p.sub_niche} · {p.market}</p>
+                  </div>
+                  <Badge variant="outline">{p.status}</Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {Object.entries(p.briefing_answers as Record<string, unknown>).map(([key, value]) => (
+                    <div key={key} className="bg-secondary/30 rounded p-2">
+                      <span className="text-xs font-medium text-muted-foreground uppercase">
+                        {key.replace(/_/g, " ")}
+                      </span>
+                      <p className="text-sm text-foreground mt-0.5">
+                        {Array.isArray(value)
+                          ? (value as string[]).join(", ") || "—"
+                          : String(value || "—")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {briefingProspects.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Nessun briefing disponibile.</p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* TAB KICKOFF BRIEFS */}
+        <TabsContent value="kickoff">
+          <div className="space-y-4">
+            {kickoffs.map((k) => (
+              <div key={k.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{(k.clients as any)?.name || k.client_id}</h3>
+                    <p className="text-xs text-muted-foreground">{(k.clients as any)?.email}</p>
+                  </div>
+                  <Badge variant="outline">{k.transcript_status || "no transcript"}</Badge>
+                </div>
+
+                {k.transcript_quality && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Qualità trascrizione</span>
+                    <p className="text-sm">{k.transcript_quality}</p>
+                  </div>
+                )}
+
+                {k.voice_reference && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Voice Reference</span>
+                    <p className="text-sm">{k.voice_reference}</p>
+                  </div>
+                )}
+
+                {k.preferred_tone && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Tono preferito</span>
+                    <p className="text-sm">{k.preferred_tone}</p>
+                  </div>
+                )}
+
+                {k.client_rules && (k.client_rules as string[]).length > 0 && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Client Rules</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(k.client_rules as string[]).map((rule, i) => (
+                        <Badge key={i} variant="secondary">{rule}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {k.suggested_services && (k.suggested_services as any[]).length > 0 && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Servizi suggeriti</span>
+                    <div className="space-y-1 mt-1">
+                      {(k.suggested_services as any[]).map((s, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="text-xs">{s.approved ? "✅" : "⬜"}</span>
+                          <span className="font-medium">{s.tool_name}</span>
+                          <span className="text-muted-foreground">— {s.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {k.transcript_text && (
+                  <div className="bg-secondary/30 rounded p-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">Trascrizione (anteprima)</span>
+                    <p className="text-sm mt-1 line-clamp-4">{k.transcript_text}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            {kickoffs.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">Nessun kickoff brief disponibile.</p>
+            )}
           </div>
         </TabsContent>
       </Tabs>
