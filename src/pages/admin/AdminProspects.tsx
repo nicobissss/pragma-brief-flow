@@ -65,20 +65,26 @@ export default function AdminProspects() {
   const [showArchived, setShowArchived] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetch = async () => {
-      let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
-      if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
-      if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
-      if (marketFilter !== "all") query = query.eq("market", marketFilter as any);
-      if (!showArchived) query = query.not("status", "eq", "archived");
+  const loadProspects = useCallback(async () => {
+    setLoading(true);
+    let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
+    if (statusFilter !== "all") query = query.eq("status", statusFilter as any);
+    if (verticalFilter !== "all") query = query.eq("vertical", verticalFilter);
+    if (marketFilter !== "all") query = query.eq("market", marketFilter as any);
+    if (!showArchived) query = query.not("status", "eq", "archived");
 
-      const { data } = await query;
-      setProspects((data || []) as Prospect[]);
-      setLoading(false);
-    };
-    fetch();
+    const { data } = await query;
+    setProspects((data || []) as Prospect[]);
+    setLoading(false);
   }, [statusFilter, verticalFilter, marketFilter, showArchived]);
+
+  useEffect(() => { loadProspects(); }, [loadProspects]);
+
+  const unarchive = async (prospectId: string) => {
+    await supabase.from("prospects").update({ status: "new" as any }).eq("id", prospectId);
+    toast.success("Prospect ripristinato");
+    loadProspects();
+  };
 
   const hasActiveFilters = statusFilter !== "all" || verticalFilter !== "all" || marketFilter !== "all" || callStatusFilter !== "all" || search !== "" || sortBy !== "newest";
 
