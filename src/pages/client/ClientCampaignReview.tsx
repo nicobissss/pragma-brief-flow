@@ -45,6 +45,19 @@ type Campaign = {
   status: string;
 };
 
+const QUICK_OPTIONS = ["Sì, mi rappresenta", "Il tono non è giusto", "Cambierei il titolo", "Troppo lungo", "Troppo formale", "Altro"];
+
+function getGuidedQuestion(assetType: string): string {
+  const questions: Record<string, string> = {
+    landing_page: "Il titolo principale cattura il problema del tuo cliente ideale?",
+    email_flow: "Il tono di voce ti rappresenta? Ti sentiresti a tuo agio se il tuo cliente leggesse questo?",
+    social_post: "Questo post potrebbe essere scritto da te? Si adatta al tuo stile sui social?",
+    blog_article: "Questo articolo risponde alle domande che ti fanno più spesso i tuoi clienti?",
+    other: "Questo asset ti rappresenta e comunica quello che vuoi dire?",
+  };
+  return questions[assetType] || questions.other;
+}
+
 const typeIcons: Record<string, any> = {
   landing_page: FileText,
   email_flow: Mail,
@@ -361,12 +374,33 @@ export default function ClientCampaignReview() {
                         )}
 
                         <div>
-                          <label className="text-sm font-medium text-foreground mb-1.5 block">Your feedback:</label>
+                          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-3">
+                            <p className="text-sm font-medium text-foreground">
+                              💬 {getGuidedQuestion(asset.asset_type)}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2 flex-wrap mb-3">
+                            {QUICK_OPTIONS.map(option => (
+                              <button
+                                key={option}
+                                onClick={() => setFeedbackTexts(prev => ({
+                                  ...prev,
+                                  [asset.id]: prev[asset.id] ? `${prev[asset.id]}. ${option}` : option
+                                }))}
+                                className="px-3 py-1.5 text-sm border border-border rounded-full hover:bg-secondary transition-colors"
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+
                           <Textarea
-                            placeholder="What would you like to change? (optional for approval, min 20 chars for feedback)"
+                            placeholder="Aggiungi dettagli specifici (opzionale)..."
                             value={feedbackText}
                             onChange={(e) => setFeedbackTexts((prev) => ({ ...prev, [asset.id]: e.target.value }))}
                             className="min-h-[80px] text-sm"
+                            rows={3}
                           />
                           {feedbackText.trim().length > 0 && feedbackText.trim().length < 20 && (
                             <p className="text-xs text-destructive mt-1">
