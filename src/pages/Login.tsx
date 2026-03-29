@@ -50,7 +50,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
       toast.success("Enlace enviado. Revisa tu email.");

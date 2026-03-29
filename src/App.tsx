@@ -18,6 +18,7 @@ import ClientAssetReview from "./pages/client/ClientAssetReview";
 import ClientCampaignReview from "./pages/client/ClientCampaignReview";
 import ClientCollect from "./pages/client/ClientCollect";
 import NotFound from "./pages/NotFound";
+import UpdatePasswordPage from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/update-password" element={<UpdatePasswordPage />} />
 
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboard />} />
