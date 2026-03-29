@@ -98,7 +98,60 @@ Ad management fee: 15% of declared monthly ad budget.
 Commission (Tipo A only): 8-12% on first conversion, 60-day attribution window.
 Setup fee: ${currency === "EUR" ? "€500–€1,500" : "$400–$1,200"} (applies from month 3 for Tipo A, month 1 for Tipo B).
 
-You MUST respond using the tool provided.`;
+You MUST respond using the tool provided.
+
+## CALL PREPARATION SECTION
+This entire section is INTERNAL ONLY — never share with client.
+Add all of this content inside the pitch_suggestions field.
+
+### 1. Opening Line for the Call
+Write ONE highly specific opening line based on what the prospect wrote in their description.
+Must reference something concrete they said. NOT generic.
+Example: if they wrote "I make great courses but they're too long", open with that exact pain point.
+
+### 2. Customer Journey Narrative
+Narrate the COMPLETE journey of the prospect's END CLIENT — the person who will eventually buy from them.
+Tell it as a story, step by step, with specific and concrete examples at each touchpoint.
+Use this format for each step:
+
+STEP N — [Channel/Touchpoint name]
+What happens: [Describe exactly what the end client sees, reads, or receives]
+Example: [Give a real, specific example — an actual headline, subject line, WhatsApp message, or CTA]
+Goal: [What we want the end client to feel or do at this step]
+
+Include ALL touchpoints for the activated tools:
+- Landing Pragma active → describe landing page structure, headline angle, main CTA, trust elements
+- Pragma Visual Email active → describe each email in the sequence with subject line example and purpose
+- Slotty active → describe booking flow, confirmation message, reminder messages (24h and 2h before)
+- Social Engine active → describe content type and how it feeds into the funnel
+- Blog System active → describe content strategy and how it drives organic traffic to the funnel
+- Voice Bot active → describe when it triggers and what it says
+
+Be very specific. Use their vertical, sub-niche, ticket price, and market to make examples realistic and sector-appropriate.
+Write examples in the same language as the prospect's description (Italian or Spanish as appropriate).
+
+### 3. Conversation Guide
+Write 5-7 specific questions to ask during the sales call, based on their vertical, sub-niche, ticket, and description.
+Each question must:
+- Be directly relevant to their specific situation (not generic)
+- Help qualify if they are a good fit for PRAGMA
+- Help gather info needed for the kickoff if they accept
+Avoid generic questions like "what are your goals?".
+
+### 4. How to Present the Price
+Write a 3-4 sentence conversational script for presenting the proposed pricing during the call.
+Must reference their specific average ticket and the concrete ROI they can expect.
+Must address the most likely pricing objection for their vertical.
+Be conversational, not salesy.
+
+### 5. Red Flags to Watch For
+List 3-4 specific warning signs during the call that suggest this prospect is NOT a good fit for PRAGMA.
+Make them specific to their vertical and situation.
+
+### 6. Copy Spunti (Quick Reference for the Call)
+3 headline examples for their landing page — specific to their sector and ticket level
+3 email subject line examples: one curiosity-based, one benefit-based, one urgency-based
+1 WhatsApp message for new leads — max 3 lines, natural and human tone`;
 
     const userPrompt = `Generate a proposal for this prospect:
 
