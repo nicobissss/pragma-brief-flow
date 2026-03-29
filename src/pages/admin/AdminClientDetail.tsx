@@ -15,8 +15,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw,
-  ChevronDown, ChevronUp, Building2, Calendar, Globe, X, Plus, Share2,
+  ChevronDown, ChevronUp, Building2, Calendar, Globe, X, Plus, Share2, Target,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
 import KickoffQuestionsManager from "@/components/kickoff/KickoffQuestionsManager";
@@ -185,6 +186,13 @@ export default function AdminClientDetail() {
   const [generating, setGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
   const [contextSources, setContextSources] = useState<any>(null);
+  const [campaignBrief, setCampaignBrief] = useState({
+    campaign_objective: "",
+    target_moment: "",
+    main_hook: "",
+    seasonal_context: "",
+  });
+  const [briefSaved, setBriefSaved] = useState(false);
   const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
@@ -945,10 +953,105 @@ export default function AdminClientDetail() {
 
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
+          {/* Campaign Brief */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Target className="w-4 h-4 text-primary" />
+              </div>
+              <h3 className="font-semibold">Brief di questa campagna</h3>
+              <span className="text-xs text-muted-foreground ml-auto">
+                Compilare prima di generare i prompts
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Obiettivo specifico di questa campagna
+                </Label>
+                <Textarea
+                  placeholder="Es. Lanciare il nuovo corso di yoga per principianti. Obiettivo: 20 iscritti nel primo mese."
+                  value={campaignBrief.campaign_objective}
+                  onChange={(e) => setCampaignBrief(p => ({ ...p, campaign_objective: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Il momento in cui il cliente finale decide di comprare
+                </Label>
+                <Textarea
+                  placeholder="Es. Quando si sente bloccato dopo mesi di dieta senza risultati e cerca una soluzione diversa."
+                  value={campaignBrief.target_moment}
+                  onChange={(e) => setCampaignBrief(p => ({ ...p, target_moment: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Hook principale — cosa differenzia questa campagna dalle precedenti
+                </Label>
+                <Textarea
+                  placeholder="Es. Prima campagna — focus su scarsità (posti limitati). Oppure: stagionalità settembre, back to school."
+                  value={campaignBrief.main_hook}
+                  onChange={(e) => setCampaignBrief(p => ({ ...p, main_hook: e.target.value }))}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Contesto stagionale o evento rilevante (opzionale)
+                </Label>
+                <Input
+                  placeholder="Es. Settembre, inizio anno accademico. Oppure: Black Friday, Capodanno."
+                  value={campaignBrief.seasonal_context}
+                  onChange={(e) => setCampaignBrief(p => ({ ...p, seasonal_context: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={async () => {
+                if (!client) return;
+                const { data: campaign } = await supabase
+                  .from("campaigns")
+                  .select("id")
+                  .eq("client_id", client.id)
+                  .eq("status", "active")
+                  .maybeSingle();
+
+                if (campaign) {
+                  await supabase.from("campaigns").update({
+                    objective: campaignBrief.campaign_objective,
+                    key_message: campaignBrief.main_hook,
+                    description: `Momento decisione: ${campaignBrief.target_moment}. Stagionale: ${campaignBrief.seasonal_context}`,
+                  } as any).eq("id", campaign.id);
+                } else {
+                  await supabase.from("campaigns").insert({
+                    client_id: client.id,
+                    name: `Campagna ${new Date().toLocaleDateString()}`,
+                    status: "active",
+                    objective: campaignBrief.campaign_objective,
+                    key_message: campaignBrief.main_hook,
+                    description: `Momento decisione: ${campaignBrief.target_moment}. Stagionale: ${campaignBrief.seasonal_context}`,
+                  } as any);
+                }
+                setBriefSaved(true);
+                toast.success("Brief salvato — ora puoi generare i prompts");
+              }}
+              disabled={!campaignBrief.campaign_objective || !campaignBrief.target_moment}
+              className="w-full"
+            >
+              {briefSaved ? <><CheckCircle2 className="w-4 h-4 mr-2" />Brief salvato</> : "Salva brief e sblocca generazione"}
+            </Button>
+          </div>
+
           {/* Prerequisite checklist */}
           <div className="bg-card rounded-lg border border-border p-5 space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prerequisitos</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
+              <ContextLine label="Brief campagna compilato" included={briefSaved} />
               <ContextLine label="Transcripción cargada y analizada" included={!!kickoff?.transcript_text && !!kickoff?.voice_reference} />
               <ContextLine label="Servicios aprobados" included={!!kickoff?.suggested_services_approved} />
               <ContextLine label="Al menos 1 tool activado" included={toolGenerations.length > 0 || !!(kickoff?.suggested_services as any[])?.some?.((s: any) => s.recommended)} />
@@ -969,8 +1072,8 @@ export default function AdminClientDetail() {
                     <span className="inline-block">
                       <Button
                         onClick={handleGeneratePrompts}
-                        disabled={generating || transcriptText.trim().length < 50}
-                        className={transcriptText.trim().length >= 50 && !generating
+                        disabled={generating || transcriptText.trim().length < 50 || !briefSaved}
+                        className={transcriptText.trim().length >= 50 && briefSaved && !generating
                           ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white"
                           : ""}
                       >
@@ -984,9 +1087,9 @@ export default function AdminClientDetail() {
                       </Button>
                     </span>
                   </TooltipTrigger>
-                  {transcriptText.trim().length < 50 && (
+                  {(transcriptText.trim().length < 50 || !briefSaved) && (
                     <TooltipContent>
-                      <p>Pega una transcripción en el tab Kickoff primero (mín. 50 caracteres)</p>
+                      <p>{!briefSaved ? "Compila e salva il brief della campagna prima" : "Pega una transcripción en el tab Kickoff primero (mín. 50 caracteres)"}</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
