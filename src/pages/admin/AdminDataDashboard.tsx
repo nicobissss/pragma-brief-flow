@@ -32,6 +32,20 @@ export default function AdminDataDashboard() {
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [prospectFilter, setProspectFilter] = useState("all");
+  const [monthlyReview, setMonthlyReview] = useState<string | null>(null);
+  const [generatingReview, setGeneratingReview] = useState(false);
+
+  const generateReview = async () => {
+    setGeneratingReview(true);
+    try {
+      const { data } = await supabase.functions.invoke("generate-monthly-review");
+      if (data?.review) setMonthlyReview(data.review);
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setGeneratingReview(false);
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
