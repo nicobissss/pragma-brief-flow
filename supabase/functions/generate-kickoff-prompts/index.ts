@@ -5,6 +5,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Server-side context score check
+function calculateContextScoreServer(data: {
+  transcript_text?: string | null;
+  transcript_quality?: string | null;
+  voice_reference?: string | null;
+  briefing_answers?: Record<string, any> | null;
+  campaign_objective?: string | null;
+  materials?: any;
+}): { percentage: number; ready: boolean; missingCritical: string[] } {
+  const checks = [
+    { key: 'transcript', weight: 25, has: !!data.transcript_text && data.transcript_text.length > 200, critical: true },
+    { key: 'voice_reference', weight: 15, has: !!data.voice_reference, critical: true },
+    { key: 'briefing_answers', weight: 12, has: !!data.briefing_answers && Object.keys(data.briefing_answers).length >= 3, critical: false },
+    { key: 'campaign_brief', weight: 10, has: !!data.campaign_objective, critical: false },
+    { key: 'services_pricing', weight: 8, has: !!data.materials?.pricing_pdf_text, critical: false },
+    { key: 'brand_colors', weight: 6, has: !!data.materials?.primary_color, critical: false },
+    { key: 'logo', weight: 6, has: !!data.materials?.logo_url, critical: false },
+  ];
+
+  const maxScore = checks.reduce((sum, c) => sum + c.weight, 0);
+  const score = checks.filter(c => c.has).reduce((sum, c) => sum + c.weight, 0);
+  const percentage = Math.round((score / maxScore) * 100);
+  const missingCritical = checks.filter(c => c.critical && !c.has).map(c => c.key);
+
+  return {
+    percentage,
+    ready: percentage >= 70 && missingCritical.length === 0,
+    missingCritical,
+  };
+}
+
 async function buildDynamicRules(supabase: any): Promise<string> {
   const [flowsRes, rulesRes] = await Promise.all([
     supabase.from("pragma_flows").select("*").eq("is_active", true),
