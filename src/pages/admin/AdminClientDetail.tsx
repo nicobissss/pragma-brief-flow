@@ -1157,9 +1157,14 @@ ${context}`
                       </Button>
                     </span>
                   </TooltipTrigger>
-                  {(transcriptText.trim().length < 50 || !briefSaved) && (
+                  {!contextScore.ready && (
                     <TooltipContent>
-                      <p>{!briefSaved ? "Compila e salva il brief della campagna prima" : "Pega una transcripción en el tab Kickoff primero (mín. 50 caracteres)"}</p>
+                      <p>
+                        {contextScore.missingCritical.length > 0
+                          ? `Falta: ${contextScore.missingCritical.map(c => c.labelEs).join(', ')}`
+                          : `Necesitas ${70 - contextScore.percentage}% más de contexto`
+                        }
+                      </p>
                     </TooltipContent>
                   )}
                 </Tooltip>
