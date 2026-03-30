@@ -28,6 +28,7 @@ import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
+import { ContextScorePanel, useContextScore } from "@/components/admin/ContextScorePanel";
 const MARKETS = [
   { value: "es", label: "España" },
   { value: "it", label: "Italia" },
@@ -526,23 +527,20 @@ ${context}`
     setClient({ ...client, max_revision_rounds: val });
   };
 
-  // FEAT-05: Context completeness
+  // FEAT-05: Context completeness (robust system)
   const briefingAnswers = prospect?.briefing_answers || {};
-  const computeCompleteness = () => {
-    const checks = [
-      !!kickoff?.transcript_text,
-      transcriptQuality === "good",
-      Object.keys(briefingAnswers).length > 0,
-      !!(materials as any)?.primary_color,
-      !!(materials as any)?.website_context,
-      !!(materials as any)?.pricing_pdf_text,
-      ((materials as any)?.photos?.length > 0),
-      ((materials as any)?.social_posts?.length > 0),
-    ];
-    const score = checks.filter(Boolean).length;
-    return Math.min(100, score * 13);
-  };
-  const completenessPct = computeCompleteness();
+  const contextScore = useContextScore({
+    transcript_text: kickoff?.transcript_text,
+    transcript_quality: (kickoff as any)?.transcript_quality,
+    voice_reference: kickoff?.voice_reference,
+    client_rules: kickoff?.client_rules as string[] | null,
+    preferred_tone: kickoff?.preferred_tone,
+    materials: materials as any,
+    briefing_answers: briefingAnswers,
+    has_proposal: !!proposal,
+    has_campaign_brief: briefSaved || !!(campaignBrief.campaign_objective && campaignBrief.target_moment),
+  });
+  const completenessPct = contextScore.percentage;
 
   // FEAT-07: Strategic note approve
   const handleApproveStrategicNote = async (assetId: string) => {
@@ -873,15 +871,19 @@ ${context}`
             />
           )}
 
-          {/* FEAT-05: Completeness score */}
-          <div className="bg-card rounded-lg border border-border p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Contexto para Claude: {completenessPct}%</h3>
-              {completenessPct < 60 && <span className="text-xs text-[hsl(var(--status-pending-review))]">⚠️ Añade más contexto</span>}
-              {completenessPct >= 80 && <span className="text-xs text-[hsl(142,71%,35%)]">✅ Listo para generar</span>}
-            </div>
-            <Progress value={completenessPct} className="h-1.5" />
-          </div>
+          {/* FEAT-05: Context Score */}
+          <ContextScorePanel
+            transcript_text={kickoff?.transcript_text}
+            transcript_quality={(kickoff as any)?.transcript_quality}
+            voice_reference={kickoff?.voice_reference}
+            client_rules={kickoff?.client_rules as string[] | null}
+            preferred_tone={kickoff?.preferred_tone}
+            materials={materials as any}
+            briefing_answers={briefingAnswers}
+            has_proposal={!!proposal}
+            has_campaign_brief={briefSaved || !!(campaignBrief.campaign_objective && campaignBrief.target_moment)}
+            language="es"
+          />
 
           {/* Transcript */}
           <div className="bg-card rounded-lg border border-border p-6">
@@ -1140,8 +1142,8 @@ ${context}`
                     <span className="inline-block">
                       <Button
                         onClick={handleGeneratePrompts}
-                        disabled={generating || transcriptText.trim().length < 50 || !briefSaved}
-                        className={transcriptText.trim().length >= 50 && briefSaved && !generating
+                        disabled={generating || !contextScore.ready}
+                        className={contextScore.ready && !generating
                           ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white"
                           : ""}
                       >
