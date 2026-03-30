@@ -103,6 +103,37 @@ Deno.serve(async (req) => {
       supabaseAdmin.from("campaigns").select("name, objective, target_audience, key_message").eq("client_id", client_id).eq("status", "active").maybeSingle(),
     ]);
 
+    // Calculate context score server-side
+    const contextScore = calculateContextScoreServer({
+      transcript_text: kickoff?.transcript_text,
+      transcript_quality: kickoff?.transcript_quality,
+      voice_reference: kickoff?.voice_reference,
+      briefing_answers: briefingAnswers,
+      campaign_objective: campaignRes.data?.objective,
+      materials: kickoff?.client_materials,
+    });
+
+    // Block if not ready (unless force=true)
+    if (!contextScore.ready && !force) {
+      return new Response(
+        JSON.stringify({
+          error: 'CONTEXT_INSUFFICIENT',
+          message: 'Context score below 70% or missing critical items',
+          score: contextScore.percentage,
+          missingCritical: contextScore.missingCritical,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // Save score to DB
+    if (kickoff) {
+      await supabaseAdmin
+        .from('kickoff_briefs')
+        .update({ context_completeness_score: contextScore.percentage })
+        .eq('id', kickoff.id);
+    }
+
     // Build dynamic context blocks
     const contextBlocks: string[] = [];
 
