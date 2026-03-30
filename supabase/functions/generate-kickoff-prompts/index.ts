@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { client_id } = await req.json();
+    const { client_id, force } = await req.json();
     if (!client_id) throw new Error("client_id is required");
 
     const supabaseAdmin = createClient(
