@@ -14,6 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_plan_tasks: {
+        Row: {
+          action_url: string | null
+          assignee: string
+          assignee_user_id: string | null
+          blocked_reason: string | null
+          category: string
+          checklist: Json | null
+          client_offering_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completion_notes: string | null
+          created_at: string | null
+          depends_on_task_ids: Json | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          order_index: number | null
+          related_asset_id: string | null
+          related_platform_id: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_url?: string | null
+          assignee: string
+          assignee_user_id?: string | null
+          blocked_reason?: string | null
+          category: string
+          checklist?: Json | null
+          client_offering_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_notes?: string | null
+          created_at?: string | null
+          depends_on_task_ids?: Json | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          order_index?: number | null
+          related_asset_id?: string | null
+          related_platform_id?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_url?: string | null
+          assignee?: string
+          assignee_user_id?: string | null
+          blocked_reason?: string | null
+          category?: string
+          checklist?: Json | null
+          client_offering_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_notes?: string | null
+          created_at?: string | null
+          depends_on_task_ids?: Json | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          order_index?: number | null
+          related_asset_id?: string | null
+          related_platform_id?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plan_tasks_client_offering_id_fkey"
+            columns: ["client_offering_id"]
+            isOneToOne: false
+            referencedRelation: "client_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plan_tasks_related_asset_id_fkey"
+            columns: ["related_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plan_tasks_related_platform_id_fkey"
+            columns: ["related_platform_id"]
+            isOneToOne: false
+            referencedRelation: "supported_platforms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_log: {
         Row: {
           action: string
@@ -436,6 +533,147 @@ export type Database = {
           },
         ]
       }
+      client_offerings: {
+        Row: {
+          accepted_at: string | null
+          actual_outcomes: Json | null
+          client_id: string
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_deliverables: Json | null
+          custom_name: string | null
+          custom_price_eur: number | null
+          id: string
+          notes: string | null
+          offering_template_id: string
+          proposed_at: string | null
+          recommendation_reasons: Json | null
+          recommendation_score: number | null
+          started_at: string | null
+          status: string
+          was_recommended: boolean | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          actual_outcomes?: Json | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_deliverables?: Json | null
+          custom_name?: string | null
+          custom_price_eur?: number | null
+          id?: string
+          notes?: string | null
+          offering_template_id: string
+          proposed_at?: string | null
+          recommendation_reasons?: Json | null
+          recommendation_score?: number | null
+          started_at?: string | null
+          status?: string
+          was_recommended?: boolean | null
+        }
+        Update: {
+          accepted_at?: string | null
+          actual_outcomes?: Json | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_deliverables?: Json | null
+          custom_name?: string | null
+          custom_price_eur?: number | null
+          id?: string
+          notes?: string | null
+          offering_template_id?: string
+          proposed_at?: string | null
+          recommendation_reasons?: Json | null
+          recommendation_score?: number | null
+          started_at?: string | null
+          status?: string
+          was_recommended?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_offerings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_offerings_offering_template_id_fkey"
+            columns: ["offering_template_id"]
+            isOneToOne: false
+            referencedRelation: "offering_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_platforms: {
+        Row: {
+          access_notes: string | null
+          account_identifier: string | null
+          client_id: string
+          created_at: string | null
+          has_access: boolean | null
+          id: string
+          integration_status: string | null
+          list_size: number | null
+          monthly_volume: number | null
+          notes: string | null
+          plan_tier: string | null
+          platform_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          access_notes?: string | null
+          account_identifier?: string | null
+          client_id: string
+          created_at?: string | null
+          has_access?: boolean | null
+          id?: string
+          integration_status?: string | null
+          list_size?: number | null
+          monthly_volume?: number | null
+          notes?: string | null
+          plan_tier?: string | null
+          platform_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          access_notes?: string | null
+          account_identifier?: string | null
+          client_id?: string
+          created_at?: string | null
+          has_access?: boolean | null
+          id?: string
+          integration_status?: string | null
+          list_size?: number | null
+          monthly_volume?: number | null
+          notes?: string | null
+          plan_tier?: string | null
+          platform_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_platforms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_platforms_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "supported_platforms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           activated_tools: Json | null
@@ -762,6 +1000,108 @@ export type Database = {
         }
         Relationships: []
       }
+      offering_templates: {
+        Row: {
+          applicable_sub_niches: Json | null
+          applicable_verticals: Json | null
+          category: string
+          code: string
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          deliverables: Json
+          description: string | null
+          expected_outcomes: Json | null
+          id: string
+          is_active: boolean | null
+          is_featured: boolean | null
+          linked_flow_ids: Json | null
+          monthly_fee_eur: number | null
+          monthly_hours_estimate: number | null
+          name: string
+          one_shot_fee_eur: number | null
+          optional_platforms: Json | null
+          recommendation_rules: Json | null
+          recommended_platforms: Json | null
+          required_platforms: Json | null
+          setup_fee_eur: number | null
+          setup_hours_estimate: number | null
+          short_name: string
+          sort_order: number | null
+          task_templates: Json | null
+          tier: number
+          updated_at: string | null
+          use_cases: string[] | null
+          value_proposition: string | null
+        }
+        Insert: {
+          applicable_sub_niches?: Json | null
+          applicable_verticals?: Json | null
+          category: string
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          deliverables: Json
+          description?: string | null
+          expected_outcomes?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          linked_flow_ids?: Json | null
+          monthly_fee_eur?: number | null
+          monthly_hours_estimate?: number | null
+          name: string
+          one_shot_fee_eur?: number | null
+          optional_platforms?: Json | null
+          recommendation_rules?: Json | null
+          recommended_platforms?: Json | null
+          required_platforms?: Json | null
+          setup_fee_eur?: number | null
+          setup_hours_estimate?: number | null
+          short_name: string
+          sort_order?: number | null
+          task_templates?: Json | null
+          tier: number
+          updated_at?: string | null
+          use_cases?: string[] | null
+          value_proposition?: string | null
+        }
+        Update: {
+          applicable_sub_niches?: Json | null
+          applicable_verticals?: Json | null
+          category?: string
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          deliverables?: Json
+          description?: string | null
+          expected_outcomes?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          linked_flow_ids?: Json | null
+          monthly_fee_eur?: number | null
+          monthly_hours_estimate?: number | null
+          name?: string
+          one_shot_fee_eur?: number | null
+          optional_platforms?: Json | null
+          recommendation_rules?: Json | null
+          recommended_platforms?: Json | null
+          required_platforms?: Json | null
+          setup_fee_eur?: number | null
+          setup_hours_estimate?: number | null
+          short_name?: string
+          sort_order?: number | null
+          task_templates?: Json | null
+          tier?: number
+          updated_at?: string | null
+          use_cases?: string[] | null
+          value_proposition?: string | null
+        }
+        Relationships: []
+      }
       pragma_flows: {
         Row: {
           applicable_sub_niches: Json | null
@@ -1032,6 +1372,36 @@ export type Database = {
           },
         ]
       }
+      supported_platforms: {
+        Row: {
+          category: string
+          icon: string | null
+          id: string
+          integration_type: string | null
+          name: string
+          notes: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          category: string
+          icon?: string | null
+          id: string
+          integration_type?: string | null
+          name: string
+          notes?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          category?: string
+          icon?: string | null
+          id?: string
+          integration_type?: string | null
+          name?: string
+          notes?: string | null
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       tool_generations: {
         Row: {
           client_id: string | null
@@ -1174,9 +1544,103 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_client_action_plan: {
+        Row: {
+          action_url: string | null
+          assignee: string | null
+          assignee_user_id: string | null
+          blocked_reason: string | null
+          category: string | null
+          checklist: Json | null
+          client_id: string | null
+          client_offering_id: string | null
+          company_name: string | null
+          completed_at: string | null
+          completed_by: string | null
+          completion_notes: string | null
+          created_at: string | null
+          depends_on_task_ids: Json | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string | null
+          offering_code: string | null
+          offering_name: string | null
+          offering_status: string | null
+          order_index: number | null
+          progress_weight: number | null
+          related_asset_id: string | null
+          related_platform_id: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plan_tasks_client_offering_id_fkey"
+            columns: ["client_offering_id"]
+            isOneToOne: false
+            referencedRelation: "client_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plan_tasks_related_asset_id_fkey"
+            columns: ["related_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_plan_tasks_related_platform_id_fkey"
+            columns: ["related_platform_id"]
+            isOneToOne: false
+            referencedRelation: "supported_platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_offerings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      generate_tasks_for_offering: {
+        Args: { p_client_offering_id: string }
+        Returns: {
+          action_url: string | null
+          assignee: string
+          assignee_user_id: string | null
+          blocked_reason: string | null
+          category: string
+          checklist: Json | null
+          client_offering_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completion_notes: string | null
+          created_at: string | null
+          depends_on_task_ids: Json | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          order_index: number | null
+          related_asset_id: string | null
+          related_platform_id: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "action_plan_tasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
