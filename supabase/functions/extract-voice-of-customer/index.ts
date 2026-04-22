@@ -21,6 +21,8 @@ Deno.serve(async (req) => {
     );
 
     const { callAI } = await import("../_shared/ai.ts");
+
+    const { data: client } = await supabase
       .from("clients")
       .select("name, vertical, sub_niche, city")
       .eq("id", client_id)
