@@ -227,6 +227,11 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       const reasons = "reasons" in offering ? offering.reasons : [];
       const wasRecommended = recommendations.some((r) => r.id === offering.id);
 
+      const customNameTrimmed = proposeName.trim();
+      const useCustomName = customNameTrimmed && customNameTrimmed !== offering.name;
+      const notesTrimmed = proposeNotes.trim();
+      const parsedPrice = includePrice && proposePrice ? Number(proposePrice) : null;
+
       const { data: created, error } = await supabase
         .from("client_offerings")
         .insert({
@@ -237,6 +242,9 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
           recommendation_score: score,
           recommendation_reasons: reasons as any,
           proposed_at: new Date().toISOString(),
+          custom_name: useCustomName ? customNameTrimmed : null,
+          custom_price_eur: parsedPrice && !isNaN(parsedPrice) ? Math.round(parsedPrice) : null,
+          notes: notesTrimmed || null,
         } as any)
         .select()
         .single();
@@ -263,6 +271,16 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       setProposing(null);
     }
   };
+
+  // Reset edit fields whenever a new offering is selected
+  useEffect(() => {
+    if (confirmOffering) {
+      setProposeName(confirmOffering.name);
+      setProposeNotes("");
+      setIncludePrice(false);
+      setProposePrice("");
+    }
+  }, [confirmOffering]);
 
   const updateOfferingStatus = async (status: string, extra: Record<string, any> = {}) => {
     if (!activeOffering) return;
