@@ -11,6 +11,7 @@ import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/
 import ClientPlatformsPanel from "@/components/admin/ClientPlatformsPanel";
 import { AssetCollectionRequest } from "@/components/admin/AssetCollectionRequest";
 import { ContextScorePanel } from "@/components/admin/ContextScorePanel";
+import DiscoveryPanel from "@/components/admin/DiscoveryPanel";
 
 type Props = {
   client: any;
@@ -126,6 +127,8 @@ export default function KickoffTab({
       <ClientPlatformsPanel clientId={client.id} />
 
       <AssetCollectionRequest clientId={client.id} clientName={client.name} />
+
+      <DiscoveryPanel clientId={client.id} />
 
       <Collapsible>
         <div className="bg-card rounded-lg border border-border overflow-hidden">
