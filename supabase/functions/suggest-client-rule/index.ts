@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,23 +12,11 @@ Deno.serve(async (req) => {
     const { feedback_text } = await req.json();
     if (!feedback_text) throw new Error("feedback_text is required");
 
-    const { callAI } = await import("../_shared/ai.ts");
-
     const data = await callAI({
       max_tokens: 80,
-      messages: [{
-          role: "user",
-          content: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for Claude (max 15 words). Just the rule, nothing else.`,
-        }],
-      }),
+      prompt: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for the AI (max 15 words). Just the rule, nothing else.`,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Claude error: ${response.status}`);
-    }
-
-    const data = await response.json();
     const suggestedRule = data.content?.find((b: any) => b.type === "text")?.text?.trim() || "";
 
     return new Response(JSON.stringify({ suggested_rule: suggestedRule }), {
@@ -36,7 +24,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("suggest-client-rule error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
