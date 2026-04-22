@@ -141,17 +141,17 @@ export default function PromptsTab({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-block">
-                  <Button onClick={onGeneratePrompts} disabled={generating || !contextScore.ready}
-                    className={contextScore.ready && !generating ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white" : ""}>
+                  <Button onClick={onGeneratePrompts} disabled={generating}
+                    className={!generating ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white" : ""}>
                     {generating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Claude is analyzing...</>
                       : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
                       : <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>}
                   </Button>
                 </span>
               </TooltipTrigger>
-              {!contextScore.ready && (
+              {contextScore.percentage < 70 && (
                 <TooltipContent>
-                  <p>{contextScore.missingCritical.length > 0 ? `Falta: ${contextScore.missingCritical.map((c: any) => c.labelEs).join(', ')}` : `Necesitas ${70 - contextScore.percentage}% más de contexto`}</p>
+                  <p>Contexto al {contextScore.percentage}%. Puedes generar, pero la IA usará defaults donde falte info.</p>
                 </TooltipContent>
               )}
             </Tooltip>

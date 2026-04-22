@@ -199,18 +199,14 @@ export function ContextScorePanel({
         </Collapsible>
       )}
 
-      {/* Status message */}
-      {!result.ready ? (
+      {/* Status message — informative only, never blocks generation */}
+      {result.percentage < 70 ? (
         <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-800 dark:text-amber-300">
             {language === 'es'
-              ? result.missingCritical.length > 0
-                ? 'Completa los elementos críticos antes de generar prompts.'
-                : `Añade más contexto para alcanzar el mínimo de 70% (faltan ${70 - result.percentage} puntos).`
-              : result.missingCritical.length > 0
-                ? 'Complete critical items before generating prompts.'
-                : `Add more context to reach the 70% minimum (${70 - result.percentage} points needed).`
+              ? `Contexto al ${result.percentage}%. Puedes generar igualmente, pero la IA usará valores por defecto donde falte información.`
+              : `Context at ${result.percentage}%. You can still generate, but the AI will fall back to defaults where info is missing.`
             }
           </p>
         </div>
@@ -219,8 +215,8 @@ export function ContextScorePanel({
           <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
           <p className="text-xs text-green-800 dark:text-green-300">
             {language === 'es'
-              ? '¡Listo! Puedes generar prompts de calidad.'
-              : 'Ready! You can generate quality prompts.'
+              ? '¡Contexto sólido! Puedes generar prompts de calidad.'
+              : 'Solid context! You can generate quality prompts.'
             }
           </p>
         </div>
