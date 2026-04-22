@@ -102,17 +102,8 @@ Generate a correction prompt that:
 Return a single correction prompt ready to paste into the asset generation tool.
 Do not include explanations — just the prompt.`;
 
-    let result: any;
-    try {
-      result = await callAI({ prompt: userPrompt, max_tokens: 2000 });
-    } catch (e: any) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-      throw new Error(`Anthropic API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const correctionPrompt = result.content?.[0]?.text || "";
+    const result = await callAI({ prompt: userPrompt, max_tokens: 2000 });
+    const correctionPrompt = result.content?.[0]?.type === "text" ? (result.content[0] as any).text : "";
 
     // Save to asset
     await supabase
