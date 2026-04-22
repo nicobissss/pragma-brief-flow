@@ -104,6 +104,15 @@ const STATUS_COLORS: Record<string, string> = {
 
 const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
 
+type ClientTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  status: string | null;
+  blocked_reason: string | null;
+};
+
 export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
   const [allAssets, setAllAssets] = useState<AssetItem[]>([]);
@@ -113,6 +122,7 @@ export default function ClientDashboard() {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [projectPlan, setProjectPlan] = useState<any>(null);
   const [projectPlanShared, setProjectPlanShared] = useState(false);
+  const [clientTasksList, setClientTasksList] = useState<ClientTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
 
