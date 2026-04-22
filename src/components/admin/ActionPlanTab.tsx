@@ -102,6 +102,7 @@ export default function ActionPlanTab({ clientId }: { clientId: string }) {
 
   const updateTask = async (id: string, patch: Partial<Task>) => {
     // optimistic
+    const prevTask = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     const payload: any = { ...patch };
     if (patch.status === "done") payload.completed_at = new Date().toISOString();
@@ -109,6 +110,24 @@ export default function ActionPlanTab({ clientId }: { clientId: string }) {
     if (error) {
       toast.error(error.message);
       load();
+      return;
+    }
+    // Notify admin if a CLIENT task was just marked done
+    if (patch.status === "done" && prevTask && prevTask.assignee === "client" && prevTask.status !== "done") {
+      try {
+        const { data: c } = await supabase.from("clients").select("name").eq("id", clientId).maybeSingle();
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "client-task-completed",
+            idempotencyKey: `task-done-${id}`,
+            templateData: {
+              clientName: c?.name,
+              taskTitle: prevTask.title,
+              adminUrl: `${window.location.origin}/admin/clients/${clientId}`,
+            },
+          },
+        });
+      } catch (e) { console.error("task-done email error:", e); }
     }
   };
 

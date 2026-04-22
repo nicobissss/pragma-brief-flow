@@ -99,6 +99,30 @@ REGLAS:
 
     if (snapErr) throw snapErr;
 
+    // Activity log + admin notification (non-blocking)
+    try {
+      await supabase.from("activity_log").insert({
+        entity_type: "client",
+        entity_id: client_id,
+        entity_name: client.name,
+        action: `discovery: voice of customer extraído (${reviews_text.length} chars)`,
+      });
+      await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "discovery-analysis-ready",
+          idempotencyKey: `discovery-voc-${snapshot.id}`,
+          templateData: {
+            clientName: client.name,
+            analysisType: "voc",
+            summary: parsed?.summary?.slice(0, 200) || "VoC extraído",
+            adminUrl: `${Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app"}/admin/clients`,
+          },
+        },
+      });
+    } catch (e) {
+      console.error("activity_log/email error:", e);
+    }
+
     return new Response(
       JSON.stringify({ success: true, snapshot_id: snapshot.id, voc: parsed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

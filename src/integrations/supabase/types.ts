@@ -1505,6 +1505,7 @@ export type Database = {
         Row: {
           client_id: string | null
           content_ready_at: string | null
+          context_score_at_generation: number | null
           created_at: string | null
           id: string
           prompt: Json | null
@@ -1515,6 +1516,7 @@ export type Database = {
         Insert: {
           client_id?: string | null
           content_ready_at?: string | null
+          context_score_at_generation?: number | null
           created_at?: string | null
           id?: string
           prompt?: Json | null
@@ -1525,6 +1527,7 @@ export type Database = {
         Update: {
           client_id?: string | null
           content_ready_at?: string | null
+          context_score_at_generation?: number | null
           created_at?: string | null
           id?: string
           prompt?: Json | null

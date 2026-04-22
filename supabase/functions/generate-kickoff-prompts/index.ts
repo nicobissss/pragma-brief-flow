@@ -352,7 +352,11 @@ Only include tools that are relevant for this client based on their vertical, su
         status: "prompt_ready",
       }));
       if (insertions.length > 0) {
-        await supabaseAdmin.from("tool_generations").insert(insertions);
+        const insertionsWithScore = insertions.map((row: any) => ({
+          ...row,
+          context_score_at_generation: contextScore.percentage,
+        }));
+        await supabaseAdmin.from("tool_generations").insert(insertionsWithScore);
       }
     }
 

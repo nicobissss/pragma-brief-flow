@@ -94,6 +94,30 @@ Sé específico y accionable. Frases textuales cuando puedas.`;
 
     if (insErr) throw insErr;
 
+    // Activity log + admin notification (non-blocking)
+    try {
+      await supabase.from("activity_log").insert({
+        entity_type: "client",
+        entity_id: client_id,
+        entity_name: client.name,
+        action: `discovery: patrones ganadores extraídos${asset_type ? ` (${asset_type})` : ""}`,
+      });
+      await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "discovery-analysis-ready",
+          idempotencyKey: `discovery-patterns-${row.id}`,
+          templateData: {
+            clientName: client.name,
+            analysisType: "winning_patterns",
+            summary: parsed?.replicable_formula || "Patrones extraídos",
+            adminUrl: `${Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app"}/admin/clients`,
+          },
+        },
+      });
+    } catch (e) {
+      console.error("activity_log/email error:", e);
+    }
+
     return new Response(
       JSON.stringify({ success: true, pattern_id: row.id, patterns: parsed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

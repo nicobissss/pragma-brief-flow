@@ -182,6 +182,33 @@ Devuelve SOLO JSON válido con esta estructura:
       }
     }
 
+    // Activity log + admin notification (non-blocking)
+    try {
+      const completed = results.filter((r) => r.status === "completed").length;
+      await supabase.from("activity_log").insert({
+        entity_type: "client",
+        entity_id: client_id,
+        entity_name: client.name,
+        action: `discovery: ${completed}/${results.length} competidores analizados`,
+      });
+      if (completed > 0) {
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "discovery-analysis-ready",
+            idempotencyKey: `discovery-competitors-${client_id}-${Date.now()}`,
+            templateData: {
+              clientName: client.name,
+              analysisType: "competitors",
+              summary: `${completed} de ${results.length} competidores analizados`,
+              adminUrl: `${Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app"}/admin/clients`,
+            },
+          },
+        });
+      }
+    } catch (e) {
+      console.error("activity_log/email error:", e);
+    }
+
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
