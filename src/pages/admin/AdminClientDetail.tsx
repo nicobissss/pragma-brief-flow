@@ -690,6 +690,19 @@ ${context}`
             Kickoff
             {kickoffBadge && <span className="ml-1.5 w-2 h-2 rounded-full bg-accent inline-block" />}
           </TabsTrigger>
+          <TabsTrigger value="oferta" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5 relative">
+            Oferta
+            {!hasOffering && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-700 border-amber-500/30">
+                Por proponer
+              </Badge>
+            )}
+          </TabsTrigger>
+          {hasOffering && (
+            <TabsTrigger value="plan" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
+              Plan de Acción
+            </TabsTrigger>
+          )}
           <TabsTrigger value="prompts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
             Prompts
           </TabsTrigger>
