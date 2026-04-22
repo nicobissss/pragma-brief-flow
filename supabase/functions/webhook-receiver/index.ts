@@ -83,6 +83,63 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "asset_generated": {
+        const {
+          client_id,
+          campaign_id,
+          asset_name,
+          asset_title,
+          asset_type,
+          content,
+          preview_url,
+          file_url,
+          context_used,
+          strategic_note,
+        } = params;
+        if (!client_id) throw new Error("client_id required");
+        if (!asset_name) throw new Error("asset_name required");
+        if (!asset_type) throw new Error("asset_type required");
+
+        const allowedTypes = ["landing_page", "email_flow", "social_post", "blog_article"];
+        if (!allowedTypes.includes(asset_type)) {
+          throw new Error(`asset_type must be one of: ${allowedTypes.join(", ")}`);
+        }
+
+        // Verify client exists
+        const { data: client, error: clientErr } = await supabase
+          .from("clients").select("id").eq("id", client_id).maybeSingle();
+        if (clientErr || !client) throw new Error(`client_id ${client_id} not found`);
+
+        // Determine next version for this client+asset_name
+        const { data: existing } = await supabase
+          .from("assets").select("version")
+          .eq("client_id", client_id).eq("asset_name", asset_name)
+          .order("version", { ascending: false }).limit(1);
+        const nextVersion = (existing?.[0]?.version || 0) + 1;
+
+        const { data: inserted, error: insErr } = await supabase.from("assets").insert({
+          client_id,
+          campaign_id: campaign_id || null,
+          asset_name,
+          asset_title: asset_title || null,
+          asset_type,
+          content: content || null,
+          preview_url: preview_url || null,
+          file_url: file_url || null,
+          context_used: context_used || {},
+          strategic_note: strategic_note || null,
+          status: "pending_review",
+          version: nextVersion,
+          production_status: "ready",
+        }).select("id").single();
+
+        if (insErr) throw new Error(`Insert failed: ${insErr.message}`);
+
+        return new Response(JSON.stringify({ ok: true, asset_id: inserted.id, version: nextVersion }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "slotty_workspace_created": {
         const { request_id, workspace_id } = params;
         if (!request_id) throw new Error("request_id required");
