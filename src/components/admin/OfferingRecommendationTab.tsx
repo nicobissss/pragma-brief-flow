@@ -456,22 +456,71 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
         </div>
       )}
 
-      {/* Confirm dialog */}
+      {/* Confirm dialog — editable proposal */}
       <Dialog open={!!confirmOffering} onOpenChange={(open) => !open && setConfirmOffering(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Proponer oferta al cliente</DialogTitle>
+            <DialogTitle>Revisar antes de proponer</DialogTitle>
             <DialogDescription>
-              Se creará la oferta en estado <strong>proposed</strong> y se generarán automáticamente los tasks del plan de acción.
+              Personaliza nombre, notas y (opcionalmente) un precio antes de proponer la oferta al cliente. El precio queda oculto si no lo añades.
             </DialogDescription>
           </DialogHeader>
           {confirmOffering && (
-            <div className="space-y-3 py-2">
-              <div className="bg-secondary/40 rounded-lg p-4 space-y-1">
-                <p className="font-semibold text-foreground">{confirmOffering.name}</p>
-                <p className="text-sm text-muted-foreground">{formatPricing(confirmOffering)}</p>
+            <div className="space-y-4 py-2">
+              <div className="bg-secondary/40 rounded-lg p-3 text-xs text-muted-foreground">
+                <p>Plantilla: <span className="font-medium text-foreground">{confirmOffering.name}</span></p>
                 {confirmOffering.value_proposition && (
-                  <p className="text-sm text-foreground mt-2">{confirmOffering.value_proposition}</p>
+                  <p className="mt-1">{confirmOffering.value_proposition}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Nombre que verá el cliente</label>
+                <input
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={proposeName}
+                  onChange={(e) => setProposeName(e.target.value)}
+                  placeholder="Nombre de la oferta"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Notas internas (opcional)</label>
+                <textarea
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[70px]"
+                  value={proposeNotes}
+                  onChange={(e) => setProposeNotes(e.target.value)}
+                  placeholder="Contexto solo para el equipo Pragma…"
+                />
+              </div>
+
+              <div className="rounded-md border border-border p-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includePrice}
+                    onChange={(e) => setIncludePrice(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  Añadir precio personalizado
+                </label>
+                {includePrice && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      value={proposePrice}
+                      onChange={(e) => setProposePrice(e.target.value)}
+                      placeholder="Ej. 1500"
+                    />
+                    <span className="text-sm text-muted-foreground">€</span>
+                  </div>
+                )}
+                {!includePrice && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Sin precio el cliente solo verá el alcance — útil para acuerdos personalizados.
+                  </p>
                 )}
               </div>
             </div>
@@ -480,7 +529,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
             <Button variant="outline" onClick={() => setConfirmOffering(null)}>Cancelar</Button>
             <Button
               onClick={() => confirmOffering && handlePropose(confirmOffering)}
-              disabled={!!proposing}
+              disabled={!!proposing || !proposeName.trim()}
             >
               {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
               Confirmar y proponer
