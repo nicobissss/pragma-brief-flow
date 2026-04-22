@@ -105,3 +105,12 @@ export function getRecommendedOfferings(subNiche: string): string[] {
   }
   return matches;
 }
+
+// Backwards-compat shim per edge functions che ancora importano la vecchia API.
+// Restituisce le offerte raccomandate come stringa human-readable.
+export function getFlowForSubNiche(_vertical: string, subNiche: string): string {
+  const recs = getRecommendedOfferings(subNiche);
+  if (recs.length === 0) return "TIER1_RECUPERACION (default)";
+  return recs.join(", ");
+}
+
