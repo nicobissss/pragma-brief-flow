@@ -20,6 +20,8 @@ type KPIData = {
   waitingClientApproval: number;
   followUpsDue: number;
   overdueCount: number;
+  openProposals: number;
+  agingProposals: number;
 };
 
 type ProspectCard = {
@@ -70,13 +72,21 @@ const PIPELINE_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
-const CLIENT_PIPELINE = ["kickoff", "materials", "production", "review", "completed"] as const;
+// NOTE: pipeline_status valori in DB sono in spagnolo (sincronizzati dai trigger sync_pipeline_*)
+const CLIENT_PIPELINE = ["kickoff", "materiales", "producción", "revisión", "completado"] as const;
 const CLIENT_PIPELINE_LABELS: Record<string, string> = {
   kickoff: "Kickoff",
-  materials: "Materiales",
-  production: "Producción",
-  review: "Revisión",
-  completed: "Completado",
+  materiales: "Materiales",
+  "producción": "Producción",
+  "revisión": "Revisión",
+  completado: "Completado",
+};
+// Migration helpers per stati legacy in inglese
+const PIPELINE_LEGACY_MAP: Record<string, string> = {
+  materials: "materiales",
+  production: "producción",
+  review: "revisión",
+  completed: "completado",
 };
 
 const VERTICAL_COLORS: Record<string, string> = {
@@ -116,7 +126,7 @@ type TodayAction = { text: string; link: string; type: "urgent" | "normal" };
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0 });
+  const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0, openProposals: 0, agingProposals: 0 });
   const [prospects, setProspects] = useState<ProspectCard[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
