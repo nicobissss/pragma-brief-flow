@@ -26,6 +26,7 @@ import { AssetCollectionRequest } from "@/components/admin/AssetCollectionReques
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
+import ClientPlatformsPanel from "@/components/admin/ClientPlatformsPanel";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import { ContextScorePanel, useContextScore } from "@/components/admin/ContextScorePanel";
@@ -962,6 +963,8 @@ ${context}`
               }
             }}
           />
+
+          <ClientPlatformsPanel clientId={client.id} />
 
           <AssetCollectionRequest clientId={client.id} clientName={client.name} />
 

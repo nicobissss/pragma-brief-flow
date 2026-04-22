@@ -9,6 +9,7 @@ import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
 
 import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
+import OfferingsCatalogTab from "@/components/admin/OfferingsCatalogTab";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Procesos" },
@@ -136,16 +137,17 @@ export default function AdminSettings() {
   if (loading) return <div className="p-8 text-muted-foreground">Cargando...</div>;
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8 max-w-6xl">
       <h1 className="text-2xl font-bold text-foreground mb-2">Configuración</h1>
       <p className="text-muted-foreground mb-6">
-        Gestiona la base de conocimiento, flows, reglas e integraciones.
+        Gestiona la base de conocimiento, flows, offerings e integraciones.
       </p>
 
       <Tabs defaultValue="knowledge">
         <TabsList>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
           <TabsTrigger value="flows">Flows & Reglas</TabsTrigger>
+          <TabsTrigger value="offerings">Offerings Catalog</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
         </TabsList>
 
@@ -201,6 +203,10 @@ export default function AdminSettings() {
 
         <TabsContent value="flows" className="mt-6">
           <FlowsRulesTab />
+        </TabsContent>
+
+        <TabsContent value="offerings" className="mt-6">
+          <OfferingsCatalogTab />
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-6">
