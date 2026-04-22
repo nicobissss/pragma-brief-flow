@@ -483,6 +483,9 @@ ${context}`
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2 ml-auto">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/client/${client.id}/bible`)} className="h-7 text-xs">
+            <Sparkles className="w-3 h-3 mr-1" />Client Bible
+          </Button>
           <span className="text-xs text-muted-foreground">Revisiones:</span>
           <Badge variant={revisionCount >= maxRevisions ? "destructive" : revisionCount >= maxRevisions - 1 ? "secondary" : "outline"} className="text-xs">
             {revisionCount} / {maxRevisions}
