@@ -50,7 +50,7 @@ export default function CreateProspectDialog({ onCreated }: Props) {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.from("prospects").insert({
+      const { data: inserted, error } = await supabase.from("prospects").insert({
         name: form.name,
         company_name: form.company_name,
         email: form.email,
@@ -66,7 +66,7 @@ export default function CreateProspectDialog({ onCreated }: Props) {
           description: form.description,
           source: "manual",
         },
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
 
       await supabase.from("events").insert({
@@ -74,6 +74,24 @@ export default function CreateProspectDialog({ onCreated }: Props) {
         entity_type: "prospect",
         payload: { name: form.name, vertical: form.vertical, source: "manual" },
       });
+
+      // Branded admin notification
+      try {
+        await supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "new-prospect-received",
+            idempotencyKey: `new-prospect-${inserted?.id}`,
+            templateData: {
+              prospectName: form.name,
+              companyName: form.company_name,
+              vertical: form.vertical,
+              subNiche: form.sub_niche,
+              market: form.market,
+              adminUrl: `${window.location.origin}/admin/prospects/${inserted?.id || ""}`,
+            },
+          },
+        });
+      } catch (e) { console.error("new-prospect email error:", e); }
 
       toast.success("Prospect creado");
       resetForm();

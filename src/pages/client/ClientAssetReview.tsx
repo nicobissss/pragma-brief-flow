@@ -262,7 +262,29 @@ export default function ClientAssetReview() {
           },
         }).catch((e) => console.error("Notification error:", e));
 
-        // Auto-generate correction prompts for each affected asset
+        // Branded admin email
+        (async () => {
+          try {
+            const { data: client } = await supabase
+              .from("clients").select("name").eq("id", clientId).maybeSingle();
+            const assetNames = assets.filter((a) => assetIds.includes(a.id)).map((a) => a.asset_name).join(", ");
+            const sortedIds = [...assetIds].sort().join("-");
+            await supabase.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "asset-feedback-received",
+                idempotencyKey: `asset-feedback-${sortedIds}-${Date.now()}`,
+                templateData: {
+                  clientName: client?.name,
+                  assetName: assetNames,
+                  assetType: type,
+                  commentSummary: `${allSectionComments.length} comentario(s) de sección${Object.values(generalComments).filter(Boolean).length ? " + comentarios generales" : ""}`,
+                  adminUrl: `${window.location.origin}/admin/clients/${clientId}`,
+                },
+              },
+            });
+          } catch (e) { console.error("admin email error:", e); }
+        })();
+
         for (const assetId of assetIds) {
           supabase.functions.invoke("generate-correction-prompt", {
             body: { asset_id: assetId },
