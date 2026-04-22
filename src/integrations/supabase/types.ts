@@ -1015,7 +1015,6 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_featured: boolean | null
-          linked_flow_ids: Json | null
           monthly_fee_eur: number | null
           monthly_hours_estimate: number | null
           name: string
@@ -1048,7 +1047,6 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_featured?: boolean | null
-          linked_flow_ids?: Json | null
           monthly_fee_eur?: number | null
           monthly_hours_estimate?: number | null
           name: string
@@ -1081,7 +1079,6 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_featured?: boolean | null
-          linked_flow_ids?: Json | null
           monthly_fee_eur?: number | null
           monthly_hours_estimate?: number | null
           name?: string
@@ -1101,107 +1098,6 @@ export type Database = {
           value_proposition?: string | null
         }
         Relationships: []
-      }
-      pragma_flow_types: {
-        Row: {
-          description: string | null
-          icon: string | null
-          id: string
-          name: string
-          sort_order: number | null
-        }
-        Insert: {
-          description?: string | null
-          icon?: string | null
-          id: string
-          name: string
-          sort_order?: number | null
-        }
-        Update: {
-          description?: string | null
-          icon?: string | null
-          id?: string
-          name?: string
-          sort_order?: number | null
-        }
-        Relationships: []
-      }
-      pragma_flows: {
-        Row: {
-          applicable_sub_niches: Json | null
-          avg_conversion_rate: number | null
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          estimated_total_days: number | null
-          flow_type: string | null
-          id: string
-          internal_code: string | null
-          is_active: boolean | null
-          is_recommended: boolean | null
-          name: string
-          steps: Json | null
-          times_used: number | null
-          trigger_config: Json | null
-          trigger_type: string | null
-          updated_at: string | null
-          updated_by: string | null
-          use_case: string | null
-          vertical: string
-        }
-        Insert: {
-          applicable_sub_niches?: Json | null
-          avg_conversion_rate?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          estimated_total_days?: number | null
-          flow_type?: string | null
-          id?: string
-          internal_code?: string | null
-          is_active?: boolean | null
-          is_recommended?: boolean | null
-          name: string
-          steps?: Json | null
-          times_used?: number | null
-          trigger_config?: Json | null
-          trigger_type?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-          use_case?: string | null
-          vertical: string
-        }
-        Update: {
-          applicable_sub_niches?: Json | null
-          avg_conversion_rate?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          estimated_total_days?: number | null
-          flow_type?: string | null
-          id?: string
-          internal_code?: string | null
-          is_active?: boolean | null
-          is_recommended?: boolean | null
-          name?: string
-          steps?: Json | null
-          times_used?: number | null
-          trigger_config?: Json | null
-          trigger_type?: string | null
-          updated_at?: string | null
-          updated_by?: string | null
-          use_case?: string | null
-          vertical?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pragma_flows_flow_type_fkey"
-            columns: ["flow_type"]
-            isOneToOne: false
-            referencedRelation: "pragma_flow_types"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       pragma_rules: {
         Row: {
@@ -1245,11 +1141,11 @@ export type Database = {
           created_at: string
           full_proposal_content: Json | null
           id: string
-          pitch_suggestions: string | null
           pragma_notes: string | null
           pricing: Json | null
           prospect_id: string
           recommended_flow: string | null
+          recommended_offering_code: string | null
           recommended_tools: Json | null
           shared_at: string | null
           shared_with_client: boolean | null
@@ -1260,11 +1156,11 @@ export type Database = {
           created_at?: string
           full_proposal_content?: Json | null
           id?: string
-          pitch_suggestions?: string | null
           pragma_notes?: string | null
           pricing?: Json | null
           prospect_id: string
           recommended_flow?: string | null
+          recommended_offering_code?: string | null
           recommended_tools?: Json | null
           shared_at?: string | null
           shared_with_client?: boolean | null
@@ -1275,11 +1171,11 @@ export type Database = {
           created_at?: string
           full_proposal_content?: Json | null
           id?: string
-          pitch_suggestions?: string | null
           pragma_notes?: string | null
           pricing?: Json | null
           prospect_id?: string
           recommended_flow?: string | null
+          recommended_offering_code?: string | null
           recommended_tools?: Json | null
           shared_at?: string | null
           shared_with_client?: boolean | null
@@ -1674,25 +1570,6 @@ export type Database = {
           },
         ]
       }
-      v_flows_summary: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          estimated_total_days: number | null
-          flow_type_icon: string | null
-          flow_type_name: string | null
-          id: string | null
-          internal_code: string | null
-          is_active: boolean | null
-          is_recommended: boolean | null
-          name: string | null
-          step_count: number | null
-          times_used: number | null
-          trigger_type: string | null
-          vertical: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       generate_tasks_for_offering: {
@@ -1728,7 +1605,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      get_flow_with_details: { Args: { flow_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
