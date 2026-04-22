@@ -12,20 +12,11 @@ Deno.serve(async (req) => {
     const { feedback_text } = await req.json();
     if (!feedback_text) throw new Error("feedback_text is required");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const { callAI } = await import("../_shared/ai.ts");
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 80,
-        messages: [{
+    const data = await callAI({
+      max_tokens: 80,
+      messages: [{
           role: "user",
           content: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for Claude (max 15 words). Just the rule, nothing else.`,
         }],
