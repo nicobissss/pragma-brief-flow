@@ -1102,70 +1102,138 @@ export type Database = {
         }
         Relationships: []
       }
-      pragma_flows: {
+      pragma_flow_types: {
         Row: {
-          applicable_sub_niches: Json | null
           description: string | null
-          estimated_total_days: number | null
+          icon: string | null
           id: string
-          is_active: boolean | null
           name: string
-          steps: Json | null
-          updated_at: string | null
-          updated_by: string | null
-          vertical: string
+          sort_order: number | null
         }
         Insert: {
-          applicable_sub_niches?: Json | null
           description?: string | null
-          estimated_total_days?: number | null
-          id?: string
-          is_active?: boolean | null
+          icon?: string | null
+          id: string
           name: string
-          steps?: Json | null
-          updated_at?: string | null
-          updated_by?: string | null
-          vertical: string
+          sort_order?: number | null
         }
         Update: {
-          applicable_sub_niches?: Json | null
           description?: string | null
-          estimated_total_days?: number | null
+          icon?: string | null
           id?: string
-          is_active?: boolean | null
           name?: string
-          steps?: Json | null
-          updated_at?: string | null
-          updated_by?: string | null
-          vertical?: string
+          sort_order?: number | null
         }
         Relationships: []
       }
+      pragma_flows: {
+        Row: {
+          applicable_sub_niches: Json | null
+          avg_conversion_rate: number | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          estimated_total_days: number | null
+          flow_type: string | null
+          id: string
+          internal_code: string | null
+          is_active: boolean | null
+          is_recommended: boolean | null
+          name: string
+          steps: Json | null
+          times_used: number | null
+          trigger_config: Json | null
+          trigger_type: string | null
+          updated_at: string | null
+          updated_by: string | null
+          use_case: string | null
+          vertical: string
+        }
+        Insert: {
+          applicable_sub_niches?: Json | null
+          avg_conversion_rate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          estimated_total_days?: number | null
+          flow_type?: string | null
+          id?: string
+          internal_code?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name: string
+          steps?: Json | null
+          times_used?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          use_case?: string | null
+          vertical: string
+        }
+        Update: {
+          applicable_sub_niches?: Json | null
+          avg_conversion_rate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          estimated_total_days?: number | null
+          flow_type?: string | null
+          id?: string
+          internal_code?: string | null
+          is_active?: boolean | null
+          is_recommended?: boolean | null
+          name?: string
+          steps?: Json | null
+          times_used?: number | null
+          trigger_config?: Json | null
+          trigger_type?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          use_case?: string | null
+          vertical?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pragma_flows_flow_type_fkey"
+            columns: ["flow_type"]
+            isOneToOne: false
+            referencedRelation: "pragma_flow_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pragma_rules: {
         Row: {
+          applies_to_vertical: string | null
           category: string
           content: string
           id: string
           is_active: boolean | null
           name: string
+          sort_order: number | null
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
+          applies_to_vertical?: string | null
           category: string
           content: string
           id?: string
           is_active?: boolean | null
           name: string
+          sort_order?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
+          applies_to_vertical?: string | null
           category?: string
           content?: string
           id?: string
           is_active?: boolean | null
           name?: string
+          sort_order?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -1606,6 +1674,25 @@ export type Database = {
           },
         ]
       }
+      v_flows_summary: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          estimated_total_days: number | null
+          flow_type_icon: string | null
+          flow_type_name: string | null
+          id: string | null
+          internal_code: string | null
+          is_active: boolean | null
+          is_recommended: boolean | null
+          name: string | null
+          step_count: number | null
+          times_used: number | null
+          trigger_type: string | null
+          vertical: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_tasks_for_offering: {
@@ -1641,6 +1728,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_flow_with_details: { Args: { flow_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
