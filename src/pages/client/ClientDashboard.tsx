@@ -7,9 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   FileText, Image as ImageIcon, Mail, PenTool, ChevronDown,
-  CheckCircle2, AlertCircle, Sparkles, Paperclip,
+  CheckCircle2, AlertCircle, Paperclip,
 } from "lucide-react";
-import { format } from "date-fns";
 import { ProgressIndicator } from "@/components/shared/ProgressIndicator";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { OfferingDetails } from "@/components/shared/OfferingDetails";
