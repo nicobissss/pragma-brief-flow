@@ -20,6 +20,8 @@ type KPIData = {
   waitingClientApproval: number;
   followUpsDue: number;
   overdueCount: number;
+  openProposals: number;
+  agingProposals: number;
 };
 
 type ProspectCard = {
@@ -70,13 +72,21 @@ const PIPELINE_LABELS: Record<string, string> = {
   rejected: "Rejected",
 };
 
-const CLIENT_PIPELINE = ["kickoff", "materials", "production", "review", "completed"] as const;
+// NOTE: pipeline_status valori in DB sono in spagnolo (sincronizzati dai trigger sync_pipeline_*)
+const CLIENT_PIPELINE = ["kickoff", "materiales", "producción", "revisión", "completado"] as const;
 const CLIENT_PIPELINE_LABELS: Record<string, string> = {
   kickoff: "Kickoff",
-  materials: "Materiales",
-  production: "Producción",
-  review: "Revisión",
-  completed: "Completado",
+  materiales: "Materiales",
+  "producción": "Producción",
+  "revisión": "Revisión",
+  completado: "Completado",
+};
+// Migration helpers per stati legacy in inglese
+const PIPELINE_LEGACY_MAP: Record<string, string> = {
+  materials: "materiales",
+  production: "producción",
+  review: "revisión",
+  completed: "completado",
 };
 
 const VERTICAL_COLORS: Record<string, string> = {
@@ -116,7 +126,7 @@ type TodayAction = { text: string; link: string; type: "urgent" | "normal" };
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0 });
+  const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0, openProposals: 0, agingProposals: 0 });
   const [prospects, setProspects] = useState<ProspectCard[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
@@ -129,12 +139,13 @@ export default function AdminDashboard() {
       const today = format(new Date(), "yyyy-MM-dd");
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
 
-      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes] = await Promise.all([
+      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes, offeringsRes] = await Promise.all([
         supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, call_date, status, follow_up_date"),
         supabase.from("clients").select("id, name, company_name, vertical, pipeline_status, created_at, status").eq("status", "active"),
         supabase.from("assets").select("id, client_id, asset_type, asset_name, asset_title, status, created_at"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
+        supabase.from("client_offerings").select("id, status, proposed_at").eq("status", "proposed"),
       ]);
 
       const allProspects = (prospectsRes.data || []) as any[];
@@ -142,15 +153,19 @@ export default function AdminDashboard() {
       const allAssets = (assetsRes.data || []) as any[];
       const allFollowUps = (followUpsRes.data || []) as FollowUp[];
       const allActivity = (activityRes.data || []) as ActivityItem[];
+      const openOfferings = (offeringsRes.data || []) as any[];
 
       const newThisWeek = allProspects.filter(p => p.created_at >= weekStart).length;
       const verticals = new Set(allClients.map((c: any) => c.vertical));
       const pendingAssets = allAssets.filter((a: any) => a.status === "pending_review" || a.status === "change_requested").length;
       const waitingClient = allAssets.filter((a: any) => a.status === "pending_review").length;
       const overdueCount = allFollowUps.filter(f => isBefore(new Date(f.follow_up_date), startOfDay(new Date())) && !isToday(new Date(f.follow_up_date))).length;
+      const agingProposals = openOfferings.filter(o => o.proposed_at && differenceInDays(new Date(), new Date(o.proposed_at)) > 5).length;
 
+      // Normalize legacy EN pipeline statuses → ES
       const clientRows: ClientRow[] = allClients.map((c: any) => ({
         ...c,
+        pipeline_status: PIPELINE_LEGACY_MAP[c.pipeline_status || ""] || c.pipeline_status,
         assets: allAssets.filter((a: any) => a.client_id === c.id),
       }));
 
@@ -161,6 +176,12 @@ export default function AdminDashboard() {
         actions.push({
           text: `${newProspects.length} prospect${newProspects.length > 1 ? "s" : ""} sin revisar`,
           link: "/admin/prospects", type: "urgent"
+        });
+      }
+      if (agingProposals > 0) {
+        actions.push({
+          text: `${agingProposals} propuesta${agingProposals > 1 ? "s" : ""} sin respuesta hace +5 días`,
+          link: "/admin/clients", type: "urgent"
         });
       }
       const todayCalls = allProspects.filter(p => p.call_date && isToday(new Date(p.call_date)));
@@ -187,6 +208,8 @@ export default function AdminDashboard() {
         waitingClientApproval: waitingClient,
         followUpsDue: allFollowUps.length,
         overdueCount,
+        openProposals: openOfferings.length,
+        agingProposals,
       });
       setProspects(allProspects);
       setClients(clientRows);
@@ -261,9 +284,10 @@ export default function AdminDashboard() {
         <div className="flex-1 min-w-0 space-y-8">
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <KPICard icon={<Users className="w-5 h-5" />} label="Total Prospects" value={kpis.totalProspects} subtitle={`+${kpis.newThisWeek} this week`} color="hsl(216 72% 22%)" />
             <KPICard icon={<Building2 className="w-5 h-5" />} label="Active Clients" value={kpis.activeClients} subtitle={`${kpis.verticalsCount} verticals covered`} color="hsl(153 54% 16%)" />
+            <KPICard icon={<FileText className="w-5 h-5" />} label="Propuestas abiertas" value={kpis.openProposals} subtitle={kpis.agingProposals > 0 ? `⚠ ${kpis.agingProposals} sin respuesta +5d` : "Sin retrasos"} color={kpis.agingProposals > 0 ? "hsl(0 84% 60%)" : "hsl(216 72% 22%)"} pulse={kpis.agingProposals > 0} />
             <KPICard icon={<FileWarning className="w-5 h-5" />} label="Assets Pending" value={kpis.pendingAssets} subtitle={`${kpis.waitingClientApproval} waiting client approval`} color="hsl(25 95% 53%)" pulse={kpis.pendingAssets > 0} />
             <KPICard icon={<CalendarClock className="w-5 h-5" />} label="Follow Ups Due" value={kpis.followUpsDue} subtitle={`${kpis.overdueCount} overdue`} color={kpis.overdueCount > 0 ? "hsl(0 84% 60%)" : "hsl(215 16% 47%)"} />
           </div>
