@@ -265,14 +265,7 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
         const f = files[i];
         const filePath = `${clientId}/${assetType}/${Date.now()}_${f.file.name}`;
 
-        const { error: uploadErr } = await supabase.storage
-          .from("client-assets")
-          .upload(filePath, f.file);
-        if (uploadErr) throw uploadErr;
-
-        const { data: urlData } = supabase.storage
-          .from("client-assets")
-          .getPublicUrl(filePath);
+        const signedUrl = await uploadClientAsset(filePath, f.file);
 
         const itemName = files.length === 1
           ? deriveAssetName(assetType, [f], url, pasteText, assetName)
