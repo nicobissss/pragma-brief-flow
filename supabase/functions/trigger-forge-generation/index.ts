@@ -52,17 +52,96 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build payload that Forge will consume
-    const payload = {
-      action: asset_id ? "regenerate_asset" : campaign_id ? "generate_campaign_assets" : "generate_single_asset",
-      client_id,
-      campaign_id: campaign_id || null,
-      asset_type: asset_type || null,
-      asset_id: asset_id || null,
-      notes: notes || null,
-      callback_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/webhook-receiver`,
-      requested_at: new Date().toISOString(),
+    // Forge requires client_id + asset_type + asset_name on every call.
+    // Build one or more payloads (fan-out for campaign batches).
+    const ASSET_TYPES = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+
+    let existingAsset: any = null;
+    if (asset_id) {
+      const { data } = await supabase
+        .from("assets")
+        .select("asset_name, asset_type, version, campaign_id")
+        .eq("id", asset_id)
+        .maybeSingle();
+      existingAsset = data;
+    }
+
+    let campaignName: string | null = null;
+    if (campaign_id) {
+      const { data } = await supabase
+        .from("campaigns")
+        .select("name")
+        .eq("id", campaign_id)
+        .maybeSingle();
+      campaignName = data?.name ?? null;
+    }
+
+    const buildAssetName = (type: string) => {
+      const base = campaignName || "Asset";
+      const label = type.replace(/_/g, " ");
+      return `${base} - ${label}`;
     };
+
+    const callbackUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/webhook-receiver`;
+    const requestedAt = new Date().toISOString();
+
+    type ForgePayload = {
+      action: string;
+      client_id: string;
+      campaign_id: string | null;
+      asset_type: string;
+      asset_name: string;
+      asset_id: string | null;
+      version?: number;
+      notes: string | null;
+      callback_url: string;
+      requested_at: string;
+    };
+
+    const payloads: ForgePayload[] = [];
+
+    if (asset_id && existingAsset) {
+      payloads.push({
+        action: "regenerate_asset",
+        client_id,
+        campaign_id: existingAsset.campaign_id ?? campaign_id ?? null,
+        asset_type: existingAsset.asset_type,
+        asset_name: existingAsset.asset_name,
+        asset_id,
+        version: (existingAsset.version ?? 1) + 1,
+        notes: notes || null,
+        callback_url: callbackUrl,
+        requested_at: requestedAt,
+      });
+    } else if (campaign_id && !asset_type) {
+      // Fan out: one call per asset type
+      for (const t of ASSET_TYPES) {
+        payloads.push({
+          action: "generate_single_asset",
+          client_id,
+          campaign_id,
+          asset_type: t,
+          asset_name: buildAssetName(t),
+          asset_id: null,
+          notes: notes || null,
+          callback_url: callbackUrl,
+          requested_at: requestedAt,
+        });
+      }
+    } else {
+      const t = asset_type || "landing_page";
+      payloads.push({
+        action: "generate_single_asset",
+        client_id,
+        campaign_id: campaign_id || null,
+        asset_type: t,
+        asset_name: buildAssetName(t),
+        asset_id: null,
+        notes: notes || null,
+        callback_url: callbackUrl,
+        requested_at: requestedAt,
+      });
+    }
 
     // Log outbound webhook
     const { data: logRow } = await supabase
