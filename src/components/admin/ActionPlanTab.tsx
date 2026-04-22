@@ -275,7 +275,8 @@ export default function ActionPlanTab({ clientId }: { clientId: string }) {
                     expanded={expanded.has(task.id)}
                     onToggleExpand={() => {
                       const next = new Set(expanded);
-                      next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+                      if (next.has(task.id)) next.delete(task.id);
+                      else next.add(task.id);
                       setExpanded(next);
                     }}
                     onToggleDone={() => toggleDone(task)}

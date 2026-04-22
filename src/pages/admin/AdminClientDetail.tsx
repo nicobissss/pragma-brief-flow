@@ -27,6 +27,8 @@ import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel"
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import ClientPlatformsPanel from "@/components/admin/ClientPlatformsPanel";
+import OfferingRecommendationTab from "@/components/admin/OfferingRecommendationTab";
+import ActionPlanTab from "@/components/admin/ActionPlanTab";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import { ContextScorePanel, useContextScore } from "@/components/admin/ContextScorePanel";

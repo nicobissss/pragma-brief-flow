@@ -22,6 +22,7 @@ type Offering = {
   value_proposition: string | null;
   deliverables: any;
   applicable_verticals: any;
+  applicable_sub_niches: any;
   required_platforms: any;
   recommended_platforms: any;
   monthly_fee_eur: number | null;
