@@ -202,6 +202,7 @@ export default function AdminClientDetail() {
   const promptsRef = useRef<HTMLDivElement>(null);
 
   const [defaultTab, setDefaultTab] = useState<string>("prospect");
+  const [hasOffering, setHasOffering] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
