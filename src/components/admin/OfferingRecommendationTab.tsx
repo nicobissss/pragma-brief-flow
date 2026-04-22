@@ -478,10 +478,11 @@ function RecommendationCard({
   proposing: boolean;
 }) {
   const scorePct = Math.round(rec.score * 100);
+  const [showDetails, setShowDetails] = useState(false);
   return (
     <div className={`bg-card border rounded-2xl p-5 space-y-4 shadow-sm ${isBest ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             {isBest && (
               <Badge className="bg-primary text-primary-foreground border-0">
@@ -492,9 +493,6 @@ function RecommendationCard({
             <Badge variant="outline" className="text-[10px]">{rec.category}</Badge>
           </div>
           <h3 className="text-lg font-semibold text-foreground">{rec.name}</h3>
-          {rec.value_proposition && (
-            <p className="text-sm text-muted-foreground">{rec.value_proposition}</p>
-          )}
         </div>
         <div className="text-right">
           <p className="text-base font-semibold text-foreground">{formatPricing(rec)}</p>
@@ -512,15 +510,30 @@ function RecommendationCard({
         <Progress value={scorePct} className="h-2" />
       </div>
 
+      <OfferingDetails offering={rec as any} audience="admin" showSteps={showDetails} />
+
+      <button
+        onClick={() => setShowDetails((v) => !v)}
+        className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+      >
+        {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        {showDetails ? "Ocultar pasos de la campaña" : "Ver pasos de la campaña"}
+      </button>
+
       {rec.reasons.length > 0 && (
-        <ul className="space-y-1">
-          {rec.reasons.map((r, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-              <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="bg-secondary/30 rounded-lg p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Por qué encaja
+          </p>
+          <ul className="space-y-1">
+            {rec.reasons.map((r, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <CheckCircle2 className="w-4 h-4 text-[hsl(142,71%,35%)] mt-0.5 shrink-0" />
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {rec.missingPlatforms.length > 0 && (
