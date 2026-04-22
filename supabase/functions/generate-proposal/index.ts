@@ -218,17 +218,16 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
     const full = proposal.full || {};
 
     // Save to proposals table — store both blocks
+    // recommended_flow = nombre comercial (retro-compat con UI legacy)
+    // recommended_offering_code = código técnico (TIER1_*)
     const { error: saveErr } = await supabaseAdmin.from("proposals").upsert({
       prospect_id,
-      recommended_flow: summary.recommended_offering_code || null,
+      recommended_flow: summary.recommended_offering_name || null,
+      recommended_offering_code: summary.recommended_offering_code || null,
       recommended_tools: [],
       pricing: { offering_code: summary.recommended_offering_code, language: outputLanguage },
-      pitch_suggestions: JSON.stringify({
-        summary,
-        full,
-      }),
       full_proposal_content: { summary, full },
-    }, { onConflict: "prospect_id" });
+    } as any, { onConflict: "prospect_id" });
 
     if (saveErr) throw saveErr;
 

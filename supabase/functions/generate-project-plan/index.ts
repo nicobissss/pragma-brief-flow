@@ -17,29 +17,29 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const [clientRes, flowsRes] = await Promise.all([
-      supabase.from("clients").select("*").eq("id", client_id).single(),
-      supabase.from("pragma_flows").select("*").eq("is_active", true),
-    ]);
-
-    const client = clientRes.data;
+    // Fetch client and its active offering (single source of truth — no more pragma_flows)
+    const { data: client } = await supabase.from("clients").select("*").eq("id", client_id).single();
     if (!client) throw new Error("Client not found");
 
-    const flows = flowsRes.data || [];
-    const assignedFlow = flows.find((f: any) => {
-      const niches = Array.isArray(f.applicable_sub_niches) ? f.applicable_sub_niches : [];
-      return niches.includes(client.sub_niche);
-    }) || flows[0];
+    const { data: offering } = await supabase
+      .from("client_offerings")
+      .select("*, offering_templates(name, short_name, description, deliverables)")
+      .eq("client_id", client_id)
+      .in("status", ["proposed", "accepted", "active"])
+      .order("proposed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
-    const activatedTools = Array.isArray(client.activated_tools) ? client.activated_tools : [];
+    const offeringName = offering?.custom_name || offering?.offering_templates?.name || "Pack estándar";
+    const deliverables = offering?.offering_templates?.deliverables || [];
 
     const prompt = `Generate a simple project plan for PRAGMA client ${client.name}.
 Vertical: ${client.vertical} / ${client.sub_niche}
-Activated tools: ${activatedTools.join(", ") || "Not yet defined"}
-Flow: ${assignedFlow?.name || "Standard"} (~${assignedFlow?.estimated_total_days || 30} days)
+Oferta activa: ${offeringName}
+Deliverables previstos: ${JSON.stringify(deliverables).slice(0, 500)}
 
 Return ONLY valid JSON:
 {
@@ -62,7 +62,6 @@ Return ONLY valid JSON:
     });
 
     if (!response.ok) {
-      const errText = await response.text();
       throw new Error(`Claude error: ${response.status}`);
     }
 
@@ -76,7 +75,7 @@ Return ONLY valid JSON:
     return new Response(JSON.stringify({ ok: true, plan }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error("generate-project-plan error:", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,

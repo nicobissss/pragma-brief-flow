@@ -236,6 +236,37 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (type === "task_completed") {
+      // Notify all admins
+      const { data: adminRoles } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "pragma_admin");
+      const adminEmails: string[] = [];
+      for (const r of (adminRoles || [])) {
+        const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(r.user_id);
+        if (user?.email) adminEmails.push(user.email);
+      }
+      if (adminEmails.length === 0) {
+        return new Response(JSON.stringify({ success: false, reason: "no admins" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const subject = `Cliente ${client.name} completó una tarea`;
+      const html = emailWrapper(`
+        <h2 style="color:#1a365d;">✅ Tarea completada</h2>
+        <p style="color:#4a5568;">El cliente <strong>${client.name}</strong> (${client.company_name}) acaba de marcar como completada:</p>
+        <div style="background:#f7fafc;padding:16px;border-radius:8px;border:1px solid #e5e0d6;margin:16px 0;">
+          <p style="margin:0;font-weight:600;color:#1a365d;">${vars.task_title || legacyPayload.task_title || "(tarea sin título)"}</p>
+        </div>
+        <div style="margin:30px 0;">
+          <a href="${appUrl}/admin/clients/${client_id}" style="background:#1a365d;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">Ver cliente →</a>
+        </div>
+      `);
+      for (const email of adminEmails) await sendEmail(email, subject, html);
+      await supabaseAdmin.from("email_log").insert({ type, to_email: adminEmails.join(","), subject, status: "sent", client_id });
+      return new Response(JSON.stringify({ success: true, sent_to: adminEmails }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (type === "client_welcome") {
       const welcomeData = data || legacyPayload.data;
       if (!welcomeData?.email || !welcomeData?.name) throw new Error("client_welcome requires data.name and data.email");
