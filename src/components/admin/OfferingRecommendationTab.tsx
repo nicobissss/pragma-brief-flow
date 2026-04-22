@@ -96,6 +96,11 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
   const [confirmOffering, setConfirmOffering] = useState<Recommendation | Offering | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [changing, setChanging] = useState(false);
+  // Editable fields in the propose dialog
+  const [proposeName, setProposeName] = useState("");
+  const [proposeNotes, setProposeNotes] = useState("");
+  const [includePrice, setIncludePrice] = useState(false);
+  const [proposePrice, setProposePrice] = useState<string>("");
 
   const load = async () => {
     setLoading(true);
