@@ -132,7 +132,7 @@ function TestConfigModal({ open, onClose }: { open: boolean; onClose: () => void
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Probar configuración actual</DialogTitle>
-          <DialogDescription>Así generaría Claude los prompts con esta configuración</DialogDescription>
+          <DialogDescription>Así generaría la IA los prompts con esta configuración</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

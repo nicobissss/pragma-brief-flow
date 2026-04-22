@@ -88,7 +88,7 @@ export function ContextScorePanel({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-sm">
-              {language === 'es' ? 'Contexto para Claude' : 'Context for Claude'}
+              {language === 'es' ? 'Contexto para la IA' : 'Context for AI'}
             </h3>
             <Badge variant={status.color === 'green' ? 'default' : status.color === 'amber' ? 'secondary' : 'destructive'} className="text-xs">
               {label}

@@ -65,13 +65,13 @@ export default function PromptsTab({
           <h3 className="font-semibold">Brief di questa campagna</h3>
           <span className="text-xs text-muted-foreground ml-auto mr-2">Compilare prima di generare i prompts</span>
           <Button variant="outline" size="sm" onClick={onAutoGenerateBrief} disabled={generatingBrief}>
-            {generatingBrief ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</> : <><Sparkles className="w-4 h-4 mr-1" />Genera con Claude</>}
+            {generatingBrief ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</> : <><Sparkles className="w-4 h-4 mr-1" />Genera con AI</>}
           </Button>
         </div>
 
         {generatingBrief && (
           <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground animate-pulse">
-            Claude sta analizzando il contesto del cliente...
+            L'AI sta analizzando il contesto del cliente...
           </div>
         )}
 
@@ -143,7 +143,7 @@ export default function PromptsTab({
                 <span className="inline-block">
                   <Button onClick={onGeneratePrompts} disabled={generating}
                     className={!generating ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white" : ""}>
-                    {generating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Claude is analyzing...</>
+                    {generating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Generando con AI...</>
                       : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
                       : <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>}
                   </Button>
