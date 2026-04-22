@@ -1,0 +1,562 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import {
+  CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
+} from "lucide-react";
+
+type Offering = {
+  id: string;
+  name: string;
+  short_name: string;
+  tier: number;
+  category: string;
+  description: string | null;
+  value_proposition: string | null;
+  deliverables: any;
+  applicable_verticals: any;
+  required_platforms: any;
+  recommended_platforms: any;
+  monthly_fee_eur: number | null;
+  setup_fee_eur: number | null;
+  one_shot_fee_eur: number | null;
+  setup_hours_estimate: number | null;
+  recommendation_rules: any;
+  is_featured: boolean | null;
+  is_active: boolean | null;
+};
+
+type Recommendation = Offering & {
+  score: number;
+  reasons: string[];
+  missingPlatforms: string[];
+};
+
+type ClientOffering = {
+  id: string;
+  client_id: string;
+  offering_template_id: string;
+  custom_name: string | null;
+  custom_price_eur: number | null;
+  status: string;
+  was_recommended: boolean | null;
+  recommendation_score: number | null;
+  recommendation_reasons: any;
+  proposed_at: string | null;
+  accepted_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  notes: string | null;
+};
+
+type Task = { id: string; status: string | null };
+
+const TIER_LABELS: Record<number, string> = {
+  1: "Entry",
+  2: "Retainer",
+  3: "One-shot",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  proposed: "bg-amber-500/10 text-amber-700 border-amber-500/30",
+  accepted: "bg-blue-500/10 text-blue-700 border-blue-500/30",
+  active: "bg-green-500/10 text-green-700 border-green-500/30",
+  completed: "bg-primary/10 text-primary border-primary/30",
+  paused: "bg-muted text-muted-foreground border-border",
+  cancelled: "bg-destructive/10 text-destructive border-destructive/30",
+};
+
+function formatPricing(o: Pick<Offering, "monthly_fee_eur" | "setup_fee_eur" | "one_shot_fee_eur">) {
+  if (o.one_shot_fee_eur) return `${o.one_shot_fee_eur}€ one-shot`;
+  if (o.monthly_fee_eur) {
+    return `${o.monthly_fee_eur}€/mes${o.setup_fee_eur ? ` + ${o.setup_fee_eur}€ setup` : ""}`;
+  }
+  if (o.setup_fee_eur) return `${o.setup_fee_eur}€ setup`;
+  return "Pricing custom";
+}
+
+export default function OfferingRecommendationTab({ clientId }: { clientId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [activeOffering, setActiveOffering] = useState<(ClientOffering & { template: Offering | null }) | null>(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [allOfferings, setAllOfferings] = useState<Offering[]>([]);
+  const [showAll, setShowAll] = useState(false);
+  const [proposing, setProposing] = useState<string | null>(null);
+  const [confirmOffering, setConfirmOffering] = useState<Recommendation | Offering | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [changing, setChanging] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+
+    // Active offering
+    const { data: existingArr } = await supabase
+      .from("client_offerings")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("proposed_at", { ascending: false })
+      .limit(1);
+    const existing = existingArr?.[0] as any;
+
+    if (existing && !changing) {
+      const { data: tpl } = await supabase
+        .from("offering_templates")
+        .select("*")
+        .eq("id", existing.offering_template_id)
+        .maybeSingle();
+      const { data: t } = await supabase
+        .from("action_plan_tasks")
+        .select("id, status")
+        .eq("client_offering_id", existing.id);
+      setActiveOffering({ ...(existing as ClientOffering), template: (tpl as Offering) || null });
+      setTasks((t || []) as Task[]);
+      setLoading(false);
+      return;
+    }
+
+    // Recommendations
+    const [{ data: client }, { data: kickoff }, { data: cPlatforms }, { data: offerings }] = await Promise.all([
+      supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
+      supabase.from("kickoff_briefs").select("transcript_text, client_materials").eq("client_id", clientId).maybeSingle(),
+      supabase.from("client_platforms").select("platform_id, has_access").eq("client_id", clientId),
+      supabase.from("offering_templates").select("*").eq("is_active", true).order("tier").order("sort_order"),
+    ]);
+
+    const all = (offerings || []) as Offering[];
+    setAllOfferings(all);
+
+    // Build platform → category map
+    const platformIds = (cPlatforms || []).map((p: any) => p.platform_id);
+    const { data: platformMeta } = platformIds.length
+      ? await supabase.from("supported_platforms").select("id, category, name").in("id", platformIds)
+      : { data: [] as any[] };
+    const clientCategories = new Set((platformMeta || []).map((p: any) => p.category));
+
+    const transcript = (kickoff?.transcript_text || "").toLowerCase();
+    const clientVertical = client?.vertical || "";
+
+    const recs: Recommendation[] = all.map((offering) => {
+      let score = 0;
+      const reasons: string[] = [];
+      const missing: string[] = [];
+
+      // Vertical match (30%)
+      const verticals = (offering.applicable_verticals as any) || [];
+      const verticalsArr = Array.isArray(verticals) ? verticals : [];
+      if (verticalsArr.length === 0 || verticalsArr.includes(clientVertical) || verticalsArr.includes("all")) {
+        score += 0.3;
+        if (clientVertical) reasons.push(`Adatta al vertical ${clientVertical}`);
+      }
+
+      // Keywords in transcript (25%)
+      const rules = (offering.recommendation_rules as any) || {};
+      const keywords: string[] = Array.isArray(rules.keywords_in_transcript) ? rules.keywords_in_transcript : [];
+      if (keywords.length > 0 && transcript) {
+        const matched = keywords.filter((k) => transcript.includes(String(k).toLowerCase()));
+        if (matched.length > 0) {
+          score += 0.25 * (matched.length / keywords.length);
+          reasons.push(`Mencionado en kickoff: ${matched.slice(0, 3).join(", ")}`);
+        }
+      }
+
+      // Platform check (15%)
+      const required: string[] = Array.isArray(offering.required_platforms) ? (offering.required_platforms as string[]) : [];
+      if (required.length === 0) {
+        score += 0.15;
+      } else {
+        const missingCats = required.filter((cat) => !clientCategories.has(cat));
+        if (missingCats.length === 0) {
+          score += 0.15;
+          reasons.push("Tiene todas las plataformas necesarias");
+        } else {
+          missing.push(...missingCats);
+        }
+      }
+
+      // Sub-niche bonus (15%)
+      const subNiches = (offering.applicable_sub_niches as any) || [];
+      if (Array.isArray(subNiches) && client?.sub_niche && subNiches.includes(client.sub_niche)) {
+        score += 0.15;
+        reasons.push(`Especializada en ${client.sub_niche}`);
+      }
+
+      // Featured (15%)
+      if (offering.is_featured) {
+        score += 0.15;
+        reasons.push("Oferta destacada");
+      }
+
+      return {
+        ...offering,
+        score: Math.min(score, 1),
+        reasons,
+        missingPlatforms: missing,
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    setRecommendations(recs.slice(0, 3));
+    setActiveOffering(null);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, changing]);
+
+  const handlePropose = async (offering: Recommendation | Offering) => {
+    setProposing(offering.id);
+    try {
+      const score = "score" in offering ? offering.score : null;
+      const reasons = "reasons" in offering ? offering.reasons : [];
+      const wasRecommended = recommendations.some((r) => r.id === offering.id);
+
+      const { data: created, error } = await supabase
+        .from("client_offerings")
+        .insert({
+          client_id: clientId,
+          offering_template_id: offering.id,
+          status: "proposed",
+          was_recommended: wasRecommended,
+          recommendation_score: score,
+          recommendation_reasons: reasons as any,
+          proposed_at: new Date().toISOString(),
+        } as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Auto-generate tasks
+      const { error: rpcErr } = await supabase.rpc("generate_tasks_for_offering" as any, {
+        p_client_offering_id: created.id,
+      });
+      if (rpcErr) {
+        console.warn("Task generation failed:", rpcErr);
+        toast.warning("Oferta propuesta, pero falló la generación de tareas");
+      } else {
+        toast.success("Oferta propuesta y plan de acción generado");
+      }
+
+      setConfirmOffering(null);
+      setChanging(false);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error al proponer oferta");
+    } finally {
+      setProposing(null);
+    }
+  };
+
+  const updateOfferingStatus = async (status: string, extra: Record<string, any> = {}) => {
+    if (!activeOffering) return;
+    const { error } = await supabase
+      .from("client_offerings")
+      .update({ status, ...extra } as any)
+      .eq("id", activeOffering.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Estado actualizado");
+    await load();
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  // ─── Active offering view ────────────────────────────
+  if (activeOffering && !changing) {
+    const tpl = activeOffering.template;
+    const name = activeOffering.custom_name || tpl?.name || "Oferta";
+    const deliverables = (tpl?.deliverables as any) || [];
+    const deliverablesArr = Array.isArray(deliverables) ? deliverables : Object.values(deliverables);
+    const doneTasks = tasks.filter((t) => t.status === "done").length;
+    const totalTasks = tasks.length;
+    const taskProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-2xl font-semibold text-foreground">{name}</h2>
+                <Badge variant="outline" className={STATUS_BADGE[activeOffering.status] || ""}>
+                  {activeOffering.status}
+                </Badge>
+                {activeOffering.was_recommended && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    <Sparkles className="w-3 h-3 mr-1" /> Recomendada
+                  </Badge>
+                )}
+              </div>
+              {tpl && (
+                <p className="text-sm text-muted-foreground">{tpl.value_proposition || tpl.description}</p>
+              )}
+              {tpl && (
+                <p className="text-base font-medium text-foreground">{formatPricing(tpl)}</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
+              <RefreshCw className="w-4 h-4 mr-1" /> Cambiar oferta
+            </Button>
+          </div>
+
+          {deliverablesArr.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Deliverables
+              </h3>
+              <ul className="space-y-1.5">
+                {deliverablesArr.map((d: any, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span>{typeof d === "string" ? d : d.label || d.name || JSON.stringify(d)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {totalTasks > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm text-muted-foreground">
+                  Progreso del plan: {doneTasks} / {totalTasks}
+                </span>
+                <span className="text-sm font-medium text-foreground">{taskProgress}%</span>
+              </div>
+              <Progress value={taskProgress} className="h-2" />
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            {activeOffering.status === "proposed" && (
+              <Button onClick={() => updateOfferingStatus("accepted", { accepted_at: new Date().toISOString() })}>
+                <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar como aceptada
+              </Button>
+            )}
+            {activeOffering.status === "accepted" && (
+              <Button onClick={() => updateOfferingStatus("active", { started_at: new Date().toISOString() })}>
+                <Play className="w-4 h-4 mr-1" /> Iniciar ejecución
+              </Button>
+            )}
+            {activeOffering.status === "active" && (
+              <Button variant="outline" onClick={() => updateOfferingStatus("completed", { completed_at: new Date().toISOString() })}>
+                <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar completada
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Recommendations view ────────────────────────────
+  return (
+    <div className="space-y-6">
+      {changing && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-medium text-foreground">Cambio de oferta</p>
+            <p className="text-xs text-muted-foreground">
+              Si propones una nueva oferta, la anterior quedará en historial. Los tasks ya creados se mantendrán.
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setChanging(false)}>
+            Cancelar
+          </Button>
+        </div>
+      )}
+
+      <div>
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-primary" /> Recomendaciones
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Top 3 ofertas según vertical, kickoff y plataformas del cliente.
+        </p>
+      </div>
+
+      {recommendations.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl p-8 text-center">
+          <p className="text-sm text-muted-foreground">No hay ofertas activas en el catálogo.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {recommendations.map((rec, idx) => (
+            <RecommendationCard
+              key={rec.id}
+              rec={rec}
+              isBest={idx === 0}
+              onPropose={() => setConfirmOffering(rec)}
+              proposing={proposing === rec.id}
+            />
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => setShowAll(!showAll)}
+        className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      >
+        {showAll ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        Ver todas las ofertas ({allOfferings.length})
+      </button>
+
+      {showAll && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {allOfferings.map((o) => (
+            <div key={o.id} className="bg-card border border-border rounded-xl p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-foreground text-sm">{o.name}</h4>
+                  <p className="text-xs text-muted-foreground">Tier {o.tier} · {TIER_LABELS[o.tier]}</p>
+                </div>
+                <Badge variant="outline" className="text-[10px]">{o.category}</Badge>
+              </div>
+              <p className="text-sm text-foreground font-medium">{formatPricing(o)}</p>
+              {o.description && <p className="text-xs text-muted-foreground line-clamp-2">{o.description}</p>}
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full mt-2"
+                onClick={() => setConfirmOffering(o)}
+                disabled={proposing === o.id}
+              >
+                Proponer
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      <Dialog open={!!confirmOffering} onOpenChange={(open) => !open && setConfirmOffering(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Proponer oferta al cliente</DialogTitle>
+            <DialogDescription>
+              Se creará la oferta en estado <strong>proposed</strong> y se generarán automáticamente los tasks del plan de acción.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmOffering && (
+            <div className="space-y-3 py-2">
+              <div className="bg-secondary/40 rounded-lg p-4 space-y-1">
+                <p className="font-semibold text-foreground">{confirmOffering.name}</p>
+                <p className="text-sm text-muted-foreground">{formatPricing(confirmOffering)}</p>
+                {confirmOffering.value_proposition && (
+                  <p className="text-sm text-foreground mt-2">{confirmOffering.value_proposition}</p>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOffering(null)}>Cancelar</Button>
+            <Button
+              onClick={() => confirmOffering && handlePropose(confirmOffering)}
+              disabled={!!proposing}
+            >
+              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
+              Confirmar y proponer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function RecommendationCard({
+  rec, isBest, onPropose, proposing,
+}: {
+  rec: Recommendation;
+  isBest: boolean;
+  onPropose: () => void;
+  proposing: boolean;
+}) {
+  const scorePct = Math.round(rec.score * 100);
+  return (
+    <div className={`bg-card border rounded-2xl p-5 space-y-4 shadow-sm ${isBest ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {isBest && (
+              <Badge className="bg-primary text-primary-foreground border-0">
+                <Trophy className="w-3 h-3 mr-1" /> MEJOR MATCH
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-[10px]">Tier {rec.tier}</Badge>
+            <Badge variant="outline" className="text-[10px]">{rec.category}</Badge>
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">{rec.name}</h3>
+          {rec.value_proposition && (
+            <p className="text-sm text-muted-foreground">{rec.value_proposition}</p>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-base font-semibold text-foreground">{formatPricing(rec)}</p>
+          {rec.setup_hours_estimate && (
+            <p className="text-xs text-muted-foreground">~{rec.setup_hours_estimate}h setup</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-muted-foreground">Match score</span>
+          <span className="text-xs font-semibold text-foreground">{scorePct}%</span>
+        </div>
+        <Progress value={scorePct} className="h-2" />
+      </div>
+
+      {rec.reasons.length > 0 && (
+        <ul className="space-y-1">
+          {rec.reasons.map((r, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+              <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+              <span>{r}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {rec.missingPlatforms.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-1">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-700">
+            <AlertTriangle className="w-4 h-4" />
+            Plataformas faltantes
+          </div>
+          {rec.missingPlatforms.map((p, i) => (
+            <p key={i} className="text-xs text-foreground pl-6">
+              Falta categoría <strong>{p}</strong> → sugerir plan inicial gratuito o setup asistido
+            </p>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-2 border-t border-border">
+        <Button onClick={onPropose} disabled={proposing} className="flex-1">
+          {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
+          Proponer al cliente
+        </Button>
+      </div>
+    </div>
+  );
+}
