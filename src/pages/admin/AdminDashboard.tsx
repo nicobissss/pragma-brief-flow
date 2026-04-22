@@ -284,9 +284,10 @@ export default function AdminDashboard() {
         <div className="flex-1 min-w-0 space-y-8">
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <KPICard icon={<Users className="w-5 h-5" />} label="Total Prospects" value={kpis.totalProspects} subtitle={`+${kpis.newThisWeek} this week`} color="hsl(216 72% 22%)" />
             <KPICard icon={<Building2 className="w-5 h-5" />} label="Active Clients" value={kpis.activeClients} subtitle={`${kpis.verticalsCount} verticals covered`} color="hsl(153 54% 16%)" />
+            <KPICard icon={<FileText className="w-5 h-5" />} label="Propuestas abiertas" value={kpis.openProposals} subtitle={kpis.agingProposals > 0 ? `⚠ ${kpis.agingProposals} sin respuesta +5d` : "Sin retrasos"} color={kpis.agingProposals > 0 ? "hsl(0 84% 60%)" : "hsl(216 72% 22%)"} pulse={kpis.agingProposals > 0} />
             <KPICard icon={<FileWarning className="w-5 h-5" />} label="Assets Pending" value={kpis.pendingAssets} subtitle={`${kpis.waitingClientApproval} waiting client approval`} color="hsl(25 95% 53%)" pulse={kpis.pendingAssets > 0} />
             <KPICard icon={<CalendarClock className="w-5 h-5" />} label="Follow Ups Due" value={kpis.followUpsDue} subtitle={`${kpis.overdueCount} overdue`} color={kpis.overdueCount > 0 ? "hsl(0 84% 60%)" : "hsl(215 16% 47%)"} />
           </div>

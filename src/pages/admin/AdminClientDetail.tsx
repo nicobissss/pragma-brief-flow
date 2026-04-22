@@ -476,10 +476,10 @@ ${context}`
           <SelectTrigger className="w-[200px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="kickoff">Kickoff</SelectItem>
-            <SelectItem value="materials">Recogiendo materiales</SelectItem>
-            <SelectItem value="production">En producción</SelectItem>
-            <SelectItem value="review">En revisión</SelectItem>
-            <SelectItem value="completed">Completado</SelectItem>
+            <SelectItem value="materiales">Recogiendo materiales</SelectItem>
+            <SelectItem value="producción">En producción</SelectItem>
+            <SelectItem value="revisión">En revisión</SelectItem>
+            <SelectItem value="completado">Completado</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2 ml-auto">
