@@ -1,0 +1,1 @@
+ALTER TABLE public.tool_generations ADD COLUMN IF NOT EXISTS context_score_at_generation int;
