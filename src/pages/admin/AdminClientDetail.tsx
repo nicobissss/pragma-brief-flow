@@ -1024,6 +1024,16 @@ ${context}`
           </Collapsible>
         </TabsContent>
 
+        {/* TAB — Oferta */}
+        <TabsContent value="oferta" className="mt-6">
+          {client && <OfferingRecommendationTab clientId={client.id} />}
+        </TabsContent>
+
+        {/* TAB — Plan de Acción */}
+        <TabsContent value="plan" className="mt-6">
+          {client && <ActionPlanTab clientId={client.id} />}
+        </TabsContent>
+
         {/* TAB 3 — Prompts */}
         <TabsContent value="prompts" className="mt-6 space-y-6">
           {/* Campaign Brief */}
