@@ -456,6 +456,60 @@ export type Database = {
           },
         ]
       }
+      client_competitor_analyses: {
+        Row: {
+          ai_summary: string | null
+          analyzed_at: string | null
+          client_id: string
+          competitor_ig_handle: string | null
+          competitor_name: string | null
+          competitor_url: string | null
+          created_at: string
+          error: string | null
+          hooks: Json | null
+          id: string
+          positioning_gaps: Json | null
+          pricing_observed: Json | null
+          raw_data: Json | null
+          status: string
+          treatments: Json | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          analyzed_at?: string | null
+          client_id: string
+          competitor_ig_handle?: string | null
+          competitor_name?: string | null
+          competitor_url?: string | null
+          created_at?: string
+          error?: string | null
+          hooks?: Json | null
+          id?: string
+          positioning_gaps?: Json | null
+          pricing_observed?: Json | null
+          raw_data?: Json | null
+          status?: string
+          treatments?: Json | null
+        }
+        Update: {
+          ai_summary?: string | null
+          analyzed_at?: string | null
+          client_id?: string
+          competitor_ig_handle?: string | null
+          competitor_name?: string | null
+          competitor_url?: string | null
+          created_at?: string
+          error?: string | null
+          hooks?: Json | null
+          id?: string
+          positioning_gaps?: Json | null
+          pricing_observed?: Json | null
+          raw_data?: Json | null
+          status?: string
+          treatments?: Json | null
+        }
+        Relationships: []
+      }
       client_context_snapshots: {
         Row: {
           client_id: string | null
@@ -674,9 +728,43 @@ export type Database = {
           },
         ]
       }
+      client_winning_patterns: {
+        Row: {
+          asset_type: string | null
+          client_id: string
+          created_at: string
+          extracted_patterns: Json | null
+          id: string
+          performance_metric: string | null
+          source_content: string | null
+          source_label: string | null
+        }
+        Insert: {
+          asset_type?: string | null
+          client_id: string
+          created_at?: string
+          extracted_patterns?: Json | null
+          id?: string
+          performance_metric?: string | null
+          source_content?: string | null
+          source_label?: string | null
+        }
+        Update: {
+          asset_type?: string | null
+          client_id?: string
+          created_at?: string
+          extracted_patterns?: Json | null
+          id?: string
+          performance_metric?: string | null
+          source_content?: string | null
+          source_label?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           activated_tools: Json | null
+          city: string | null
           company_name: string
           created_at: string
           email: string
@@ -692,9 +780,11 @@ export type Database = {
           sub_niche: string
           user_id: string | null
           vertical: string
+          website_url: string | null
         }
         Insert: {
           activated_tools?: Json | null
+          city?: string | null
           company_name: string
           created_at?: string
           email: string
@@ -710,9 +800,11 @@ export type Database = {
           sub_niche: string
           user_id?: string | null
           vertical: string
+          website_url?: string | null
         }
         Update: {
           activated_tools?: Json | null
+          city?: string | null
           company_name?: string
           created_at?: string
           email?: string
@@ -728,6 +820,7 @@ export type Database = {
           sub_niche?: string
           user_id?: string | null
           vertical?: string
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -941,6 +1034,42 @@ export type Database = {
           },
         ]
       }
+      kickoff_question_templates: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          order_index: number
+          question_text: string
+          sub_niche: string | null
+          updated_at: string
+          vertical: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          order_index?: number
+          question_text: string
+          sub_niche?: string | null
+          updated_at?: string
+          vertical: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          order_index?: number
+          question_text?: string
+          sub_niche?: string | null
+          updated_at?: string
+          vertical?: string
+        }
+        Relationships: []
+      }
       kickoff_questions: {
         Row: {
           category: string
@@ -950,6 +1079,8 @@ export type Database = {
           is_checked: boolean
           order_index: number
           question_text: string
+          sub_niche: string | null
+          vertical: string | null
         }
         Insert: {
           category?: string
@@ -959,6 +1090,8 @@ export type Database = {
           is_checked?: boolean
           order_index?: number
           question_text: string
+          sub_niche?: string | null
+          vertical?: string | null
         }
         Update: {
           category?: string
@@ -968,6 +1101,8 @@ export type Database = {
           is_checked?: boolean
           order_index?: number
           question_text?: string
+          sub_niche?: string | null
+          vertical?: string | null
         }
         Relationships: [
           {
@@ -1476,6 +1611,45 @@ export type Database = {
         }
         Relationships: []
       }
+      vertical_pattern_suggestions: {
+        Row: {
+          approved_as_default: boolean
+          approved_at: string | null
+          client_count: number
+          created_at: string
+          example_client_ids: string[] | null
+          id: string
+          rule_text: string
+          sub_niche: string | null
+          updated_at: string
+          vertical: string
+        }
+        Insert: {
+          approved_as_default?: boolean
+          approved_at?: string | null
+          client_count?: number
+          created_at?: string
+          example_client_ids?: string[] | null
+          id?: string
+          rule_text: string
+          sub_niche?: string | null
+          updated_at?: string
+          vertical: string
+        }
+        Update: {
+          approved_as_default?: boolean
+          approved_at?: string | null
+          client_count?: number
+          created_at?: string
+          example_client_ids?: string[] | null
+          id?: string
+          rule_text?: string
+          sub_niche?: string | null
+          updated_at?: string
+          vertical?: string
+        }
+        Relationships: []
+      }
       webhook_log: {
         Row: {
           created_at: string | null
@@ -1572,6 +1746,15 @@ export type Database = {
       }
     }
     Functions: {
+      clone_kickoff_questions_for_client: {
+        Args: {
+          p_client_id: string
+          p_replace?: boolean
+          p_sub_niche?: string
+          p_vertical: string
+        }
+        Returns: number
+      }
       generate_tasks_for_offering: {
         Args: { p_client_offering_id: string }
         Returns: {
