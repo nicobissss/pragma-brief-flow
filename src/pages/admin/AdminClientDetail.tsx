@@ -1,44 +1,38 @@
 import { useEffect, useState, useRef } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import {
-  Loader2, Copy, Upload, CheckCircle2, Sparkles, RefreshCw,
-  ChevronDown, ChevronUp, Building2, Calendar, Globe, X, Plus, Share2, Target,
-} from "lucide-react";
-import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
-import AssetUploadZone from "@/components/kickoff/AssetUploadZone";
-import KickoffQuestionsManager from "@/components/kickoff/KickoffQuestionsManager";
-import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
-import { AssetCollectionRequest } from "@/components/admin/AssetCollectionRequest";
-import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
-import { CampaignManager } from "@/components/admin/CampaignManager";
-import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
-import ClientPlatformsPanel from "@/components/admin/ClientPlatformsPanel";
+import { ChevronDown, Building2, Calendar } from "lucide-react";
+
 import OfferingRecommendationTab from "@/components/admin/OfferingRecommendationTab";
 import ActionPlanTab from "@/components/admin/ActionPlanTab";
-import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
-import SalesCallCard from "@/components/prospect/SalesCallCard";
-import { ContextScorePanel, useContextScore } from "@/components/admin/ContextScorePanel";
+import OverviewTab from "@/components/admin/tabs/OverviewTab";
+import ProspectInfoTab from "@/components/admin/tabs/ProspectInfoTab";
+import KickoffTab from "@/components/admin/tabs/KickoffTab";
+import PromptsTab from "@/components/admin/tabs/PromptsTab";
+import AssetsTab from "@/components/admin/tabs/AssetsTab";
+
+import { type ProposalData } from "@/components/proposal/ProposalView";
+import { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
+import { useContextScore } from "@/components/admin/ContextScorePanel";
+
 const MARKETS = [
   { value: "es", label: "España" },
   { value: "it", label: "Italia" },
   { value: "ar", label: "Argentina" },
 ] as const;
 
-// ─── Types ───────────────────────────────────────────────
+const VERTICAL_COLORS: Record<string, string> = {
+  "Salud & Estética": "hsl(220, 63%, 22%)",
+  "E-Learning": "hsl(152, 44%, 23%)",
+  "Deporte Offline": "hsl(282, 54%, 36%)",
+};
+
 type Client = {
   id: string;
   name: string;
@@ -56,132 +50,25 @@ type Client = {
   project_plan_shared: boolean | null;
 };
 
-type Prospect = {
-  id: string;
-  name: string;
-  company_name: string;
-  email: string;
-  phone: string | null;
-  vertical: string;
-  sub_niche: string;
-  market: string;
-  status: string;
-  briefing_answers: Record<string, any>;
-  created_at: string;
-  call_status: string;
-  call_scheduled_at: string | null;
-  call_notes: string | null;
-  follow_up_date: string | null;
-};
-
-type KickoffBrief = {
-  id: string;
-  client_id: string;
-  suggested_questions: any;
-  transcript_text: string | null;
-  transcript_status: string | null;
-  transcript_quality: string | null;
-  audio_file_url: string | null;
-  generated_prompts: any;
-  pragma_approved: boolean | null;
-  client_rules: any;
-  client_materials: any;
-  context_completeness_score: number | null;
-  suggested_services: any;
-  suggested_services_approved: boolean | null;
-  voice_reference: string | null;
-  preferred_tone: string | null;
-};
-
-type ToolGeneration = {
-  id: string;
-  client_id: string | null;
-  tool_name: string;
-  prompt: any;
-  status: string | null;
-  sent_at: string | null;
-  created_at: string | null;
-};
-
-type AssetRow = {
-  id: string;
-  asset_name: string;
-  asset_title: string | null;
-  asset_type: string;
-  status: string;
-  file_url: string | null;
-  content: any;
-  version: number;
-  client_comment: string | null;
-  correction_prompt: string | null;
-  created_at: string;
-  strategic_note: string | null;
-  strategic_note_approved: boolean | null;
-  assigned_to: string | null;
-  due_date: string | null;
-  incorporated: boolean | null;
-};
-
-type ClientNote = {
-  id: string;
-  note: string;
-  author: string | null;
-  created_at: string;
-};
-
-// ─── Helpers ─────────────────────────────────────────────
-const VERTICAL_COLORS: Record<string, string> = {
-  "Salud & Estética": "hsl(220, 63%, 22%)",
-  "E-Learning": "hsl(152, 44%, 23%)",
-  "Deporte Offline": "hsl(282, 54%, 36%)",
-};
-
-function InfoRow({ label, value }: { label: string; value: any }) {
-  if (value === null || value === undefined || value === "") return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
-  return (
-    <div className="flex justify-between py-2 border-b border-border last:border-0">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="text-foreground text-sm font-medium text-right max-w-[60%]">{display}</span>
-    </div>
-  );
-}
-
-function ContextLine({ label, included }: { label: string; included: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span>{included ? "✅" : "⚪"}</span>
-      <span className={included ? "text-foreground" : "text-muted-foreground"}>
-        {label}{!included && " (not provided)"}
-      </span>
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<Client | null>(null);
-  const [prospect, setProspect] = useState<Prospect | null>(null);
+  const [prospect, setProspect] = useState<any | null>(null);
   const [proposal, setProposal] = useState<ProposalData | null>(null);
-  const [kickoff, setKickoff] = useState<KickoffBrief | null>(null);
-  const [assets, setAssets] = useState<AssetRow[]>([]);
+  const [kickoff, setKickoff] = useState<any | null>(null);
+  const [assets, setAssets] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [toolGenerations, setToolGenerations] = useState<ToolGeneration[]>([]);
-  const [analyzingTranscript, setAnalyzingTranscript] = useState(false);
+  const [toolGenerations, setToolGenerations] = useState<any[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [hasOffering, setHasOffering] = useState(false);
 
-  // Notes state (FEAT-04)
-  const [notes, setNotes] = useState<ClientNote[]>([]);
   const [newNote, setNewNote] = useState("");
   const [noteAuthor, setNoteAuthor] = useState("Nicolò");
-
-  // Client rules (FEAT-09)
   const [newRule, setNewRule] = useState("");
 
-  // Kickoff state
   const [transcriptText, setTranscriptText] = useState("");
   const [transcriptQuality, setTranscriptQuality] = useState("not_set");
   const [saving, setSaving] = useState(false);
@@ -189,8 +76,8 @@ export default function AdminClientDetail() {
   const [materials, setMaterials] = useState<ClientMaterialsData>({});
   const [generating, setGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<string | null>(null);
-  const [contextSources, setContextSources] = useState<any>(null);
-  const [campaignBrief, setCampaignBrief] = useState({
+  const [analyzingTranscript, setAnalyzingTranscript] = useState(false);
+  const [campaignBrief, setCampaignBrief] = useState<any>({
     campaign_objective: "",
     target_moment: "",
     main_hook: "",
@@ -198,66 +85,56 @@ export default function AdminClientDetail() {
   });
   const [briefSaved, setBriefSaved] = useState(false);
   const [generatingBrief, setGeneratingBrief] = useState(false);
-  const [showContextSources, setShowContextSources] = useState(false);
   const promptsRef = useRef<HTMLDivElement>(null);
 
-  const [defaultTab, setDefaultTab] = useState<string>("prospect");
-  const [hasOffering, setHasOffering] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   useEffect(() => {
     const fetchAll = async () => {
-      const { data: clientData } = await supabase
-        .from("clients").select("*").eq("id", id!).single();
+      const { data: clientData } = await supabase.from("clients").select("*").eq("id", id!).single();
       if (!clientData) { setLoading(false); return; }
       setClient(clientData as unknown as Client);
 
-      const kickoffPromise = supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle();
-      const assetsPromise = supabase.from("assets").select("id, asset_name, asset_title, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id, strategic_note, strategic_note_approved, assigned_to, due_date, incorporated").eq("client_id", id!);
-      const campaignsPromise = (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false });
-      const notesPromise = supabase.from("client_notes").select("*").eq("client_id", id!).order("created_at", { ascending: false });
-      const toolGensPromise = supabase.from("tool_generations").select("*").eq("client_id", id!).order("created_at", { ascending: false });
-      const offeringPromise = supabase.from("client_offerings").select("id").eq("client_id", id!).limit(1);
+      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes, offeringRes] = await Promise.all([
+        supabase.from("kickoff_briefs").select("*").eq("client_id", id!).maybeSingle(),
+        supabase.from("assets").select("id, asset_name, asset_title, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id, strategic_note, strategic_note_approved, assigned_to, due_date, incorporated, production_status").eq("client_id", id!),
+        (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false }),
+        supabase.from("client_notes").select("*").eq("client_id", id!).order("created_at", { ascending: false }),
+        supabase.from("tool_generations").select("*").eq("client_id", id!).order("created_at", { ascending: false }),
+        supabase.from("client_offerings").select("id").eq("client_id", id!).limit(1),
+      ]);
 
-      let prospectPromise: any = null;
-      let proposalPromise: any = null;
-
-      if (clientData.prospect_id) {
-        prospectPromise = supabase.from("prospects").select("*").eq("id", clientData.prospect_id).single();
-        proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
-      }
-
-      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes, offeringRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise, offeringPromise]);
-      const kickoffData = kickoffRes.data;
-      const assetsData = (assetsRes.data || []) as AssetRow[];
       setCampaigns((campaignsRes.data || []) as any[]);
-      setNotes((notesRes.data || []) as ClientNote[]);
-      setToolGenerations((toolGensRes.data || []) as ToolGeneration[]);
+      setNotes((notesRes.data || []) as any[]);
+      setToolGenerations((toolGensRes.data || []) as any[]);
       setHasOffering(!!(offeringRes.data && offeringRes.data.length > 0));
 
+      const kickoffData = kickoffRes.data;
       if (kickoffData) {
-        setKickoff(kickoffData as unknown as KickoffBrief);
+        setKickoff(kickoffData);
         setTranscriptText(kickoffData.transcript_text || "");
         setTranscriptQuality((kickoffData as any).transcript_quality || "not_set");
         setMaterials((kickoffData as any).client_materials || {});
         const gp = kickoffData.generated_prompts as any;
-        if (gp?.raw_text) {
-          setGeneratedPrompts(gp.raw_text);
-          if (gp.context_sources) setContextSources(gp.context_sources);
-        }
+        if (gp?.raw_text) setGeneratedPrompts(gp.raw_text);
       }
 
+      const assetsData = (assetsRes.data || []) as any[];
       setAssets(assetsData);
 
-      if (prospectPromise && proposalPromise) {
-        const [prospectRes, proposalRes] = await Promise.all([prospectPromise, proposalPromise]);
-        if (prospectRes.data) setProspect(prospectRes.data as unknown as Prospect);
-        if (proposalRes.data?.full_proposal_content) {
-          setProposal(proposalRes.data.full_proposal_content as unknown as ProposalData);
-        }
+      if (clientData.prospect_id) {
+        const [prospectRes, proposalRes] = await Promise.all([
+          supabase.from("prospects").select("*").eq("id", clientData.prospect_id).single(),
+          supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle(),
+        ]);
+        if (prospectRes.data) setProspect(prospectRes.data);
+        if (proposalRes.data?.full_proposal_content) setProposal(proposalRes.data.full_proposal_content as unknown as ProposalData);
       }
 
-      const hasChangeRequested = assetsData.some((a: any) => a.status === "change_requested");
-      if (hasChangeRequested) setDefaultTab("assets");
+      // Default landing tab logic
+      if (assetsData.some((a: any) => a.status === "change_requested")) {
+        setActiveTab("assets");
+      }
 
       setLoading(false);
     };
@@ -276,7 +153,7 @@ export default function AdminClientDetail() {
         const { data } = await supabase.from("kickoff_briefs")
           .insert({ client_id: client.id, transcript_text: transcriptText, transcript_quality: transcriptQuality, transcript_status: "ready" as any } as any)
           .select().single();
-        if (data) setKickoff(data as unknown as KickoffBrief);
+        if (data) setKickoff(data);
       }
       toast.success("Transcript saved!");
     } catch (e: any) {
@@ -300,36 +177,25 @@ Client rules: ${JSON.stringify(kickoff?.client_rules || [])}
 Preferred tone: ${kickoff?.preferred_tone || "not set"}
 Transcript excerpt: ${kickoff?.transcript_text?.slice(0, 2000) || "not available"}
       `.trim();
-
       const response = await supabase.functions.invoke("claude-proxy", {
         body: {
           prompt: `Based on this client context, generate a campaign brief with 4 fields.
 Return ONLY valid JSON with these exact keys:
-
-{
-  "campaign_objective": "Specific objective for this first campaign — what we want to achieve and in what timeframe. Be concrete.",
-  "target_moment": "The specific moment when their end client decides to buy — what triggers the purchase decision.",
-  "main_hook": "The main angle for this campaign — what makes it different, what emotion or urgency it leverages.",
-  "seasonal_context": "Any relevant seasonal or contextual factor (leave empty string if none applies right now)."
-}
-
-Write in the same language as the client's market (Italian for it, Spanish for es, Spanish for ar).
-Be specific to their vertical and situation — not generic.
-
+{"campaign_objective":"...","target_moment":"...","main_hook":"...","seasonal_context":""}
+Write in client's market language. Be specific.
 CLIENT CONTEXT:
 ${context}`
         }
       });
-
       if (response.data?.text) {
         const cleaned = response.data.text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
         const generated = JSON.parse(cleaned);
         setCampaignBrief(generated);
         toast.success("Brief generato — rivedi e modifica prima di salvare");
       }
-    } catch (e: any) {
-      toast.error("Errore nella generazione — compila manualmente");
+    } catch (e) {
       console.error(e);
+      toast.error("Errore nella generazione — compila manualmente");
     } finally {
       setGeneratingBrief(false);
     }
@@ -353,16 +219,13 @@ ${context}`
       if (data?.prompts) {
         if (data.structured) {
           setGeneratedPrompts(JSON.stringify(data.prompts, null, 2));
-          // Refresh tool generations
           const { data: tg } = await supabase.from("tool_generations").select("*").eq("client_id", client.id).order("created_at", { ascending: false });
-          setToolGenerations((tg || []) as ToolGeneration[]);
-          // Refresh kickoff for suggested_services
+          setToolGenerations((tg || []) as any[]);
           const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
-          if (kb) setKickoff(kb as unknown as KickoffBrief);
+          if (kb) setKickoff(kb);
         } else {
           setGeneratedPrompts(data.prompts);
         }
-        if (data.context_sources) setContextSources(data.context_sources);
         toast.success("Prompts generated successfully!");
         setTimeout(() => promptsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       } else {
@@ -385,15 +248,8 @@ ${context}`
       if (error) throw error;
       if (data?.ok) {
         toast.success("Transcripción analizada");
-        // Refresh kickoff
         const { data: kb } = await supabase.from("kickoff_briefs").select("*").eq("client_id", client.id).maybeSingle();
-        if (kb) setKickoff(kb as unknown as KickoffBrief);
-        // Auto-add suggested rules
-        if (data.suggested_client_rules?.length && kickoff) {
-          const existing = Array.isArray(kickoff.client_rules) ? kickoff.client_rules : [];
-          const merged = [...existing, ...data.suggested_client_rules];
-          await supabase.from("kickoff_briefs").update({ client_rules: merged } as any).eq("id", kickoff.id);
-        }
+        if (kb) setKickoff(kb);
       }
     } catch (e: any) {
       toast.error(e.message || "Error analyzing transcript");
@@ -402,28 +258,24 @@ ${context}`
     }
   };
 
-  const handleSendToSlotty = async (generation: ToolGeneration) => {
+  const handleSendToSlotty = async (gen: any) => {
     if (!client) return;
-    const prompt = generation.prompt;
+    const prompt = gen.prompt;
     const { data: matData } = await supabase.from("kickoff_briefs").select("client_materials").eq("client_id", client.id).maybeSingle();
-    const clientMaterials = matData?.client_materials || {};
+    const cm = (matData?.client_materials || {}) as any;
     const brandAssets = {
       brand_name: client.company_name,
-      primary_color: (clientMaterials as any).primary_color || null,
-      logo_url: (clientMaterials as any).logo_url || null,
-      photos: ((clientMaterials as any).photos || []).map((p: any) => p.url).filter(Boolean),
+      primary_color: cm.primary_color || null,
+      logo_url: cm.logo_url || null,
+      photos: (cm.photos || []).map((p: any) => p.url).filter(Boolean),
     };
     const { error } = await supabase.from("slotty_workspace_requests").insert({
-      client_id: client.id,
-      client_name: client.name,
-      client_email: client.email,
-      workspace_config: prompt.workspace_config || prompt,
-      brand_assets: brandAssets,
-      status: "pending",
+      client_id: client.id, client_name: client.name, client_email: client.email,
+      workspace_config: prompt.workspace_config || prompt, brand_assets: brandAssets, status: "pending",
     } as any);
     if (error) { toast.error("Error al enviar a Slotty"); return; }
-    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", generation.id);
-    setToolGenerations(toolGenerations.map(t => t.id === generation.id ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
+    await supabase.from("tool_generations").update({ status: "sent", sent_at: new Date().toISOString() } as any).eq("id", gen.id);
+    setToolGenerations(toolGenerations.map(t => t.id === gen.id ? { ...t, status: "sent", sent_at: new Date().toISOString() } : t));
     toast.success("Solicitud enviada a Slotty");
   };
 
@@ -461,7 +313,7 @@ ${context}`
         const { data } = await supabase.from("kickoff_briefs")
           .insert({ client_id: client.id, audio_file_url: urlData.publicUrl, transcript_status: "pending" as any } as any)
           .select().single();
-        if (data) setKickoff(data as unknown as KickoffBrief);
+        if (data) setKickoff(data);
       }
       toast.success("Audio uploaded! Transcription will be processed.");
     } catch (e: any) {
@@ -476,7 +328,6 @@ ${context}`
     setProspect({ ...prospect, ...fields });
   };
 
-  // FEAT-03: Status updates
   const updateClientStatus = async (status: string) => {
     if (!client) return;
     const { error } = await supabase.from("clients").update({ status } as any).eq("id", client.id);
@@ -493,21 +344,17 @@ ${context}`
     toast.success(`Pipeline: ${pipeline_status}`);
   };
 
-  // FEAT-04: Save note
   const handleSaveNote = async () => {
     if (!client || !newNote.trim()) return;
     const { data, error } = await supabase.from("client_notes").insert({
-      client_id: client.id,
-      note: newNote.trim(),
-      author: noteAuthor,
+      client_id: client.id, note: newNote.trim(), author: noteAuthor,
     }).select().single();
     if (error) { toast.error(error.message); return; }
-    setNotes([data as ClientNote, ...notes]);
+    setNotes([data as any, ...notes]);
     setNewNote("");
     toast.success("Nota guardada");
   };
 
-  // FEAT-09: Client rules
   const clientRules: string[] = Array.isArray(kickoff?.client_rules) ? kickoff.client_rules : [];
   const handleAddRule = async () => {
     if (!kickoff || !newRule.trim()) return;
@@ -524,7 +371,6 @@ ${context}`
     setKickoff({ ...kickoff, client_rules: updated });
   };
 
-  // FEAT-10: Revision counter
   const revisionCount = assets.reduce((sum, a) => sum + (a.version - 1), 0);
   const maxRevisions = client?.max_revision_rounds ?? 3;
   const updateMaxRevisions = async (val: number) => {
@@ -533,7 +379,6 @@ ${context}`
     setClient({ ...client, max_revision_rounds: val });
   };
 
-  // FEAT-05: Context completeness (robust system)
   const briefingAnswers = prospect?.briefing_answers || {};
   const contextScore = useContextScore({
     transcript_text: kickoff?.transcript_text,
@@ -548,23 +393,12 @@ ${context}`
   });
   const completenessPct = contextScore.percentage;
 
-  // FEAT-07: Strategic note approve
   const handleApproveStrategicNote = async (assetId: string) => {
     await supabase.from("assets").update({ strategic_note_approved: true } as any).eq("id", assetId);
     setAssets(assets.map(a => a.id === assetId ? { ...a, strategic_note_approved: true } : a));
-    const asset = assets.find(a => a.id === assetId);
-    try {
-      await supabase.from("events").insert({
-        event_type: "asset.uploaded",
-        entity_type: "asset",
-        entity_id: assetId,
-        payload: { asset_title: asset?.asset_title, client_id: client?.id, client_name: client?.name },
-      } as any);
-    } catch (_) {}
     toast.success("Nota estratégica aprobada");
   };
 
-  // FEAT-11: Share project plan
   const handleSharePlan = async () => {
     if (!client) return;
     await supabase.from("clients").update({ project_plan_shared: true } as any).eq("id", client.id);
@@ -572,7 +406,18 @@ ${context}`
     toast.success("Plan compartido con el cliente");
   };
 
-  // ─── Badge counts ──────────────────────────────────────
+  const handleMaterialsSave = async (m: ClientMaterialsData) => {
+    if (!client) return;
+    if (kickoff) {
+      await supabase.from("kickoff_briefs").update({ client_materials: m } as any).eq("id", kickoff.id);
+    } else {
+      const { data } = await supabase.from("kickoff_briefs").insert({
+        client_id: client.id, client_materials: m,
+      } as any).select().single();
+      if (data) setKickoff(data);
+    }
+  };
+
   const kickoffBadge = !kickoff?.transcript_text;
   const changeRequestedCount = assets.filter((a) => a.status === "change_requested").length;
 
@@ -587,7 +432,6 @@ ${context}`
     <div className="p-8 max-w-5xl">
       <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
         <h2 className="text-lg font-semibold text-foreground">Client not found</h2>
-        <p className="text-sm text-muted-foreground">This client may have been deleted or you don't have access.</p>
         <Button variant="outline" onClick={() => navigate("/admin/clients")}>Back to Clients</Button>
       </div>
     </div>
@@ -595,33 +439,15 @@ ${context}`
 
   const marketLabel = MARKETS.find((m) => m.value === client.market)?.label || client.market;
   const verticalColor = VERTICAL_COLORS[client.vertical] || "hsl(var(--primary))";
-  const answers = prospect?.briefing_answers || {};
   const contractType = proposal?.pricing?.contract_type;
-
-  const getAssetStatus = (type: string) => {
-    const matching = assets.filter((a) => a.asset_type === type);
-    if (matching.length === 0) return "none";
-    if (matching.some((a) => a.status === "change_requested")) return "change_requested";
-    if (matching.some((a) => a.status === "pending_review")) return "pending_review";
-    if (matching.every((a) => a.status === "approved")) return "approved";
-    return "pending_review";
-  };
-
-  const assetStatusIcon = (status: string) => {
-    switch (status) {
-      case "approved": return "✅";
-      case "pending_review": return "⏳";
-      case "change_requested": return "💬";
-      default: return "—";
-    }
-  };
 
   return (
     <div className="p-8 max-w-5xl">
       <Button variant="ghost" size="sm" onClick={() => navigate("/admin/clients")} className="mb-4">
         <ChevronDown className="w-4 h-4 mr-1 rotate-90" /> Volver a clientes
       </Button>
-      {/* ─── Header ─────────────────────────────────────── */}
+
+      {/* Header */}
       <div className="flex flex-wrap items-center gap-3 mb-2">
         <Building2 className="w-6 h-6 text-muted-foreground" />
         <h1 className="text-2xl font-bold text-foreground">{client.company_name}</h1>
@@ -633,17 +459,13 @@ ${context}`
           <Calendar className="w-3 h-3" />
           Client since {new Date(client.created_at).toLocaleDateString()}
         </span>
-        {contractType && (
-          <Badge variant="secondary" className="text-xs">{contractType}</Badge>
-        )}
+        {contractType && <Badge variant="secondary" className="text-xs">{contractType}</Badge>}
       </div>
 
-      {/* FEAT-03: Status + Pipeline selects */}
+      {/* Status & pipeline */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <Select value={client.status} onValueChange={updateClientStatus}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="active">🟢 Activo</SelectItem>
             <SelectItem value="paused">🟡 Pausado</SelectItem>
@@ -651,9 +473,7 @@ ${context}`
           </SelectContent>
         </Select>
         <Select value={client.pipeline_status || "kickoff"} onValueChange={updatePipelineStatus}>
-          <SelectTrigger className="w-[200px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-[200px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="kickoff">Kickoff</SelectItem>
             <SelectItem value="materials">Recogiendo materiales</SelectItem>
@@ -662,27 +482,25 @@ ${context}`
             <SelectItem value="completed">Completado</SelectItem>
           </SelectContent>
         </Select>
-
-        {/* FEAT-10: Revision counter */}
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground">Revisiones:</span>
           <Badge variant={revisionCount >= maxRevisions ? "destructive" : revisionCount >= maxRevisions - 1 ? "secondary" : "outline"} className="text-xs">
             {revisionCount} / {maxRevisions}
           </Badge>
           <Input
-            type="number"
-            min={1}
-            max={20}
-            value={maxRevisions}
+            type="number" min={1} max={20} value={maxRevisions}
             onChange={(e) => updateMaxRevisions(parseInt(e.target.value) || 3)}
             className="w-14 h-7 text-xs text-center"
           />
         </div>
       </div>
 
-      {/* ─── Tabs ───────────────────────────────────────── */}
-      <Tabs defaultValue={defaultTab}>
-        <TabsList className="sticky top-0 z-10 bg-background border-b border-border w-full justify-start rounded-none px-0 h-auto pb-0">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="sticky top-0 z-10 bg-background border-b border-border w-full justify-start rounded-none px-0 h-auto pb-0 overflow-x-auto">
+          <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
+            Overview
+          </TabsTrigger>
           <TabsTrigger value="prospect" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
             Prospect Info
           </TabsTrigger>
@@ -716,745 +534,105 @@ ${context}`
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1 — Prospect Info */}
-        <TabsContent value="prospect" className="mt-6 space-y-6">
-          {prospect ? (
-            <>
-              <Collapsible>
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
-                  <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
-                    <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                      Ver pre-cualificación
-                    </h3>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="px-5 pb-5 space-y-2">
-                      {([
-                        ["País", client.market === "es" ? "España" : client.market === "it" ? "Italia" : "Argentina"],
-                        ["Sector", client.vertical],
-                        ["Especialización", client.sub_niche],
-                        ["Ticket medio", answers.average_ticket
-                          ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}`
-                          : null],
-                      ] as [string, string | null][]).filter(([, v]) => v).map(([label, value]) => (
-                        <div key={label} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{label}</span>
-                          <span className="font-medium">{value}</span>
-                        </div>
-                      ))}
-                      {answers.description && (
-                        <div className="pt-2 border-t border-border text-sm space-y-1">
-                          <span className="text-muted-foreground text-xs uppercase tracking-wide">Descripción</span>
-                          <p>{answers.description}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="font-semibold text-foreground mb-4">About the Business</h3>
-                <InfoRow label="Full name" value={prospect.name} />
-                <InfoRow label="Company" value={prospect.company_name} />
-                <InfoRow label="Email" value={prospect.email} />
-                <InfoRow label="Phone" value={prospect.phone} />
-                <InfoRow label="Market" value={marketLabel} />
-                <InfoRow label="Vertical" value={prospect.vertical} />
-                <InfoRow label="Sub-niche" value={prospect.sub_niche} />
-              </div>
-
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Current Situation</h3>
-                <InfoRow label="Years in operation" value={answers.years_in_operation} />
-                <InfoRow label="Monthly new clients" value={answers.monthly_new_clients} />
-                <InfoRow label="Client sources" value={answers.client_sources} />
-                <InfoRow label="Runs paid ads" value={answers.runs_paid_ads} />
-                <InfoRow label="Ad platforms" value={answers.ad_platforms} />
-                <InfoRow label="Monthly budget" value={answers.monthly_budget} />
-                <InfoRow label="Has email list" value={answers.has_email_list} />
-                <InfoRow label="Email list size" value={answers.email_list_size} />
-                <InfoRow label="Has website" value={answers.has_website} />
-                <InfoRow label="Website URL" value={answers.website_url} />
-                <InfoRow label="Uses CRM" value={answers.uses_crm} />
-                <InfoRow label="CRM system" value={answers.crm_name} />
-              </div>
-
-              <div className="bg-card rounded-lg border border-border p-6">
-                <h3 className="font-semibold text-foreground mb-4">Goals</h3>
-                <InfoRow label="Main goal" value={answers.main_goal} />
-                <InfoRow label="Average ticket" value={answers.average_ticket ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}` : undefined} />
-                <InfoRow label="Biggest challenge" value={answers.biggest_challenge} />
-                <InfoRow label="Differentiator" value={answers.differentiator} />
-                <InfoRow label="Additional info" value={answers.additional_info} />
-              </div>
-
-              {proposal && (
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-foreground text-lg">Generated Proposal</h3>
-                  <ProposalView data={proposal} editable={false} />
-                </div>
-              )}
-
-              {prospect && (
-                <SalesCallCard
-                  prospectId={prospect.id}
-                  callStatus={prospect.call_status as any}
-                  callScheduledAt={prospect.call_scheduled_at}
-                  callNotes={prospect.call_notes}
-                  followUpDate={prospect.follow_up_date}
-                  onUpdate={handleCallUpdate}
-                />
-              )}
-            </>
-          ) : (
-            <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
-              No prospect data linked to this client.
-            </div>
-          )}
-
-          {/* FEAT-04: Internal notes */}
-          <div className="bg-card rounded-lg border border-border p-6 space-y-4">
-            <h3 className="font-semibold text-foreground">Notas internas</h3>
-            <p className="text-xs text-muted-foreground">Solo visibles para el equipo PRAGMA — nunca para el cliente.</p>
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Escribe una nota..."
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                className="min-h-[60px] flex-1"
-              />
-              <div className="flex flex-col gap-2">
-                <Select value={noteAuthor} onValueChange={setNoteAuthor}>
-                  <SelectTrigger className="w-[120px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nicolò">Nicolò</SelectItem>
-                    <SelectItem value="Karla">Karla</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" onClick={handleSaveNote} disabled={!newNote.trim()}>Guardar</Button>
-              </div>
-            </div>
-            {notes.length > 0 && (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {notes.map((n) => (
-                  <div key={n.id} className="p-3 rounded-md bg-secondary/30 text-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-foreground">{n.author || "—"}</span>
-                      <span className="text-xs text-muted-foreground">{format(new Date(n.created_at!), "dd MMM yyyy HH:mm")}</span>
-                    </div>
-                    <p className="text-muted-foreground">{n.note}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* FEAT-11: Project plan */}
-          <div className="bg-card rounded-lg border border-border p-6 space-y-3">
-            <h3 className="font-semibold text-foreground">Plan del proyecto</h3>
-            {!client.project_plan ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground mb-2">No hay plan generado aún.</p>
-                <Button variant="outline" size="sm" disabled>
-                  <Sparkles className="w-4 h-4 mr-1" /> Generar plan del proyecto
-                </Button>
-              </div>
-            ) : client.project_plan_shared ? (
-              <div className="space-y-2">
-                <Badge className="badge-accepted text-xs">✅ Plan compartido</Badge>
-                <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap">{JSON.stringify(client.project_plan, null, 2)}</pre>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap">{JSON.stringify(client.project_plan, null, 2)}</pre>
-                <Button size="sm" onClick={handleSharePlan}>
-                  <Share2 className="w-4 h-4 mr-1" /> Compartir con cliente
-                </Button>
-              </div>
-            )}
-          </div>
+        <TabsContent value="overview" className="mt-6">
+          <OverviewTab
+            client={client}
+            kickoff={kickoff}
+            hasOffering={hasOffering}
+            contextScorePct={completenessPct}
+            assets={assets}
+            onNavigateTab={setActiveTab}
+          />
         </TabsContent>
 
-        {/* TAB 2 — Kickoff */}
-        <TabsContent value="kickoff" className="mt-6 space-y-6">
-          {client && (
-            <KickoffQuestionsManager
-              clientId={client.id}
-              clientName={client.name}
-              vertical={client.vertical}
-              subNiche={client.sub_niche}
-            />
-          )}
-
-          {/* FEAT-05: Context Score */}
-          <ContextScorePanel
-            transcript_text={kickoff?.transcript_text}
-            transcript_quality={(kickoff as any)?.transcript_quality}
-            voice_reference={kickoff?.voice_reference}
-            client_rules={kickoff?.client_rules as string[] | null}
-            preferred_tone={kickoff?.preferred_tone}
-            materials={materials as any}
-            briefing_answers={briefingAnswers}
-            has_proposal={!!proposal}
-            has_campaign_brief={briefSaved || !!(campaignBrief.campaign_objective && campaignBrief.target_moment)}
-            language="es"
+        <TabsContent value="prospect" className="mt-6">
+          <ProspectInfoTab
+            client={client}
+            prospect={prospect}
+            proposal={proposal}
+            marketLabel={marketLabel}
+            notes={notes}
+            newNote={newNote}
+            setNewNote={setNewNote}
+            noteAuthor={noteAuthor}
+            setNoteAuthor={setNoteAuthor}
+            onSaveNote={handleSaveNote}
+            onCallUpdate={handleCallUpdate}
+            onSharePlan={handleSharePlan}
           />
+        </TabsContent>
 
-          {/* Transcript */}
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Kickoff Transcript</h3>
-
-            {/* FEAT-05: Transcript quality */}
-            <div className="mb-4">
-              <label className="text-sm font-medium text-foreground block mb-1.5">Calidad de la transcripción</label>
-              <Select value={transcriptQuality} onValueChange={setTranscriptQuality}>
-                <SelectTrigger className="w-[280px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="not_set">Sin evaluar</SelectItem>
-                  <SelectItem value="good">✅ Buena</SelectItem>
-                  <SelectItem value="medium">🟡 Media</SelectItem>
-                  <SelectItem value="poor">🔴 Pobre — los prompts pueden ser menos precisos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Tabs defaultValue="text">
-              <TabsList>
-                <TabsTrigger value="text">Paste Text</TabsTrigger>
-                <TabsTrigger value="audio">Upload Audio/Video</TabsTrigger>
-              </TabsList>
-              <TabsContent value="text" className="mt-4">
-                <Textarea
-                  placeholder="Paste the call transcript here..."
-                  value={transcriptText}
-                  onChange={(e) => setTranscriptText(e.target.value)}
-                  className="min-h-[200px]"
-                />
-                {transcriptText.trim() && (
-                  <Button onClick={saveTranscript} disabled={saving} className="mt-3">
-                    {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                    Save Transcript
-                  </Button>
-                )}
-              </TabsContent>
-              <TabsContent value="audio" className="mt-4">
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">Upload .mp3, .mp4, .m4a, .wav, or .webm (max 100MB)</p>
-                  <Input type="file" accept=".mp3,.mp4,.m4a,.wav,.webm" onChange={handleAudioUpload} disabled={uploadingAudio} className="max-w-xs mx-auto" />
-                  {uploadingAudio && (
-                    <div className="flex items-center justify-center gap-2 mt-3">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">Uploading...</span>
-                    </div>
-                  )}
-                  {kickoff?.audio_file_url && (
-                    <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
-                      <CheckCircle2 className="w-4 h-4 text-[hsl(142,71%,35%)]" />
-                      Audio file uploaded
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          <ClientMaterials
-            clientId={client.id}
-            kickoffId={kickoff?.id || null}
+        <TabsContent value="kickoff" className="mt-6">
+          <KickoffTab
+            client={client}
+            kickoff={kickoff}
             materials={materials}
-            onMaterialsChange={setMaterials}
-            onSave={async (m) => {
-              if (kickoff) {
-                await supabase.from("kickoff_briefs").update({ client_materials: m } as any).eq("id", kickoff.id);
-              } else {
-                const { data } = await supabase.from("kickoff_briefs").insert({
-                  client_id: client.id, client_materials: m,
-                } as any).select().single();
-                if (data) setKickoff(data as unknown as KickoffBrief);
-              }
-            }}
+            setMaterials={setMaterials}
+            onMaterialsSave={handleMaterialsSave}
+            transcriptText={transcriptText}
+            setTranscriptText={setTranscriptText}
+            transcriptQuality={transcriptQuality}
+            setTranscriptQuality={setTranscriptQuality}
+            saving={saving}
+            onSaveTranscript={saveTranscript}
+            uploadingAudio={uploadingAudio}
+            onAudioUpload={handleAudioUpload}
+            briefingAnswers={briefingAnswers}
+            proposal={proposal}
+            briefSaved={briefSaved}
+            campaignBriefSet={!!(campaignBrief.campaign_objective && campaignBrief.target_moment)}
+            newRule={newRule}
+            setNewRule={setNewRule}
+            clientRules={clientRules}
+            onAddRule={handleAddRule}
+            onRemoveRule={handleRemoveRule}
           />
-
-          <ClientPlatformsPanel clientId={client.id} />
-
-          <AssetCollectionRequest clientId={client.id} clientName={client.name} />
-
-          {/* FEAT-09: Client rules */}
-          <Collapsible>
-            <div className="bg-card rounded-lg border border-border overflow-hidden">
-              <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
-                <h3 className="font-semibold text-foreground text-sm">Reglas del cliente ({clientRules.length})</h3>
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="px-5 pb-5 space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {clientRules.map((rule, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs gap-1">
-                        {rule}
-                        <button onClick={() => handleRemoveRule(i)} className="ml-1 hover:text-destructive">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                    {clientRules.length === 0 && <p className="text-xs text-muted-foreground">Sin reglas definidas</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Añadir regla..."
-                      value={newRule}
-                      onChange={(e) => setNewRule(e.target.value)}
-                      className="flex-1"
-                      onKeyDown={(e) => e.key === "Enter" && handleAddRule()}
-                    />
-                    <Button size="sm" onClick={handleAddRule} disabled={!newRule.trim()}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
         </TabsContent>
 
-        {/* TAB — Oferta */}
         <TabsContent value="oferta" className="mt-6">
-          {client && <OfferingRecommendationTab clientId={client.id} />}
+          <OfferingRecommendationTab clientId={client.id} />
         </TabsContent>
 
-        {/* TAB — Plan de Acción */}
         <TabsContent value="plan" className="mt-6">
-          {client && <ActionPlanTab clientId={client.id} />}
+          <ActionPlanTab clientId={client.id} />
         </TabsContent>
 
-        {/* TAB 3 — Prompts */}
-        <TabsContent value="prompts" className="mt-6 space-y-6">
-          {/* Campaign Brief */}
-           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Target className="w-4 h-4 text-primary" />
-              </div>
-              <h3 className="font-semibold">Brief di questa campagna</h3>
-              <span className="text-xs text-muted-foreground ml-auto mr-2">
-                Compilare prima di generare i prompts
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={autoGenerateBrief}
-                disabled={generatingBrief}
-              >
-                {generatingBrief ? (
-                  <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</>
-                ) : (
-                  <><Sparkles className="w-4 h-4 mr-1" />Genera con Claude</>
-                )}
-              </Button>
-            </div>
-
-            {generatingBrief && (
-              <div className="bg-secondary/50 rounded-lg p-3 text-sm text-muted-foreground animate-pulse">
-                Claude sta analizzando il contesto del cliente...
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Obiettivo specifico di questa campagna
-                </Label>
-                <Textarea
-                  placeholder="Es. Lanciare il nuovo corso di yoga per principianti. Obiettivo: 20 iscritti nel primo mese."
-                  value={campaignBrief.campaign_objective}
-                  onChange={(e) => setCampaignBrief(p => ({ ...p, campaign_objective: e.target.value }))}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Il momento in cui il cliente finale decide di comprare
-                </Label>
-                <Textarea
-                  placeholder="Es. Quando si sente bloccato dopo mesi di dieta senza risultati e cerca una soluzione diversa."
-                  value={campaignBrief.target_moment}
-                  onChange={(e) => setCampaignBrief(p => ({ ...p, target_moment: e.target.value }))}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Hook principale — cosa differenzia questa campagna dalle precedenti
-                </Label>
-                <Textarea
-                  placeholder="Es. Prima campagna — focus su scarsità (posti limitati). Oppure: stagionalità settembre, back to school."
-                  value={campaignBrief.main_hook}
-                  onChange={(e) => setCampaignBrief(p => ({ ...p, main_hook: e.target.value }))}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Contesto stagionale o evento rilevante (opzionale)
-                </Label>
-                <Input
-                  placeholder="Es. Settembre, inizio anno accademico. Oppure: Black Friday, Capodanno."
-                  value={campaignBrief.seasonal_context}
-                  onChange={(e) => setCampaignBrief(p => ({ ...p, seasonal_context: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <Button
-              onClick={async () => {
-                if (!client) return;
-                const { data: campaign } = await supabase
-                  .from("campaigns")
-                  .select("id")
-                  .eq("client_id", client.id)
-                  .eq("status", "active")
-                  .maybeSingle();
-
-                if (campaign) {
-                  await supabase.from("campaigns").update({
-                    objective: campaignBrief.campaign_objective,
-                    key_message: campaignBrief.main_hook,
-                    description: `Momento decisione: ${campaignBrief.target_moment}. Stagionale: ${campaignBrief.seasonal_context}`,
-                  } as any).eq("id", campaign.id);
-                } else {
-                  await supabase.from("campaigns").insert({
-                    client_id: client.id,
-                    name: `Campagna ${new Date().toLocaleDateString()}`,
-                    status: "active",
-                    objective: campaignBrief.campaign_objective,
-                    key_message: campaignBrief.main_hook,
-                    description: `Momento decisione: ${campaignBrief.target_moment}. Stagionale: ${campaignBrief.seasonal_context}`,
-                  } as any);
-                }
-                setBriefSaved(true);
-                toast.success("Brief salvato — ora puoi generare i prompts");
-              }}
-              disabled={!campaignBrief.campaign_objective || !campaignBrief.target_moment}
-              className="w-full"
-            >
-              {briefSaved ? <><CheckCircle2 className="w-4 h-4 mr-2" />Brief salvato</> : "Salva brief e sblocca generazione"}
-            </Button>
-          </div>
-
-          {/* Prerequisite checklist */}
-          <div className="bg-card rounded-lg border border-border p-5 space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prerequisitos</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <ContextLine label="Brief campagna compilato" included={briefSaved} />
-              <ContextLine label="Transcripción cargada y analizada" included={!!kickoff?.transcript_text && !!kickoff?.voice_reference} />
-              <ContextLine label="Servicios aprobados" included={!!kickoff?.suggested_services_approved} />
-              <ContextLine label="Al menos 1 tool activado" included={toolGenerations.length > 0 || !!(kickoff?.suggested_services as any[])?.some?.((s: any) => s.recommended)} />
-              <ContextLine label="Materiales subidos" included={!!((materials as any)?.photos?.length || (materials as any)?.website_context)} />
-              <ContextLine label={`Contexto ≥ 60% (${completenessPct}%)`} included={completenessPct >= 60} />
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-2">
-              {kickoff?.transcript_text && !kickoff?.voice_reference && (
-                <Button variant="outline" size="sm" onClick={handleAnalyzeTranscript} disabled={analyzingTranscript}>
-                  {analyzingTranscript ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Sparkles className="w-4 h-4 mr-1" />}
-                  Analizar transcripción
-                </Button>
-              )}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-block">
-                      <Button
-                        onClick={handleGeneratePrompts}
-                        disabled={generating || !contextScore.ready}
-                        className={contextScore.ready && !generating
-                          ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white"
-                          : ""}
-                      >
-                        {generating ? (
-                          <><Loader2 className="w-4 h-4 animate-spin mr-2" />Claude is analyzing...</>
-                        ) : generatedPrompts ? (
-                          <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
-                        ) : (
-                          <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>
-                        )}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  {!contextScore.ready && (
-                    <TooltipContent>
-                      <p>
-                        {contextScore.missingCritical.length > 0
-                          ? `Falta: ${contextScore.missingCritical.map(c => c.labelEs).join(', ')}`
-                          : `Necesitas ${70 - contextScore.percentage}% más de contexto`
-                        }
-                      </p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-
-          {/* Suggested services */}
-          {kickoff?.suggested_services && Array.isArray(kickoff.suggested_services) && kickoff.suggested_services.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Servicios sugeridos</h3>
-              {(kickoff.suggested_services as any[]).map((svc: any, i: number) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-foreground">{svc.tool_name}</h4>
-                        <Badge variant="outline" className="text-xs">Prioridad: {svc.priority}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{svc.reason}</p>
-                    </div>
-                    <Switch
-                      checked={svc.approved || false}
-                      onCheckedChange={async (checked) => {
-                        const updated = (kickoff.suggested_services as any[]).map((s: any, j: number) =>
-                          j === i ? { ...s, approved: checked } : s
-                        );
-                        setKickoff({ ...kickoff, suggested_services: updated });
-                        await supabase.from("kickoff_briefs")
-                          .update({ suggested_services: updated } as any)
-                          .eq("client_id", client.id);
-                      }}
-                    />
-                  </div>
-                  {svc.approved && (
-                    <span className="text-xs text-green-600 font-medium mt-2 block">Activado</span>
-                  )}
-                </div>
-              ))}
-              {!(kickoff.suggested_services as any[]).some((s: any) => s.approved) ? null : 
-                !kickoff.suggested_services_approved ? (
-                  <Button size="sm" onClick={async () => {
-                    await supabase.from("kickoff_briefs").update({ suggested_services_approved: true } as any).eq("id", kickoff.id);
-                    setKickoff({ ...kickoff, suggested_services_approved: true });
-                    toast.success("Servicios aprobados");
-                  }}>
-                    Aprobar servicios
-                  </Button>
-                ) : (
-                  <Badge className="badge-accepted text-xs">✅ Servicios aprobados</Badge>
-                )
-              }
-            </div>
-          )}
-
-          {/* Tool generation cards */}
-          {toolGenerations.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Prompts por herramienta</h3>
-                {toolGenerations.some(t => t.status === "prompt_ready") && (
-                  <Button size="sm" variant="outline" onClick={handleApproveAllGens}>
-                    <CheckCircle2 className="w-4 h-4 mr-1" /> Aprobar todos
-                  </Button>
-                )}
-              </div>
-              {toolGenerations.map((gen) => {
-                const prompt = gen.prompt || {};
-                const toolIcons: Record<string, string> = { Slotty: "🔧", "Landing + Email": "🏠", "Blog System": "📝" };
-                const toolBorderColors: Record<string, string> = {
-                  Slotty: "hsl(var(--primary))",
-                  "Landing + Email": "hsl(152, 44%, 23%)",
-                  "Blog System": "hsl(38, 92%, 50%)",
-                };
-                const isSlotty = gen.tool_name.toLowerCase().includes("slotty");
-                return (
-                  <Collapsible key={gen.id}>
-                    <div
-                      className="bg-card rounded-lg border border-border overflow-hidden"
-                      style={{ borderLeftWidth: "4px", borderLeftColor: toolBorderColors[gen.tool_name] || "hsl(var(--primary))" }}
-                    >
-                      <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{toolIcons[gen.tool_name] || "⚙️"}</span>
-                          <span className="font-semibold text-foreground">{gen.tool_name}</span>
-                          <Badge variant={gen.status === "sent" ? "default" : "outline"} className="text-xs">
-                            {gen.status === "sent" ? "✅ Enviado" : gen.status}
-                          </Badge>
-                        </div>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <div className="px-4 pb-4 space-y-3">
-                          {prompt.objective && (
-                            <p className="text-sm text-muted-foreground"><strong>Objetivo:</strong> {prompt.objective}</p>
-                          )}
-
-                          {/* Slotty specific */}
-                          {prompt.workspace_config && (
-                            <Collapsible>
-                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
-                                <ChevronDown className="w-3 h-3" /> Ver configuración completa
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
-                                  {JSON.stringify(prompt.workspace_config, null, 2)}
-                                </pre>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-
-                          {/* Landing + Email specific */}
-                          {prompt.system_prompt && (
-                            <Collapsible>
-                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
-                                <ChevronDown className="w-3 h-3" /> Ver prompt sistema
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <pre className="text-xs bg-secondary/20 rounded-md p-3 mt-2 whitespace-pre-wrap overflow-auto max-h-64">
-                                  {prompt.system_prompt}
-                                </pre>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-                          {prompt.landing_task_prompts && (
-                            <Collapsible>
-                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
-                                <ChevronDown className="w-3 h-3" /> Ver tasks landing ({prompt.landing_task_prompts.length})
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
-                                  {prompt.landing_task_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                                </ul>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-                          {prompt.email_sequence_prompts && (
-                            <Collapsible>
-                              <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1">
-                                <ChevronDown className="w-3 h-3" /> Ver tasks email ({prompt.email_sequence_prompts.length})
-                              </CollapsibleTrigger>
-                              <CollapsibleContent>
-                                <ul className="text-xs space-y-1 mt-2 pl-4 list-disc text-muted-foreground">
-                                  {prompt.email_sequence_prompts.map((t: string, i: number) => <li key={i}>{t}</li>)}
-                                </ul>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-
-                          {/* Blog specific */}
-                          {prompt.topics && (
-                            <div className="text-sm"><strong className="text-foreground">Topics:</strong> <span className="text-muted-foreground">{prompt.topics.join(", ")}</span></div>
-                          )}
-                          {prompt.keyword_focus && (
-                            <div className="text-sm"><strong className="text-foreground">Keywords:</strong> <span className="text-muted-foreground">{prompt.keyword_focus.join(", ")}</span></div>
-                          )}
-
-                          <div className="flex gap-2 pt-2">
-                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(JSON.stringify(prompt, null, 2)); toast.success("JSON copiado"); }}>
-                              <Copy className="w-4 h-4 mr-1" /> Copiar JSON
-                            </Button>
-                            {isSlotty && gen.status !== "sent" && (
-                              <Button size="sm" onClick={() => handleSendToSlotty(gen)}>
-                                Crear workspace en Slotty →
-                              </Button>
-                            )}
-                            {!isSlotty && gen.status !== "sent" && (
-                              <Button size="sm" variant="outline" onClick={() => handleMarkSent(gen.id)}>
-                                Marcar como enviado →
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Legacy raw text prompts */}
-          {generatedPrompts && typeof generatedPrompts === "string" && !toolGenerations.length && (
-            <div ref={promptsRef} className="bg-card rounded-lg border border-border p-6">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-foreground text-sm">Prompts (texto)</h3>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(generatedPrompts); toast.success("Copied!"); }}>
-                  <Copy className="w-4 h-4 mr-1" /> Copy all
-                </Button>
-              </div>
-              <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap bg-secondary/20 rounded-lg p-4 border border-border text-xs">
-                {generatedPrompts}
-              </div>
-            </div>
-          )}
-
-          {!generatedPrompts && !generating && toolGenerations.length === 0 && (
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
-              <span className="text-4xl">📋</span>
-              <h3 className="font-semibold text-foreground">No hay prompts generados</h3>
-              <p className="text-sm text-muted-foreground">Completa los prerequisitos y haz click en "Generar Prompts"</p>
-            </div>
-          )}
+        <TabsContent value="prompts" className="mt-6">
+          <PromptsTab
+            client={client}
+            kickoff={kickoff}
+            setKickoff={setKickoff}
+            campaignBrief={campaignBrief}
+            setCampaignBrief={setCampaignBrief}
+            briefSaved={briefSaved}
+            setBriefSaved={setBriefSaved}
+            generatingBrief={generatingBrief}
+            onAutoGenerateBrief={autoGenerateBrief}
+            generating={generating}
+            generatedPrompts={generatedPrompts}
+            onGeneratePrompts={handleGeneratePrompts}
+            analyzingTranscript={analyzingTranscript}
+            onAnalyzeTranscript={handleAnalyzeTranscript}
+            toolGenerations={toolGenerations}
+            setToolGenerations={setToolGenerations}
+            onSendToSlotty={handleSendToSlotty}
+            onMarkSent={handleMarkSent}
+            onApproveAllGens={handleApproveAllGens}
+            contextScore={contextScore}
+            completenessPct={completenessPct}
+            materials={materials}
+            promptsRef={promptsRef}
+          />
         </TabsContent>
 
-        {/* TAB 4 — Assets */}
-        <TabsContent value="assets" className="mt-6 space-y-6">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Asset Status</h3>
-            <div className="grid grid-cols-4 gap-3">
-              {(["landing_page", "email_flow", "social_post", "blog_article"] as const).map((type) => {
-                const status = getAssetStatus(type);
-                const labels: Record<string, string> = { landing_page: "LP", email_flow: "Email", social_post: "Social", blog_article: "Blog" };
-                return (
-                  <div key={type} className="flex items-center gap-2 p-2 rounded-md bg-secondary/30 border border-border">
-                    <span>{assetStatusIcon(status)}</span>
-                    <span className="text-sm text-foreground font-medium">{labels[type]}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* FEAT-07: Strategic notes per asset */}
-          {assets.filter(a => a.strategic_note || a.strategic_note_approved !== null).length > 0 && (
-            <div className="bg-card rounded-lg border border-border p-6 space-y-3">
-              <h3 className="font-semibold text-foreground text-sm">Notas estratégicas</h3>
-              {assets.map((asset) => {
-                if (!asset.strategic_note && !asset.strategic_note_approved) return null;
-                return (
-                  <div key={asset.id} className="p-3 rounded-md bg-secondary/20 border border-border space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{asset.asset_name}</span>
-                      {asset.strategic_note_approved && <Badge className="badge-accepted text-xs">✅ Aprobada</Badge>}
-                    </div>
-                    {asset.strategic_note && (
-                      <p className="text-sm text-muted-foreground">{asset.strategic_note}</p>
-                    )}
-                    {asset.strategic_note && !asset.strategic_note_approved && (
-                      <Button size="sm" variant="outline" onClick={() => handleApproveStrategicNote(asset.id)}>
-                        Aprobar nota →
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <CampaignManager
-            clientId={client.id}
+        <TabsContent value="assets" className="mt-6">
+          <AssetsTab
+            client={client}
+            assets={assets}
+            setAssets={setAssets}
             campaigns={campaigns}
-            assets={assets.map((a: any) => ({ ...a, campaign_id: a.campaign_id || null }))}
-            onCampaignCreated={(c) => setCampaigns((prev) => [c, ...prev])}
-            onCampaignUpdated={(c) => setCampaigns((prev) => prev.map((p) => p.id === c.id ? c : p))}
-            onAssetsChanged={async () => {
-              const { data } = await supabase.from("assets").select("id, asset_name, asset_title, asset_type, status, file_url, content, version, client_comment, correction_prompt, created_at, campaign_id, strategic_note, strategic_note_approved, assigned_to, due_date, incorporated").eq("client_id", client.id);
-              setAssets((data || []) as AssetRow[]);
-            }}
+            setCampaigns={setCampaigns}
+            onApproveStrategicNote={handleApproveStrategicNote}
           />
         </TabsContent>
       </Tabs>
