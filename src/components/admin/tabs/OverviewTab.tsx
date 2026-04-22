@@ -4,6 +4,8 @@ import { StatusTimeline, type TimelineStep } from "@/components/shared/StatusTim
 import { NextActionCard } from "@/components/shared/NextActionCard";
 import { ActivityFeed, type ActivityItem } from "@/components/shared/ActivityFeed";
 import { ProgressIndicator } from "@/components/shared/ProgressIndicator";
+import { deriveNextAction } from "@/hooks/useNextAction";
+import { Badge } from "@/components/ui/badge";
 
 type Props = {
   client: any;
@@ -86,64 +88,18 @@ export default function OverviewTab({ client, kickoff, hasOffering, contextScore
     { label: "Activa", status: getStatus(activeDone, setupDone) },
   ];
 
-  // Determine next action
+  // Determine next action via shared hook
   const openTasks = tasks.filter((t) => t.status !== "done" && t.status !== "skipped");
   const nextTodoTask = openTasks.find((t) => t.status !== "blocked");
 
-  const nextAction = (() => {
-    if (!briefDone) {
-      return {
-        title: "Completar el brief del cliente",
-        description: !kickoff?.transcript_text ? "Falta cargar la transcripción de la call." : "Analiza la transcripción para extraer la voz del cliente.",
-        ctaLabel: "Ir a Kickoff",
-        ctaTab: "kickoff",
-        variant: "warning" as const,
-      };
-    }
-    if (!offeringDone) {
-      return {
-        title: "Proponer oferta al cliente",
-        description: "El brief está completo. Es hora de elegir la oferta adecuada.",
-        ctaLabel: "Ver Recomendaciones",
-        ctaTab: "oferta",
-        variant: "primary" as const,
-      };
-    }
-    if (offering?.status === "proposed") {
-      return {
-        title: "Esperando aceptación del cliente",
-        description: "Cliente tiene la propuesta. Marca como aceptada cuando confirme.",
-        ctaLabel: "Ver Oferta",
-        ctaTab: "oferta",
-        variant: "primary" as const,
-      };
-    }
-    if (offering?.status === "accepted") {
-      return {
-        title: "Iniciar ejecución",
-        description: "Cliente aceptó. Ejecuta el plan de acción.",
-        ctaLabel: "Ver Plan de Acción",
-        ctaTab: "plan",
-        variant: "primary" as const,
-      };
-    }
-    if (offering?.status === "active" && openTasks.length > 0) {
-      return {
-        title: `${openTasks.length} tarea${openTasks.length > 1 ? "s" : ""} pendiente${openTasks.length > 1 ? "s" : ""}`,
-        description: nextTodoTask ? `Próxima tarea: ${nextTodoTask.title}` : "Hay tareas bloqueadas que requieren atención.",
-        ctaLabel: "Ir a Plan de Acción",
-        ctaTab: "plan",
-        variant: "primary" as const,
-      };
-    }
-    return {
-      title: "Campaña en marcha 🎉",
-      description: "Monitoreo activo. Revisar resultados periódicamente.",
-      ctaLabel: "Ver Assets",
-      ctaTab: "assets",
-      variant: "success" as const,
-    };
-  })();
+  const nextAction = deriveNextAction({
+    audience: "admin",
+    briefDone,
+    offering: offering ? { status: offering.status, proposed_at: offering.proposed_at } : null,
+    openTaskCount: openTasks.length,
+    nextTaskTitle: nextTodoTask?.title ?? null,
+    hasKickoffTranscript: !!kickoff?.transcript_text,
+  });
 
   // Quick stats
   const platformsConfigured = platforms.filter((p) => p.integration_status === "configured" || p.integration_status === "ready").length;
