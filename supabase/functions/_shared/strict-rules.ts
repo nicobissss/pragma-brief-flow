@@ -1,15 +1,15 @@
-// Shared strict rules for all AI-powered edge functions
-// Allineato al catalogo offerte attuale: Tier 1 (entry) / Tier 2 (retainer) / Tier 3 (one-shot)
+// Reglas estrictas compartidas por todas las edge functions de IA
+// Catálogo Tier 1/2/3 (entry / retainer / one-shot)
 
 export const STRICT_RULES = `
-STRICT RULES — READ BEFORE GENERATING:
+REGLAS ESTRICTAS — LEER ANTES DE GENERAR:
 
-VERTICALS available:
+VERTICALES disponibles:
 - Salud & Estética
 - E-Learning
 - Deporte Offline
 
-SUB-NICHES available per vertical:
+SUB-NICHES por vertical:
 
 Salud & Estética:
   Dental | Estética Corporal | Psicología | Nutrición | Oftalmología | Fisioterapia | Audiometría | Capilar
@@ -20,37 +20,32 @@ E-Learning:
 Deporte Offline:
   Pádel/Tenis | Danza | Yoga/Pilates | Artes Marciales | Natación | Fútbol Extraescolar | Personal Trainer
 
-OFFERTE PRAGMA — usa SOLO queste:
+OFERTAS PRAGMA — usar SOLO estas:
 
-TIER 1 — Entry / Quick Wins (basso costo, rapida attivazione)
+TIER 1 — Entry / Quick Wins
 1. TIER1_RECUPERACION — "Recuperación Pacientes Dormidos"
-   Flow di reattivazione per pazienti/clienti inattivi da 6+ mesi.
-   Campagna 14 giorni: 3 email + landing page + opzionale SMS.
-   Use case: clienti con base dati esistente non sfruttata.
+   Reactivación 14 días: 3 emails + landing + SMS opcional.
+   Para clientes con base de datos no explotada.
 
 2. TIER1_NOSHOW — "No-Show Killer"
-   Sequenza automatica pre/post appuntamento per ridurre assenze.
-   2 email + 2 SMS + landing di conferma.
-   Use case: clienti con sistema appuntamenti e tasso no-show > 10%.
+   Pre/post cita: 2 emails + 2 SMS + landing de confirmación.
+   Para clientes con tasa de no-show > 10%.
 
 3. TIER1_RESENAS — "Reseñas Google Booster"
-   Sistema automatico post-visita: dirige clienti soddisfatti a Google Reviews,
-   intercetta feedback negativi internamente.
-   Use case: clienti con < 50 recensioni Google o rating < 4.5.
+   Post-visita: dirige a Google Reviews, intercepta feedback negativo.
+   Para clientes con < 50 reseñas o rating < 4.5.
 
-TIER 2 — Retainer / Crescita Continuativa
-4. TIER2_PACK_CRECIMIENTO — "Pack Crecimiento" (€650/mese)
-   Retainer mensile che include i 3 flow Tier 1 in parallelo.
-   Revisioni mensili e ottimizzazione continua.
-   Use case: clienti pronti per investimento ricorrente, base dati > 500 contatti.
+TIER 2 — Retainer / Crecimiento continuo
+4. TIER2_PACK_CRECIMIENTO — "Pack Crecimiento" (650€/mes)
+   Los 3 flows Tier 1 en paralelo + optimización mensual.
+   Para clientes con base > 500 contactos listos para inversión recurrente.
 
-TIER 3 — One-shot / Campagne Stagionali
+TIER 3 — One-shot / Campañas estacionales
 5. TIER3_CAMPANA_ESTACIONAL — "Campaña Estacional Completa"
-   Campagna completa per evento/promozione specifica (Black Friday, vuelta al cole, ecc.).
-   Include: 3 email + 1 landing page + 2 post social + 1 SMS.
-   Use case: clienti con eventi stagionali ricorrenti o promozioni puntuali.
+   Para evento/promoción (Black Friday, vuelta al cole…).
+   3 emails + 1 landing + 2 posts sociales + 1 SMS.
 
-TOOLS available — recommend ONLY these:
+TOOLS disponibles — recomendar SOLO estas:
 - Pragma Calendar
 - Landing Pragma
 - Pragma Visual Email
@@ -59,24 +54,33 @@ TOOLS available — recommend ONLY these:
 - Pragma Learn
 - Voice Bot
 
-NEVER invent or suggest:
-- Offerte non listate sopra (no "Salud & Estética 10-step flow", no "E-Learning Webinar 30-day", ecc.)
-- Tools non listati sopra
-- Sub-niches non listate sopra
-- Pricing non presente nella knowledge base
+NUNCA inventar:
+- Ofertas fuera de las 5 listadas (no "Webinar 30-day", no "10-step flow", etc.)
+- Tools fuera de las 7 listadas
+- Sub-niches fuera de las listadas
+- Pricing que no esté en la base de conocimiento
 
-REGOLE DI RACCOMANDAZIONE:
-- Cliente nuovo senza storico → proporre 1 offerta TIER 1 a scelta secondo il dolor principale
-- Cliente con base dati > 500 e dolor multipli → proporre TIER 2 (Pack Crecimiento)
-- Cliente con evento/promozione imminente → aggiungere TIER 3 (Campaña Estacional)
-- NON proporre TIER 2 a clienti senza base dati o tracking conversioni
+NUNCA compartir con el cliente:
+- Horas estimadas (setup_hours_estimate, monthly_hours_estimate)
+- Margen interno o desglose por hora
+- Códigos internos (TIER1_*, TIER2_*) — usar siempre el nombre comercial
 
-Se la sub-niche del cliente non corrisponde esattamente:
-Scegli la sub-niche più vicina e segnala nella rationale.
-NON creare nuove categorie.
+REGLAS DE RECOMENDACIÓN:
+- Cliente nuevo sin histórico → 1 oferta TIER 1 según dolor principal
+- Cliente con base > 500 y dolores múltiples → TIER 2 (Pack Crecimiento)
+- Cliente con evento/promoción próxima → añadir TIER 3 (Campaña Estacional)
+- NO proponer TIER 2 sin base de datos ni tracking de conversiones
+
+Si la sub-niche del cliente no coincide exactamente:
+elegir la más cercana y señalarlo en el rationale. NO crear nuevas categorías.
+
+IDIOMA DE OUTPUT:
+- Mercados ES y AR → español
+- Mercado IT → italiano
+- Nunca mezclar idiomas en un mismo deliverable
 `;
 
-// Mappatura offerte → sub-niches per cui sono più adatte
+// Mapping ofertas → sub-niches más adecuadas
 export const OFFERING_FIT: Record<string, string[]> = {
   TIER1_RECUPERACION: [
     "Dental", "Estética Corporal", "Fisioterapia", "Nutrición", "Psicología",
@@ -94,8 +98,8 @@ export const OFFERING_FIT: Record<string, string[]> = {
     "Pádel/Tenis", "Danza", "Yoga/Pilates", "Artes Marciales", "Natación",
     "Personal Trainer",
   ],
-  TIER2_PACK_CRECIMIENTO: [], // applicabile a tutti se condizioni soddisfatte
-  TIER3_CAMPANA_ESTACIONAL: [], // applicabile a tutti
+  TIER2_PACK_CRECIMIENTO: [],
+  TIER3_CAMPANA_ESTACIONAL: [],
 };
 
 export function getRecommendedOfferings(subNiche: string): string[] {
@@ -106,11 +110,45 @@ export function getRecommendedOfferings(subNiche: string): string[] {
   return matches;
 }
 
-// Backwards-compat shim per edge functions che ancora importano la vecchia API.
-// Restituisce le offerte raccomandate come stringa human-readable.
-export function getFlowForSubNiche(_vertical: string, subNiche: string): string {
-  const recs = getRecommendedOfferings(subNiche);
-  if (recs.length === 0) return "TIER1_RECUPERACION (default)";
-  return recs.join(", ");
+// Lee el catálogo dinámicamente desde offering_templates
+export async function fetchActiveOfferings(supabaseAdmin: any) {
+  const { data } = await supabaseAdmin
+    .from("offering_templates")
+    .select("code, name, short_name, tier, category, description, value_proposition, deliverables, expected_outcomes, applicable_verticals, applicable_sub_niches, monthly_fee_eur, setup_fee_eur, one_shot_fee_eur")
+    .eq("is_active", true)
+    .order("tier")
+    .order("sort_order");
+  return data || [];
 }
 
+// Devuelve un bloque de texto con el catálogo activo, listo para inyectar en el system prompt
+export function formatOfferingsForPrompt(offerings: any[]): string {
+  if (!offerings.length) return "";
+  const lines = ["\n--- CATÁLOGO ACTIVO (única fuente de verdad) ---"];
+  for (const o of offerings) {
+    lines.push(`\n[${o.code}] ${o.name} — Tier ${o.tier} (${o.category})`);
+    if (o.value_proposition) lines.push(`  Propuesta: ${o.value_proposition}`);
+    if (o.description) lines.push(`  Descripción: ${o.description}`);
+    const deliverables = Array.isArray(o.deliverables) ? o.deliverables : [];
+    if (deliverables.length) {
+      const items = deliverables.map((d: any) => typeof d === "string" ? d : (d.name || d.title || JSON.stringify(d)));
+      lines.push(`  Deliverables: ${items.join(" · ")}`);
+    }
+    const outcomes = Array.isArray(o.expected_outcomes) ? o.expected_outcomes : [];
+    if (outcomes.length) {
+      const items = outcomes.map((d: any) => typeof d === "string" ? d : (d.metric || JSON.stringify(d)));
+      lines.push(`  Resultados esperados: ${items.join(" · ")}`);
+    }
+    const verticals = Array.isArray(o.applicable_verticals) ? o.applicable_verticals : [];
+    if (verticals.length) lines.push(`  Verticales: ${verticals.join(", ")}`);
+  }
+  lines.push("--- FIN CATÁLOGO ---\n");
+  return lines.join("\n");
+}
+
+// Backwards-compat shim — devuelve códigos recomendados como string
+export function getFlowForSubNiche(_vertical: string, subNiche: string): string {
+  const recs = getRecommendedOfferings(subNiche);
+  if (recs.length === 0) return "TIER1_RECUPERACION";
+  return recs.join(", ");
+}

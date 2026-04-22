@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { STRICT_RULES, getFlowForSubNiche } from "../_shared/strict-rules.ts";
+import { STRICT_RULES, fetchActiveOfferings, formatOfferingsForPrompt, getRecommendedOfferings } from "../_shared/strict-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,33 +65,38 @@ serve(async (req) => {
       .join("\n")
       .substring(0, 800);
 
-    const assignedFlow = getFlowForSubNiche(client.vertical, client.sub_niche);
+    const offerings = await fetchActiveOfferings(supabase);
+    const catalogBlock = formatOfferingsForPrompt(offerings);
+    const recommendedCodes = getRecommendedOfferings(client.sub_niche);
+    const outputLanguage = client.market === "it" ? "italiano" : "español";
 
-    const userPrompt = `You are a marketing strategist for PRAGMA.
+    const userPrompt = `Eres estratega de marketing en PRAGMA.
 
 ${STRICT_RULES}
 
-The assigned flow for this client based on their vertical "${client.vertical}" and sub-niche "${client.sub_niche}" is: "${assignedFlow}". Generate a campaign brief ONLY aligned with this flow. Never suggest strategies from other flows (e.g. never suggest a webinar for a Salud client, never suggest local ads for an E-Learning client).
+${catalogBlock}
 
-Based on this client's context, generate a campaign brief for the campaign named "${campaign_name}".
+Las ofertas mejor adaptadas a la sub-niche "${client.sub_niche}" son: ${recommendedCodes.join(", ") || "TIER1_RECUPERACION"}.
+Genera el brief de campaña SOLO alineado con una de estas ofertas. Nunca propongas estrategias fuera del catálogo (no webinars para Salud, no ads locales para E-Learning, etc.).
 
-CLIENT CONTEXT:
+IDIOMA DE OUTPUT: ${outputLanguage} (mercado ${client.market.toUpperCase()}).
+
+Contexto del cliente:
 Vertical: ${client.vertical}
 Sub-niche: ${client.sub_niche}
-Market: ${client.market}
-Assigned Flow: ${assignedFlow}
-${recommendedFlow ? `Recommended flow from proposal: ${recommendedFlow}` : ""}
-${recommendedTools.length > 0 ? `Activated tools: ${recommendedTools.join(", ")}` : ""}
-${briefingSummary ? `Briefing summary:\n${briefingSummary}` : ""}
-${transcriptSummary ? `Kickoff transcript summary:\n${transcriptSummary}` : ""}
+Mercado: ${client.market}
+${recommendedFlow ? `Oferta recomendada en propuesta: ${recommendedFlow}` : ""}
+${recommendedTools.length > 0 ? `Tools activados: ${recommendedTools.join(", ")}` : ""}
+${briefingSummary ? `Resumen briefing:\n${briefingSummary}` : ""}
+${transcriptSummary ? `Resumen kickoff:\n${transcriptSummary}` : ""}
 
-Generate:
-- objective: one clear sentence aligned with the assigned flow
-- target_audience: specific description based on their vertical and sub-niche
-- key_message: the core value proposition for this specific campaign
-- timeline: suggested duration based on the assigned flow type
+Genera para la campaña "${campaign_name}":
+- objective: una frase clara alineada con la oferta
+- target_audience: descripción específica para vertical y sub-niche
+- key_message: propuesta de valor central
+- timeline: duración sugerida según el tipo de oferta
 
-Return ONLY a JSON object:
+Devuelve SOLO un objeto JSON:
 {
   "objective": "",
   "target_audience": "",

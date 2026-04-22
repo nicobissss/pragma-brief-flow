@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Loader2, X, Play } from "lucide-react";
+import { Plus, Pencil, Loader2, Play } from "lucide-react";
 
 const SUB_NICHES: Record<string, string[]> = {
   "Salud & Estética": ["Dental", "Estética Corporal", "Psicología", "Nutrición", "Oftalmología", "Fisioterapia", "Audiometría", "Capilar"],
@@ -300,24 +300,18 @@ function TestConfigModal({ open, onClose }: { open: boolean; onClose: () => void
 
 // ─── Main Component ─────────────────────────────────────
 export function FlowsRulesTab() {
-  const [flows, setFlows] = useState<Flow[]>([]);
   const [tools, setTools] = useState<Rule[]>([]);
   const [globalRules, setGlobalRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [flowModal, setFlowModal] = useState<{ open: boolean; flow: Partial<Flow> | null }>({ open: false, flow: null });
   const [ruleModal, setRuleModal] = useState<{ open: boolean; rule: Partial<Rule> | null; category: string }>({ open: false, rule: null, category: "" });
   const [testModal, setTestModal] = useState(false);
 
   const fetchAll = async () => {
-    const [flowsRes, rulesRes] = await Promise.all([
-      supabase.from("pragma_flows").select("*").order("vertical"),
-      supabase.from("pragma_rules").select("*").order("category"),
-    ]);
-    if (flowsRes.data) setFlows(flowsRes.data as unknown as Flow[]);
-    if (rulesRes.data) {
-      setTools((rulesRes.data as unknown as Rule[]).filter(r => r.category === "tools_available"));
-      setGlobalRules((rulesRes.data as unknown as Rule[]).filter(r => r.category === "global_rules"));
+    const { data: rules } = await supabase.from("pragma_rules").select("*").order("category");
+    if (rules) {
+      setTools((rules as unknown as Rule[]).filter(r => r.category === "tools_available"));
+      setGlobalRules((rules as unknown as Rule[]).filter(r => r.category === "global_rules"));
     }
     setLoading(false);
   };
@@ -340,45 +334,13 @@ export function FlowsRulesTab() {
         </Button>
       </div>
 
-      {/* Flows */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Flows</h3>
-          <Button size="sm" onClick={() => setFlowModal({ open: true, flow: { is_active: true, estimated_total_days: 30 } })}>
-            <Plus className="w-4 h-4 mr-1" /> Añadir flow
-          </Button>
-        </div>
-        {flows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay flows configurados.</p>
-        ) : (
-          <div className="space-y-2">
-            {flows.map(f => {
-              let niches: string[] = [];
-              try { niches = typeof f.applicable_sub_niches === "string" ? JSON.parse(f.applicable_sub_niches) : Array.isArray(f.applicable_sub_niches) ? f.applicable_sub_niches : []; } catch { /* */ }
-              return (
-                <div key={f.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-foreground">{f.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">{f.vertical}</Badge>
-                      {!f.is_active && <Badge variant="outline" className="text-[10px]">Inactivo</Badge>}
-                      <span className="text-xs text-muted-foreground">~{f.estimated_total_days}d</span>
-                    </div>
-                    {f.description && <p className="text-xs text-muted-foreground truncate">{f.description}</p>}
-                    {niches.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {niches.map(n => <Badge key={n} variant="outline" className="text-[10px]">{n}</Badge>)}
-                      </div>
-                    )}
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => setFlowModal({ open: true, flow: f })}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Flows section removed: el catálogo ahora vive en offering_templates (tab Ofertas) */}
+      <section className="bg-secondary/30 border border-dashed border-border rounded-xl p-4">
+        <p className="text-sm text-muted-foreground">
+          Los flows ya no se gestionan aquí. El catálogo Tier 1/2/3 se administra desde
+          <strong className="text-foreground mx-1">Ofertas → Catálogo</strong>
+          y se aplica a cada cliente desde el tab <strong className="text-foreground">Oferta</strong> de su ficha.
+        </p>
       </section>
 
       {/* Tools */}
@@ -448,7 +410,6 @@ export function FlowsRulesTab() {
       </section>
 
       {/* Modals */}
-      <FlowModal open={flowModal.open} flow={flowModal.flow} onClose={() => setFlowModal({ open: false, flow: null })} onSaved={fetchAll} />
       <RuleModal open={ruleModal.open} rule={ruleModal.rule} category={ruleModal.category} onClose={() => setRuleModal({ open: false, rule: null, category: "" })} onSaved={fetchAll} />
       <TestConfigModal open={testModal} onClose={() => setTestModal(false)} />
     </div>
