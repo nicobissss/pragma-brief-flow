@@ -716,6 +716,27 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
   const [newVersionDrawer, setNewVersionDrawer] = useState<{ asset: AssetRow; campaignId: string; summary: string } | null>(null);
   const [notifyConfirm, setNotifyConfirm] = useState<{ campaign: Campaign; assets: AssetRow[] } | null>(null);
   const [notifying, setNotifying] = useState(false);
+  const [forgeBusyCampaignId, setForgeBusyCampaignId] = useState<string | null>(null);
+
+  const triggerForgeForCampaign = async (campaign: Campaign) => {
+    setForgeBusyCampaignId(campaign.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("trigger-forge-generation", {
+        body: {
+          client_id: clientId,
+          campaign_id: campaign.id,
+          notes: campaign.objective || campaign.key_message || null,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Forge sta generando gli asset della campagna — appariranno qui appena pronti.");
+    } catch (e: any) {
+      toast.error(e.message || "Impossibile contattare Forge");
+    } finally {
+      setForgeBusyCampaignId(null);
+    }
+  };
 
   // Form state
   const [name, setName] = useState("");
@@ -973,14 +994,28 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                         ))}
                       </div>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-3"
-                      onClick={() => setAddAssetDrawer({ campaignId: campaign.id, campaignName: campaign.name })}
-                    >
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add asset to this campaign
-                    </Button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAddAssetDrawer({ campaignId: campaign.id, campaignName: campaign.name })}
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Add asset to this campaign
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => triggerForgeForCampaign(campaign)}
+                        disabled={forgeBusyCampaignId === campaign.id}
+                      >
+                        {forgeBusyCampaignId === campaign.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Genera asset con Forge
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Client feedback & correction prompts */}
