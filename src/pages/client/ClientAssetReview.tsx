@@ -28,15 +28,15 @@ const typeLabels: Record<string, string> = {
   blog_article: "Blog Articles",
 };
 
-const QUICK_OPTIONS = ["Sì, mi rappresenta", "Il tono non è giusto", "Cambierei il titolo", "Troppo lungo", "Troppo formale", "Altro"];
+const QUICK_OPTIONS = ["Sí, me representa", "El tono no es correcto", "Cambiaría el título", "Demasiado largo", "Demasiado formal", "Otro"];
 
 function getGuidedQuestion(assetType: string): string {
   const questions: Record<string, string> = {
-    landing_page: "Il titolo principale cattura il problema del tuo cliente ideale?",
-    email_flow: "Il tono di voce ti rappresenta? Ti sentiresti a tuo agio se il tuo cliente leggesse questo?",
-    social_post: "Questo post potrebbe essere scritto da te? Si adatta al tuo stile sui social?",
-    blog_article: "Questo articolo risponde alle domande che ti fanno più spesso i tuoi clienti?",
-    other: "Questo asset ti rappresenta e comunica quello che vuoi dire?",
+    landing_page: "¿El titular principal captura el problema de tu cliente ideal?",
+    email_flow: "¿El tono de voz te representa? ¿Te sentirías cómodo si tu cliente leyera esto?",
+    social_post: "¿Podrías haber escrito tú este post? ¿Encaja con tu estilo en redes?",
+    blog_article: "¿Este artículo responde a las preguntas que te hacen tus clientes?",
+    other: "¿Este asset te representa y comunica lo que quieres decir?",
   };
   return questions[assetType] || questions.other;
 }
@@ -132,7 +132,7 @@ export default function ClientAssetReview() {
       .eq("id", asset.id);
     if (error) { toast.error(error.message); return; }
     setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
-    toast.success(`${asset.asset_name} approved!`);
+    toast.success(`${asset.asset_name} aprobado.`);
     notifyAdminApproved([asset]);
   };
 
@@ -142,7 +142,7 @@ export default function ClientAssetReview() {
       await supabase.from("assets").update({ status: "approved" as any }).eq("id", asset.id);
     }
     setAssets((prev) => prev.map((a) => ({ ...a, status: "approved" })));
-    toast.success("All items approved!");
+    toast.success("Todos los assets aprobados.");
     notifyAdminApproved(pending);
   };
 
@@ -194,7 +194,7 @@ export default function ClientAssetReview() {
     }
 
     if (affectedAssetIds.size === 0) {
-      toast.error("Add at least one comment before submitting.");
+      toast.error("Añade al menos un comentario antes de enviar.");
       return;
     }
 
@@ -242,7 +242,7 @@ export default function ClientAssetReview() {
           asset_id: id,
           round_number: nextRound,
           requested_by: "client" as any,
-          comment: fullComment || "Feedback submitted",
+          comment: fullComment || "Feedback enviado",
         });
       }
 
@@ -292,15 +292,15 @@ export default function ClientAssetReview() {
         }
       }
 
-      toast.success(`Feedback submitted! PRAGMA has been notified.`);
+      toast.success("Feedback enviado. PRAGMA ha sido notificado.");
     } catch (e: any) {
-      toast.error(e.message || "Failed to submit feedback");
+      toast.error(e.message || "Error al enviar el feedback");
     } finally {
       setSubmittingFeedback(false);
     }
   };
 
-  if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
+  if (loading) return <div className="text-muted-foreground p-8">Cargando…</div>;
 
   const label = typeLabels[type || ""] || type;
   const hasPending = assets.some((a) => a.status !== "approved");
@@ -318,18 +318,12 @@ export default function ClientAssetReview() {
       <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4">
         <ChevronLeft className="w-4 h-4 mr-1" /> Volver al panel
       </Button>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">{label}</h1>
-        {hasPending && assets.length > 1 && (
-          <Button onClick={approveAll} className="gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            Approve All
-          </Button>
-        )}
       </div>
 
       <p className="text-sm text-muted-foreground mb-6">
-        Hover over any section and click 💬 to leave feedback. You can approve without commenting.
+        Toca cualquier sección para dejar tu feedback. Puedes aprobar sin comentar.
       </p>
 
       <div className="space-y-6">
@@ -369,7 +363,7 @@ export default function ClientAssetReview() {
                       comment={sectionComments[asset.id]?.[section] || ""}
                       onComment={(t) => updateSectionComment(asset.id, section, t)}
                     >
-                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()} section</p>
+                      <p className="text-sm text-muted-foreground italic">Revisa la sección {section.toLowerCase()}</p>
                     </CommentableSection>
                   ))}
                 </div>
@@ -385,7 +379,7 @@ export default function ClientAssetReview() {
                       comment={sectionComments[asset.id]?.[section] || ""}
                       onComment={(t) => updateSectionComment(asset.id, section, t)}
                     >
-                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()}</p>
+                      <p className="text-sm text-muted-foreground italic">Revisa {section.toLowerCase()}</p>
                     </CommentableSection>
                   ))}
                 </div>
@@ -401,7 +395,7 @@ export default function ClientAssetReview() {
                       comment={sectionComments[asset.id]?.[section] || ""}
                       onComment={(t) => updateSectionComment(asset.id, section, t)}
                     >
-                      <p className="text-sm text-muted-foreground italic">Review the {section.toLowerCase()}</p>
+                      <p className="text-sm text-muted-foreground italic">Revisa {section.toLowerCase()}</p>
                     </CommentableSection>
                   ))}
                 </div>
@@ -437,14 +431,14 @@ export default function ClientAssetReview() {
                       </>
                     );
                   })() : (
-                    <p className="text-sm text-muted-foreground italic">No blog content</p>
+                    <p className="text-sm text-muted-foreground italic">Sin contenido del blog</p>
                   )}
                 </div>
               )}
 
               {/* Notes from pragma */}
               {asset.content?.notes && (
-                <p className="text-sm text-muted-foreground mt-3 italic">Note from PRAGMA: {asset.content.notes}</p>
+                <p className="text-sm text-muted-foreground mt-3 italic">Nota de PRAGMA: {asset.content.notes}</p>
               )}
             </div>
 
@@ -472,7 +466,7 @@ export default function ClientAssetReview() {
               </div>
 
               <Textarea
-                placeholder="Aggiungi dettagli specifici (opzionale)..."
+                placeholder="Añade detalles específicos (opcional)…"
                 value={generalComments[asset.id] || ""}
                 onChange={(e) => setGeneralComments((prev) => ({ ...prev, [asset.id]: e.target.value }))}
                 className="min-h-[60px] text-sm"
@@ -485,12 +479,12 @@ export default function ClientAssetReview() {
               {asset.status === "approved" ? (
                 <div className="flex items-center gap-2 text-sm text-status-approved">
                   <CheckCircle2 className="w-4 h-4" />
-                  Approved
+                  Aprobado
                 </div>
               ) : (
                 <Button size="sm" onClick={() => approveAsset(asset)} className="bg-status-approved hover:bg-status-approved/90 text-primary-foreground">
                   <CheckCircle2 className="w-4 h-4 mr-1" />
-                  Approve
+                  Aprobar
                 </Button>
               )}
             </div>
@@ -499,7 +493,7 @@ export default function ClientAssetReview() {
             {asset.status === "change_requested" && asset.client_comment && (
               <div className="px-4 pb-4">
                 <div className="bg-[hsl(45,100%,90%)]/50 border border-[hsl(45,100%,72%)] rounded-md p-3 text-sm">
-                  <span className="font-medium text-foreground">Your previous feedback:</span>
+                  <span className="font-medium text-foreground">Tu feedback anterior:</span>
                   <p className="text-muted-foreground mt-1">{asset.client_comment}</p>
                 </div>
               </div>
@@ -510,29 +504,44 @@ export default function ClientAssetReview() {
 
       {assets.length === 0 && (
         <div className="bg-card rounded-lg border border-border p-8 text-center">
-          <p className="text-muted-foreground">No {label?.toLowerCase()} assets to review yet.</p>
+          <p className="text-muted-foreground">Aún no hay assets de {label?.toLowerCase()} para revisar.</p>
         </div>
       )}
 
-      {/* Submit feedback */}
+      {/* Submit feedback + Approve All at the bottom */}
       {assets.length > 0 && assets.some((a) => a.status !== "approved") && (
-        <div className="mt-6 bg-card rounded-lg border border-border p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {totalCommentCount > 0
-                ? `${totalCommentCount} comment${totalCommentCount > 1 ? "s" : ""} ready to send`
-                : "No comments yet — you can still approve above"}
-            </p>
-            <p className="text-xs text-muted-foreground">Section comments and general feedback will be sent to PRAGMA.</p>
+        <div className="mt-6 space-y-3">
+          <div className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {totalCommentCount > 0
+                  ? `${totalCommentCount} comentario${totalCommentCount > 1 ? "s" : ""} listo${totalCommentCount > 1 ? "s" : ""} para enviar`
+                  : "Aún sin comentarios — puedes aprobar igualmente"}
+              </p>
+              <p className="text-xs text-muted-foreground">Los comentarios se enviarán a PRAGMA.</p>
+            </div>
+            <Button
+              onClick={submitAllFeedback}
+              disabled={submittingFeedback || totalCommentCount === 0}
+              className="gap-2"
+            >
+              {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar feedback
+            </Button>
           </div>
-          <Button
-            onClick={submitAllFeedback}
-            disabled={submittingFeedback || totalCommentCount === 0}
-            className="gap-2"
-          >
-            {submittingFeedback ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Submit feedback
-          </Button>
+
+          {hasPending && assets.length > 1 && (
+            <div className="bg-card rounded-lg border border-border p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-medium text-foreground">¿Todo correcto?</p>
+                <p className="text-xs text-muted-foreground">Aprueba todos los assets pendientes de una vez.</p>
+              </div>
+              <Button onClick={approveAll} variant="outline" className="gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Aprobar todo
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

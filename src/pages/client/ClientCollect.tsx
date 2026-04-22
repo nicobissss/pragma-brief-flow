@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Upload, CheckCircle2, Loader2, FileText, X } from "lucide-react";
+import { Upload, CheckCircle2, Loader2, FileText } from "lucide-react";
 
 type RequestItem = {
   label: string;
@@ -62,7 +62,6 @@ export default function ClientCollect() {
 
       if (data && data.length > 0) {
         setRequest(data[0] as AssetRequest);
-        // Pre-fill text inputs
         const texts: Record<number, string> = {};
         (data[0] as AssetRequest).requested_items.forEach((item: RequestItem, i: number) => {
           if (item.text_response) texts[i] = item.text_response;
@@ -104,9 +103,9 @@ export default function ClientCollect() {
         file_url: signedUrl,
       };
       await updateRequestItems(newItems);
-      toast.success(`"${newItems[index].label}" uploaded!`);
+      toast.success(`"${newItems[index].label}" cargado correctamente.`);
     } catch (e: any) {
-      toast.error(e.message || "Upload failed");
+      toast.error(e.message || "Error al subir el archivo");
     } finally {
       setUploading((prev) => ({ ...prev, [index]: false }));
     }
@@ -124,16 +123,16 @@ export default function ClientCollect() {
       text_response: text,
     };
     await updateRequestItems(newItems);
-    toast.success(`"${newItems[index].label}" submitted!`);
+    toast.success(`"${newItems[index].label}" enviado.`);
   };
 
-  if (loading) return <div className="text-muted-foreground p-8">Loading...</div>;
+  if (loading) return <div className="text-muted-foreground p-8">Cargando…</div>;
 
   if (!request || request.requested_items.length === 0) {
     return (
       <div className="bg-card rounded-lg border border-border p-8 text-center space-y-2">
-        <p className="text-muted-foreground">No files have been requested yet.</p>
-        <p className="text-sm text-muted-foreground">PRAGMA will reach out when they need materials from you.</p>
+        <p className="text-muted-foreground">Aún no se han solicitado archivos.</p>
+        <p className="text-sm text-muted-foreground">PRAGMA te avisará cuando necesite materiales de tu parte.</p>
       </div>
     );
   }
@@ -144,18 +143,18 @@ export default function ClientCollect() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Files requested by PRAGMA</h1>
+        <h1 className="text-2xl font-bold text-foreground">Archivos solicitados por PRAGMA</h1>
         <p className="text-muted-foreground mt-1">
-          Please upload the items below to help us create your campaigns.
+          Sube los siguientes elementos para que podamos avanzar con tus campañas.
         </p>
       </div>
 
       {allDone && (
         <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
           <p className="text-lg font-bold flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5" /> All items uploaded!
+            <CheckCircle2 className="w-5 h-5" /> ¡Todo cargado!
           </p>
-          <p className="text-sm mt-1 text-white/90">Thank you! We'll start working on your campaigns.</p>
+          <p className="text-sm mt-1 text-white/90">Gracias. Vamos a empezar a trabajar en tus campañas.</p>
         </div>
       )}
 
@@ -163,6 +162,7 @@ export default function ClientCollect() {
         {request.requested_items.map((item, index) => {
           const isUploaded = item.status === "uploaded";
           const isUploading = uploading[index];
+          const isTextItem = item.type_hint === "Text";
           const accept = ACCEPT_MAP[item.type_hint] || "*";
 
           return (
@@ -183,7 +183,7 @@ export default function ClientCollect() {
                       <Badge variant="outline" className="text-[10px]">{item.type_hint}</Badge>
                       {isUploaded && (
                         <Badge className="bg-[hsl(142,71%,35%)]/15 text-[hsl(142,71%,35%)] text-[10px]">
-                          <CheckCircle2 className="w-3 h-3 mr-0.5" /> Uploaded
+                          <CheckCircle2 className="w-3 h-3 mr-0.5" /> Enviado
                         </Badge>
                       )}
                     </div>
@@ -196,7 +196,7 @@ export default function ClientCollect() {
                   <p className="text-sm text-muted-foreground">{item.description}</p>
                 )}
 
-                {/* Upload area or uploaded state */}
+                {/* Uploaded state or input */}
                 {isUploaded ? (
                   <div className="text-sm text-muted-foreground space-y-1">
                     {item.file_url && (
@@ -206,11 +206,11 @@ export default function ClientCollect() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-primary hover:underline"
                       >
-                        <FileText className="w-3.5 h-3.5" /> View uploaded file
+                        <FileText className="w-3.5 h-3.5" /> Ver archivo enviado
                       </a>
                     )}
                     {item.text_response && (
-                      <div className="bg-secondary/30 rounded p-3 text-xs text-foreground">
+                      <div className="bg-secondary/30 rounded p-3 text-xs text-foreground whitespace-pre-wrap">
                         {item.text_response}
                       </div>
                     )}
@@ -224,62 +224,59 @@ export default function ClientCollect() {
                         updateRequestItems(newItems);
                       }}
                     >
-                      Replace file
+                      {isTextItem ? "Editar respuesta" : "Reemplazar archivo"}
                     </Button>
                   </div>
+                ) : isTextItem ? (
+                  /* Text-only response */
+                  <div>
+                    <Textarea
+                      placeholder="Escribe tu respuesta aquí…"
+                      value={textInputs[index] || ""}
+                      onChange={(e) => setTextInputs((prev) => ({ ...prev, [index]: e.target.value }))}
+                      className="min-h-[100px] text-sm"
+                    />
+                    {(textInputs[index] || "").trim() && (
+                      <Button
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => handleTextSubmit(index)}
+                      >
+                        Enviar respuesta
+                      </Button>
+                    )}
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {/* File upload */}
-                    <div
-                      className="border-2 border-dashed border-border rounded-lg p-6 text-center transition-colors"
-                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-primary'); }}
-                      onDragLeave={(e) => { e.currentTarget.classList.remove('border-primary'); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.remove('border-primary');
-                        const file = e.dataTransfer.files[0];
+                  /* File upload only */
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center transition-colors"
+                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-primary'); }}
+                    onDragLeave={(e) => { e.currentTarget.classList.remove('border-primary'); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('border-primary');
+                      const file = e.dataTransfer.files[0];
+                      if (file) handleFileUpload(index, file);
+                    }}
+                  >
+                    <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">Arrastra y suelta o haz clic para subir</p>
+                    <Input
+                      type="file"
+                      accept={accept}
+                      className="max-w-xs mx-auto"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
                         if (file) handleFileUpload(index, file);
                       }}
-                    >
-                      <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground mb-2">Drag & drop or click to upload</p>
-                      <Input
-                        type="file"
-                        accept={accept}
-                        className="max-w-xs mx-auto"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleFileUpload(index, file);
-                        }}
-                        disabled={isUploading}
-                      />
-                      {isUploading && (
-                        <div className="flex items-center justify-center gap-2 mt-2">
-                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                          <span className="text-sm text-muted-foreground">Uploading...</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Text alternative */}
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Or add a text response:</p>
-                      <Textarea
-                        placeholder="Type your response here..."
-                        value={textInputs[index] || ""}
-                        onChange={(e) => setTextInputs((prev) => ({ ...prev, [index]: e.target.value }))}
-                        className="min-h-[80px] text-sm"
-                      />
-                      {(textInputs[index] || "").trim() && (
-                        <Button
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => handleTextSubmit(index)}
-                        >
-                          Submit response
-                        </Button>
-                      )}
-                    </div>
+                      disabled={isUploading}
+                    />
+                    {isUploading && (
+                      <div className="flex items-center justify-center gap-2 mt-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="text-sm text-muted-foreground">Subiendo…</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
