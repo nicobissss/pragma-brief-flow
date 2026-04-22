@@ -24,14 +24,12 @@ const statusBadgeClass: Record<string, string> = {
 
 export default function AdminDataDashboard() {
   const [prospects, setProspects] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
   const [generations, setGenerations] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [emailLog, setEmailLog] = useState<any[]>([]);
   const [kickoffs, setKickoffs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [prospectFilter, setProspectFilter] = useState("all");
   const [monthlyReview, setMonthlyReview] = useState<string | null>(null);
   const [generatingReview, setGeneratingReview] = useState(false);
 
@@ -49,16 +47,14 @@ export default function AdminDataDashboard() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c, g, e, em, k] = await Promise.all([
-      supabase.from("prospects").select("*").order("created_at", { ascending: false }),
-      supabase.from("clients").select("*").order("created_at", { ascending: false }),
+    const [p, g, e, em, k] = await Promise.all([
+      supabase.from("prospects").select("id, briefing_answers").order("created_at", { ascending: false }),
       supabase.from("tool_generations").select("*, clients(name)").order("created_at", { ascending: false }),
       supabase.from("events").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("email_log").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("kickoff_briefs").select("*, clients(name, email)").order("created_at", { ascending: false }),
     ]);
     setProspects(p.data || []);
-    setClients(c.data || []);
     setGenerations(g.data || []);
     setEvents(e.data || []);
     setEmailLog(em.data || []);
@@ -67,26 +63,6 @@ export default function AdminDataDashboard() {
   };
 
   useEffect(() => { loadAll(); }, []);
-
-  const exportCSV = (data: any[], filename: string) => {
-    if (!data.length) return;
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data.map(r =>
-      Object.values(r).map(v =>
-        typeof v === "object" ? `"${JSON.stringify(v).replace(/"/g, '""')}"` : `"${String(v ?? "")}"`
-      ).join(",")
-    ).join("\n");
-    const blob = new Blob([headers + "\n" + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-  };
-
-  const filteredProspects = prospectFilter === "all"
-    ? prospects
-    : prospects.filter(p => p.status === prospectFilter);
 
   const briefingProspects = prospects.filter(p => p.briefing_answers && Object.keys(p.briefing_answers as object).length > 0);
 
@@ -128,110 +104,14 @@ export default function AdminDataDashboard() {
         </div>
       )}
 
-      <Tabs defaultValue="prospects">
+      <Tabs defaultValue="prompts">
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="prospects">Prospects ({prospects.length})</TabsTrigger>
-          <TabsTrigger value="clients">Clienti ({clients.length})</TabsTrigger>
           <TabsTrigger value="prompts">Prompts ({generations.length})</TabsTrigger>
           <TabsTrigger value="events">Events ({events.length})</TabsTrigger>
           <TabsTrigger value="email">Email log ({emailLog.length})</TabsTrigger>
           <TabsTrigger value="briefing">Briefing ({briefingProspects.length})</TabsTrigger>
           <TabsTrigger value="kickoff">Kickoff ({kickoffs.length})</TabsTrigger>
         </TabsList>
-
-        {/* TAB PROSPECTS */}
-        <TabsContent value="prospects">
-          <div className="flex items-center gap-2 mb-4">
-            {["all", "new", "accepted", "archived"].map(f => (
-              <Button
-                key={f}
-                size="sm"
-                variant={prospectFilter === f ? "default" : "outline"}
-                onClick={() => setProspectFilter(f)}
-              >
-                {f === "all" ? "Tutti" : f.charAt(0).toUpperCase() + f.slice(1)}
-              </Button>
-            ))}
-            <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={() => exportCSV(filteredProspects, "prospects.csv")}>
-              Esporta CSV
-            </Button>
-          </div>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Vertical</TableHead>
-                  <TableHead>Sub-niche</TableHead>
-                  <TableHead>Mercato</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Call</TableHead>
-                  <TableHead>Call date</TableHead>
-                  <TableHead>Ticket</TableHead>
-                  <TableHead>Creato</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProspects.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell>{p.email}</TableCell>
-                    <TableCell>{p.vertical}</TableCell>
-                    <TableCell>{p.sub_niche}</TableCell>
-                    <TableCell>{p.market}</TableCell>
-                    <TableCell><Badge variant="outline">{p.status}</Badge></TableCell>
-                    <TableCell><Badge variant="secondary">{p.call_status || "not_booked"}</Badge></TableCell>
-                    <TableCell>{p.call_date ? new Date(p.call_date).toLocaleDateString() : "—"}</TableCell>
-                    <TableCell>{(p.briefing_answers as any)?.average_ticket || "—"} {(p.briefing_answers as any)?.ticket_currency || ""}</TableCell>
-                    <TableCell>{new Date(p.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))}
-                {filteredProspects.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">Nessun prospect</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        {/* TAB CLIENTI */}
-        <TabsContent value="clients">
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Vertical</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pipeline</TableHead>
-                  <TableHead>Max revisioni</TableHead>
-                  <TableHead>Piano</TableHead>
-                  <TableHead>Creato</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clients.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer" onClick={() => window.location.href = `/admin/client/${c.id}`}>
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell>{c.email}</TableCell>
-                    <TableCell>{c.vertical}</TableCell>
-                    <TableCell><Badge variant="outline">{c.status}</Badge></TableCell>
-                    <TableCell><Badge variant="secondary">{c.pipeline_status || "kickoff"}</Badge></TableCell>
-                    <TableCell>{c.max_revision_rounds ?? 3}</TableCell>
-                    <TableCell>{c.project_plan_shared ? "✅ Condiviso" : "—"}</TableCell>
-                    <TableCell>{new Date(c.created_at).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))}
-                {clients.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nessun cliente</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
 
         {/* TAB PROMPTS */}
         <TabsContent value="prompts">
