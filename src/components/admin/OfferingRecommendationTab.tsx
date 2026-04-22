@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
 } from "lucide-react";
+import { OfferingDetails } from "@/components/shared/OfferingDetails";
 
 type Offering = {
   id: string;
@@ -21,6 +22,8 @@ type Offering = {
   description: string | null;
   value_proposition: string | null;
   deliverables: any;
+  task_templates: any;
+  expected_outcomes: any;
   applicable_verticals: any;
   applicable_sub_niches: any;
   required_platforms: any;
@@ -284,8 +287,6 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
   if (activeOffering && !changing) {
     const tpl = activeOffering.template;
     const name = activeOffering.custom_name || tpl?.name || "Oferta";
-    const deliverables = (tpl?.deliverables as any) || [];
-    const deliverablesArr = Array.isArray(deliverables) ? deliverables : Object.values(deliverables);
     const doneTasks = tasks.filter((t) => t.status === "done").length;
     const totalTasks = tasks.length;
     const taskProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -293,8 +294,8 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     return (
       <div className="space-y-6">
         <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-2 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl font-semibold text-foreground">{name}</h2>
                 <Badge variant="outline" className={STATUS_BADGE[activeOffering.status] || ""}>
@@ -306,33 +307,17 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                   </Badge>
                 )}
               </div>
-              {tpl && (
-                <p className="text-sm text-muted-foreground">{tpl.value_proposition || tpl.description}</p>
-              )}
-              {tpl && (
-                <p className="text-base font-medium text-foreground">{formatPricing(tpl)}</p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Pricing interno: <span className="font-medium text-foreground">{tpl ? formatPricing(tpl) : "—"}</span>
+                {tpl?.setup_hours_estimate ? ` · ~${tpl.setup_hours_estimate}h setup` : ""}
+              </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
               <RefreshCw className="w-4 h-4 mr-1" /> Cambiar oferta
             </Button>
           </div>
 
-          {deliverablesArr.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Deliverables
-              </h3>
-              <ul className="space-y-1.5">
-                {deliverablesArr.map((d: any, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <span>{typeof d === "string" ? d : d.label || d.name || JSON.stringify(d)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {tpl && <OfferingDetails offering={tpl as any} audience="admin" />}
 
           {totalTasks > 0 && (
             <div>
@@ -493,10 +478,11 @@ function RecommendationCard({
   proposing: boolean;
 }) {
   const scorePct = Math.round(rec.score * 100);
+  const [showDetails, setShowDetails] = useState(false);
   return (
     <div className={`bg-card border rounded-2xl p-5 space-y-4 shadow-sm ${isBest ? "border-primary/40 ring-1 ring-primary/20" : "border-border"}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             {isBest && (
               <Badge className="bg-primary text-primary-foreground border-0">
@@ -507,9 +493,6 @@ function RecommendationCard({
             <Badge variant="outline" className="text-[10px]">{rec.category}</Badge>
           </div>
           <h3 className="text-lg font-semibold text-foreground">{rec.name}</h3>
-          {rec.value_proposition && (
-            <p className="text-sm text-muted-foreground">{rec.value_proposition}</p>
-          )}
         </div>
         <div className="text-right">
           <p className="text-base font-semibold text-foreground">{formatPricing(rec)}</p>
@@ -527,15 +510,30 @@ function RecommendationCard({
         <Progress value={scorePct} className="h-2" />
       </div>
 
+      <OfferingDetails offering={rec as any} audience="admin" showSteps={showDetails} />
+
+      <button
+        onClick={() => setShowDetails((v) => !v)}
+        className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+      >
+        {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        {showDetails ? "Ocultar pasos de la campaña" : "Ver pasos de la campaña"}
+      </button>
+
       {rec.reasons.length > 0 && (
-        <ul className="space-y-1">
-          {rec.reasons.map((r, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-              <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="bg-secondary/30 rounded-lg p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            Por qué encaja
+          </p>
+          <ul className="space-y-1">
+            {rec.reasons.map((r, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <CheckCircle2 className="w-4 h-4 text-[hsl(142,71%,35%)] mt-0.5 shrink-0" />
+                <span>{r}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {rec.missingPlatforms.length > 0 && (

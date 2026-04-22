@@ -1,84 +1,60 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
-import { FileText, Image, Mail, PenTool, ChevronDown, CheckCircle2, Target, AlertCircle, Paperclip } from "lucide-react";
-import { format } from "date-fns";
+import {
+  FileText, Image as ImageIcon, Mail, PenTool, ChevronDown,
+  CheckCircle2, AlertCircle, Paperclip,
+} from "lucide-react";
+import { ProgressIndicator } from "@/components/shared/ProgressIndicator";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { OfferingDetails } from "@/components/shared/OfferingDetails";
 
 const typeIcons: Record<string, any> = {
-  landing_page: FileText,
-  email_flow: Mail,
-  social_post: Image,
-  blog_article: PenTool,
+  landing_page: FileText, email_flow: Mail, social_post: ImageIcon, blog_article: PenTool,
 };
-
 const typeLabels: Record<string, string> = {
-  landing_page: "Landing Page",
-  email_flow: "Email Flow",
-  social_post: "Social Posts",
-  blog_article: "Blog Articles",
-};
-
-const ASSET_SHORT: Record<string, string> = {
-  landing_page: "LP",
-  email_flow: "Email",
-  social_post: "Social",
-  blog_article: "Blog",
+  landing_page: "Landing Page", email_flow: "Email Flow", social_post: "Social Posts", blog_article: "Blog Articles",
 };
 
 const briefingFields = {
-  "About your business": [
-    { key: "name", label: "Full name", source: "prospect" },
-    { key: "company_name", label: "Company", source: "prospect" },
+  "Sobre tu negocio": [
+    { key: "name", label: "Nombre", source: "prospect" },
+    { key: "company_name", label: "Empresa", source: "prospect" },
     { key: "email", label: "Email", source: "prospect" },
-    { key: "phone", label: "Phone", source: "prospect" },
+    { key: "phone", label: "Teléfono", source: "prospect" },
     { key: "vertical", label: "Vertical", source: "prospect" },
-    { key: "sub_niche", label: "Sub-niche", source: "prospect" },
-    { key: "market", label: "Market", source: "prospect" },
+    { key: "sub_niche", label: "Especialización", source: "prospect" },
   ],
-  "Your current situation": [
-    { key: "years_in_operation", label: "Years in operation" },
-    { key: "monthly_new_clients", label: "Monthly new clients" },
-    { key: "client_sources", label: "Client sources" },
-    { key: "runs_paid_ads", label: "Runs paid ads" },
-    { key: "ad_platforms", label: "Ad platforms" },
-    { key: "monthly_budget", label: "Monthly budget" },
-    { key: "has_email_list", label: "Has email list" },
-    { key: "email_list_size", label: "Email list size" },
-    { key: "has_website", label: "Has website" },
+  "Tu situación actual": [
+    { key: "years_in_operation", label: "Años de operación" },
+    { key: "monthly_new_clients", label: "Nuevos clientes/mes" },
+    { key: "client_sources", label: "Fuentes de clientes" },
+    { key: "runs_paid_ads", label: "Hace ads pagados" },
+    { key: "ad_platforms", label: "Plataformas de ads" },
+    { key: "has_email_list", label: "Tiene lista email" },
+    { key: "has_website", label: "Tiene website" },
     { key: "website_url", label: "Website URL" },
-    { key: "uses_crm", label: "Uses CRM" },
-    { key: "crm_name", label: "CRM system" },
+    { key: "uses_crm", label: "Usa CRM" },
   ],
-  "Your goals": [
-    { key: "main_goal", label: "Main goal" },
-    { key: "average_ticket", label: "Average ticket" },
-    { key: "biggest_challenge", label: "Biggest challenge" },
-    { key: "differentiator", label: "Differentiator" },
-    { key: "additional_info", label: "Additional info" },
+  "Tus objetivos": [
+    { key: "main_goal", label: "Objetivo principal" },
+    { key: "biggest_challenge", label: "Reto principal" },
+    { key: "differentiator", label: "Diferenciador" },
   ],
 };
 
 type AssetItem = {
-  id: string;
-  asset_name: string;
-  asset_type: string;
-  status: string;
-  version: number;
-  created_at: string;
-  campaign_id: string | null;
+  id: string; asset_name: string; asset_type: string; status: string;
+  version: number; created_at: string; campaign_id: string | null;
 };
 
-type CampaignItem = {
-  id: string;
-  name: string;
-  objective: string | null;
-  status: string;
+type ClientTask = {
+  id: string; title: string; description: string | null;
+  category: string; status: string | null; blocked_reason: string | null;
 };
 
 function BriefingRow({ label, value }: { label: string; value: any }) {
@@ -87,44 +63,23 @@ function BriefingRow({ label, value }: { label: string; value: any }) {
   return (
     <div className="py-3 border-b border-border last:border-0">
       <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      {isEmpty ? (
-        <p className="text-sm text-muted-foreground italic">Not provided</p>
-      ) : (
-        <p className="text-sm text-foreground">{display}</p>
-      )}
+      {isEmpty ? <p className="text-sm text-muted-foreground italic">—</p> : <p className="text-sm text-foreground">{display}</p>}
     </div>
   );
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-muted text-muted-foreground",
-  active: "bg-[hsl(142,71%,35%)]/10 text-[hsl(142,71%,35%)] border-[hsl(142,71%,35%)]/30",
-  completed: "bg-primary/10 text-primary border-primary/30",
-};
-
-const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
-
-type ClientTask = {
-  id: string;
-  title: string;
-  description: string | null;
-  category: string;
-  status: string | null;
-  blocked_reason: string | null;
-};
-
 export default function ClientDashboard() {
+  const [clientName, setClientName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [allAssets, setAllAssets] = useState<AssetItem[]>([]);
-  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [briefingAnswers, setBriefingAnswers] = useState<Record<string, any> | null>(null);
   const [prospectData, setProspectData] = useState<Record<string, any> | null>(null);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
-  const [projectPlan, setProjectPlan] = useState<any>(null);
-  const [projectPlanShared, setProjectPlanShared] = useState(false);
   const [clientTasksList, setClientTasksList] = useState<ClientTask[]>([]);
+  const [activeOffering, setActiveOffering] = useState<any | null>(null);
+  const [offeringTpl, setOfferingTpl] = useState<any | null>(null);
+  const [offeringTasks, setOfferingTasks] = useState<{ status: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
 
   useEffect(() => {
     const load = async () => {
@@ -133,19 +88,17 @@ export default function ClientDashboard() {
 
       const { data: client } = await supabase
         .from("clients")
-        .select("id, company_name, prospect_id, project_plan, project_plan_shared")
+        .select("id, name, company_name, prospect_id")
         .eq("user_id", session.user.id)
         .limit(1)
         .maybeSingle();
 
       if (!client) { setLoading(false); return; }
+      setClientName(client.name);
       setCompanyName(client.company_name);
-      setProjectPlan(client.project_plan);
-      setProjectPlanShared(client.project_plan_shared || false);
 
-      const [assetsRes, campaignsRes, prospectRes, requestsRes] = await Promise.all([
+      const [assetsRes, prospectRes, requestsRes, offeringRes] = await Promise.all([
         supabase.from("assets").select("id, asset_name, asset_type, status, version, created_at, campaign_id").eq("client_id", client.id).order("created_at"),
-        supabase.from("campaigns").select("id, name, objective, status").eq("client_id", client.id).order("created_at", { ascending: false }),
         client.prospect_id
           ? supabase.from("prospects").select("name, company_name, email, phone, vertical, sub_niche, market, briefing_answers").eq("id", client.prospect_id).single()
           : Promise.resolve({ data: null }),
@@ -154,10 +107,16 @@ export default function ClientDashboard() {
           .eq("client_id", client.id)
           .in("status", ["pending", "partial"])
           .limit(1),
+        supabase
+          .from("client_offerings")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("proposed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (assetsRes.data) setAllAssets(assetsRes.data as AssetItem[]);
-      if (campaignsRes.data) setCampaigns(campaignsRes.data as CampaignItem[]);
 
       if (prospectRes.data) {
         setProspectData(prospectRes.data);
@@ -169,7 +128,17 @@ export default function ClientDashboard() {
         setPendingRequestCount(pending);
       }
 
-      // Fetch client-assigned action plan tasks
+      if (offeringRes.data) {
+        setActiveOffering(offeringRes.data);
+        const [{ data: tpl }, { data: t }] = await Promise.all([
+          supabase.from("offering_templates").select("*").eq("id", offeringRes.data.offering_template_id).maybeSingle(),
+          supabase.from("action_plan_tasks").select("status").eq("client_offering_id", offeringRes.data.id),
+        ]);
+        if (tpl) setOfferingTpl(tpl);
+        if (t) setOfferingTasks(t as any[]);
+      }
+
+      // Pending client tasks (across all offerings)
       const { data: offerings } = await supabase
         .from("client_offerings").select("id").eq("client_id", client.id);
       const offeringIds = (offerings || []).map((o: any) => o.id);
@@ -191,398 +160,256 @@ export default function ClientDashboard() {
 
   if (loading) return (
     <div className="space-y-4">
-      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
-      <div className="h-4 w-64 animate-pulse rounded bg-muted" />
-      {[1,2,3].map(i => <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />)}
+      <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
+      <div className="h-4 w-80 animate-pulse rounded bg-muted" />
+      {[1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-2xl bg-muted" />)}
     </div>
   );
 
-  const totalAssets = allAssets.length;
-  const approvedCount = allAssets.filter((a) => a.status === "approved").length;
-  const allApproved = totalAssets > 0 && approvedCount === totalAssets;
-  const progressPercent = totalAssets > 0 ? Math.round((approvedCount / totalAssets) * 100) : 0;
-
-  const uncategorizedAssets = allAssets.filter((a) => !a.campaign_id);
-  const hasCampaigns = campaigns.length > 0;
-
-  const typeGroups = new Map<string, { statuses: string[]; count: number }>();
-  for (const a of uncategorizedAssets) {
-    if (!typeGroups.has(a.asset_type)) typeGroups.set(a.asset_type, { statuses: [], count: 0 });
-    const g = typeGroups.get(a.asset_type)!;
-    g.statuses.push(a.status);
-    g.count++;
-  }
-
-  const pendingGroups: { type: string; status: string; count: number }[] = [];
-  typeGroups.forEach(({ statuses, count }, type) => {
-    let displayStatus = "approved";
-    if (statuses.includes("change_requested")) displayStatus = "change_requested";
-    else if (statuses.includes("pending_review")) displayStatus = "pending_review";
-    if (displayStatus !== "approved") pendingGroups.push({ type, status: displayStatus, count });
-  });
-
-  const approvedAssets = allAssets.filter((a) => a.status === "approved");
-
-  const getCampaignCardStyle = (campaignAssets: AssetItem[]) => {
-    if (campaignAssets.length === 0) return { border: "border-border", label: null };
-    const allCampaignApproved = campaignAssets.every((a) => a.status === "approved");
-    const hasChangeRequested = campaignAssets.some((a) => a.status === "change_requested");
-    if (allCampaignApproved) return { border: "border-l-4 border-l-[hsl(142,71%,35%)] border-border", label: "✅ Approved" };
-    if (hasChangeRequested) return { border: "border-l-4 border-l-[hsl(var(--status-pending-review))] border-border", label: "Action needed — we uploaded a new version" };
-    return { border: "border-border", label: null };
-  };
-
-  // UX-03: Client today actions
-  const clientTasks: { text: string; link: string }[] = [];
-  const pendingMaterials = pendingRequestCount;
-  if (pendingMaterials > 0) {
-    clientTasks.push({
-      text: `Subir ${pendingMaterials} archivo${pendingMaterials > 1 ? "s" : ""} solicitado${pendingMaterials > 1 ? "s" : ""}`,
-      link: "/client/collect"
+  // Combined client tasks (action_plan_tasks + materials request + pending review assets)
+  type TaskCard = { id: string; title: string; description?: string; cta: string; link: string; priority: "high" | "normal" };
+  const taskCards: TaskCard[] = [];
+  if (pendingRequestCount > 0) {
+    taskCards.push({
+      id: "materials",
+      title: `Subir ${pendingRequestCount} archivo${pendingRequestCount > 1 ? "s" : ""}`,
+      description: "Tu equipo PRAGMA necesita estos materiales para avanzar.",
+      cta: "Subir ahora",
+      link: "/client/collect",
+      priority: "high",
     });
   }
   const pendingReviewAssets = allAssets.filter(a => a.status === "pending_review");
   if (pendingReviewAssets.length > 0) {
-    clientTasks.push({
-      text: `Revisar ${pendingReviewAssets.length} asset${pendingReviewAssets.length > 1 ? "s" : ""} listo${pendingReviewAssets.length > 1 ? "s" : ""}`,
-      link: "/client/dashboard"
+    taskCards.push({
+      id: "review",
+      title: `Revisar ${pendingReviewAssets.length} asset${pendingReviewAssets.length > 1 ? "s" : ""}`,
+      description: "Tenemos contenido listo para tu aprobación.",
+      cta: "Revisar ahora",
+      link: "/client/dashboard",
+      priority: "high",
     });
   }
+  clientTasksList.forEach((t) => {
+    taskCards.push({
+      id: t.id,
+      title: t.title,
+      description: t.description || undefined,
+      cta: t.category === "client_input" ? "Subir / Enviar" : t.category === "review" ? "Revisar" : "Marcar hecho",
+      link: t.category === "client_input" ? "/client/collect" : "/client/dashboard",
+      priority: t.status === "blocked" ? "high" : "normal",
+    });
+  });
 
-  // showTooltip already declared at top
+  const totalAssets = allAssets.length;
+  const approvedCount = allAssets.filter((a) => a.status === "approved").length;
+  const tasksDone = offeringTasks.filter((t) => t.status === "done").length;
+  const tasksTotal = offeringTasks.length;
+  const offeringName = activeOffering ? (activeOffering.custom_name || offeringTpl?.name || "Tu campaña") : null;
+
+  // Status label (no money)
+  const campaignStatus = (() => {
+    if (!activeOffering) return { label: "Campaña en preparación", tone: "warning" as const };
+    switch (activeOffering.status) {
+      case "active": return { label: "🚀 Campaña activa", tone: "success" as const };
+      case "completed": return { label: "✅ Campaña completada", tone: "success" as const };
+      case "accepted": return { label: "Iniciando ejecución…", tone: "primary" as const };
+      case "proposed": return { label: "Propuesta lista — esperando confirmación", tone: "warning" as const };
+      default: return { label: "Campaña en preparación", tone: "warning" as const };
+    }
+  })();
+
+  const statusToneClass =
+    campaignStatus.tone === "success" ? "bg-[hsl(142,71%,35%)]/10 text-[hsl(142,71%,35%)] border-[hsl(142,71%,35%)]/30" :
+    campaignStatus.tone === "warning" ? "bg-amber-500/10 text-amber-700 border-amber-500/30" :
+    "bg-primary/10 text-primary border-primary/30";
+
+  const visibleAssets = allAssets.filter((a) => ["pending_review", "approved", "deployed"].includes(a.status));
+  const assetsByType = new Map<string, AssetItem[]>();
+  visibleAssets.forEach((a) => {
+    const arr = assetsByType.get(a.asset_type) || [];
+    arr.push(a);
+    assetsByType.set(a.asset_type, arr);
+  });
 
   return (
-    <div>
-      {/* UX-08: Onboarding tooltip */}
-      {showTooltip && (
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-start gap-3 mb-4">
-          <span className="text-xl">💬</span>
-          <div className="flex-1 text-sm">Haz clic en cualquier sección del asset para dejar un comentario.</div>
-          <button onClick={() => {
-            localStorage.setItem("pragma_tooltip_shown", "true");
-            setShowTooltip(false);
-          }} className="text-xs text-muted-foreground hover:text-foreground">
-            Entendido ✓
-          </button>
+    <div className="space-y-8">
+      {/* SECTION A — Hero */}
+      <header className="space-y-2">
+        <p className="text-sm text-muted-foreground">Hola</p>
+        <h1 className="text-3xl font-bold text-foreground">{clientName || "Bienvenido"}</h1>
+        <p className="text-sm text-muted-foreground">{companyName}</p>
+        <div className="pt-2">
+          <Badge variant="outline" className={`text-sm py-1.5 px-3 ${statusToneClass}`}>
+            {campaignStatus.label}
+          </Badge>
         </div>
-      )}
+      </header>
 
-      {/* Qué necesitamos de ti — client action plan tasks */}
-      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Qué necesitamos de ti
-        </h3>
-        {clientTasksList.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="font-medium">✅ Todo en orden, te avisamos cuando necesitemos algo</span>
+      {/* SECTION B — Qué necesitamos de ti */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Qué necesitamos de ti</h2>
+        </div>
+        {taskCards.length === 0 ? (
+          <div className="bg-[hsl(142,71%,35%)]/5 border border-[hsl(142,71%,35%)]/30 rounded-2xl p-5 flex items-center gap-3">
+            <CheckCircle2 className="w-6 h-6 text-[hsl(142,71%,35%)] shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Todo en orden</p>
+              <p className="text-xs text-muted-foreground">Te avisamos en cuanto necesitemos algo de tu parte.</p>
+            </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            {clientTasksList.map((task) => {
-              const cta = task.category === "client_input" ? "Subir / Enviar info"
-                : task.category === "review" ? "Revisar ahora"
-                : "Marcar hecho";
-              const link = task.category === "client_input" ? "/client/collect" : "/client/dashboard";
-              return (
-                <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
-                  {task.status === "blocked" && <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {taskCards.slice(0, 6).map((t) => (
+              <div
+                key={t.id}
+                className={`bg-card border rounded-2xl p-4 flex flex-col gap-2 hover:shadow-md transition-shadow ${
+                  t.priority === "high" ? "border-amber-500/40" : "border-border"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  {t.priority === "high" && <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{task.title}</p>
-                    {task.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.description}</p>}
+                    <p className="font-semibold text-sm text-foreground leading-snug">{t.title}</p>
+                    {t.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.description}</p>}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a href={link} className="text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/85 font-medium">
-                      {cta}
-                    </a>
-                    <button
-                      onClick={async () => {
-                        const { error } = await supabase
-                          .from("action_plan_tasks")
-                          .update({ status: "done", completed_at: new Date().toISOString() } as any)
-                          .eq("id", task.id);
-                        if (error) return;
-                        setClientTasksList((prev) => prev.filter((t) => t.id !== task.id));
-                      }}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                      title="Marcar hecho"
-                    >
-                      ✓
-                    </button>
+                </div>
+                <Button asChild size="sm" className="self-start mt-auto">
+                  <Link to={t.link}>{t.cta} →</Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* SECTION C — Tu campaña en números */}
+      {activeOffering && offeringTpl && (
+        <section className="bg-card rounded-2xl border border-border p-6 space-y-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu plan</p>
+              <h2 className="text-xl font-semibold text-foreground mt-0.5">{offeringName}</h2>
+            </div>
+            <Badge variant="outline" className={statusToneClass}>{campaignStatus.label}</Badge>
+          </div>
+
+          {/* Bullet description + steps — NO PRICING */}
+          <OfferingDetails offering={offeringTpl} audience="client" />
+
+          {/* Progress */}
+          {tasksTotal > 0 && (
+            <ProgressIndicator
+              value={tasksDone / tasksTotal}
+              label="Progreso del plan"
+              sublabel={`${tasksDone}/${tasksTotal} pasos`}
+              tone="success"
+            />
+          )}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assets aprobados</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{approvedCount}<span className="text-sm font-normal text-muted-foreground"> / {totalAssets}</span></p>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pasos completados</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{tasksDone}<span className="text-sm font-normal text-muted-foreground"> / {tasksTotal}</span></p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* SECTION D — Tus assets */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Tus assets</h2>
+        {visibleAssets.length === 0 ? (
+          <EmptyState
+            icon={<FileText />}
+            title="Aún no hay assets disponibles"
+            description="En cuanto generemos contenido, lo verás aquí listo para revisión."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Array.from(assetsByType.entries()).map(([type, list]) => {
+              const Icon = typeIcons[type] || FileText;
+              const pending = list.filter((a) => a.status === "pending_review").length;
+              const approved = list.filter((a) => a.status === "approved").length;
+              return (
+                <div key={type} className="bg-card border border-border rounded-2xl p-4 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-secondary"><Icon className="w-5 h-5 text-foreground" /></div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-foreground">{typeLabels[type] || type}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {approved}/{list.length} aprobados
+                        {pending > 0 && ` · ${pending} por revisar`}
+                      </p>
+                    </div>
                   </div>
+                  {pending > 0 ? (
+                    <Button asChild size="sm">
+                      <Link to={`/client/assets/${type}`}>Revisar</Link>
+                    </Button>
+                  ) : (
+                    <CheckCircle2 className="w-5 h-5 text-[hsl(142,71%,35%)] shrink-0 mt-1" />
+                  )}
                 </div>
               );
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* UX-03: Today's tasks */}
-      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Lo que toca hoy</h3>
-        {clientTasks.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="font-medium">✅ Todo al día — sin tareas pendientes. 🎯</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {clientTasks.map((task, i) => (
-              <a key={i} href={task.link} className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors border-l-4 border-l-primary">
-                <span className="text-sm text-foreground flex-1">{task.text}</span>
-                <span className="text-xs text-muted-foreground">→</span>
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {allApproved && (
-        <div className="mb-6 rounded-lg p-5 bg-gradient-to-r from-[hsl(142,71%,35%)] to-[hsl(152,60%,42%)] text-white">
-          <p className="text-lg font-bold">🎉 All assets approved!</p>
-          <p className="text-sm mt-1 text-white/90">Your campaigns are being activated. We'll be in touch shortly.</p>
-        </div>
-      )}
-
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Welcome, {companyName}</h1>
-        <p className="text-muted-foreground mt-1">Here you can review your assets and briefing information.</p>
-
-        {totalAssets > 0 && (
-          <div className="mt-4 max-w-md">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm text-muted-foreground">Assets approved: {approvedCount} of {totalAssets}</span>
-              <span className="text-sm font-medium text-foreground">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2.5 [&>div]:bg-[hsl(142,71%,35%)]" />
-          </div>
-        )}
-
-        <div className="mt-6 flex items-center gap-0 max-w-2xl">
-          {["Contacto inicial", "Kickoff call", "Materiales subidos", "En producción", "Revisión y aprobación"].map((label, i) => {
-            const stepDone = totalAssets > 0
-              ? i <= (allApproved ? 4 : approvedCount > 0 ? 3 : hasCampaigns ? 2 : 1)
-              : i === 0;
-            return (
-              <div key={label} className="flex-1 flex flex-col items-center gap-1.5">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${stepDone ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                  {i + 1}
-                </div>
-                <span className={`text-[10px] text-center leading-tight ${stepDone ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                  {label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <Tabs defaultValue="assets">
-        <TabsList>
-          <TabsTrigger value="assets">My Assets</TabsTrigger>
-          <TabsTrigger value="briefing">My Briefing</TabsTrigger>
-          <TabsTrigger value="collect" className="relative">
-            📎 Files requested
-            {pendingRequestCount > 0 && (
-              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
-                {pendingRequestCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="assets" className="mt-6">
-          {/* FEAT-11: Project plan for client */}
-          {projectPlanShared && projectPlan && (
-            <div className="bg-card rounded-lg border border-border p-6 mb-6 space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">📋 Tu plan de proyecto</h2>
-              {Array.isArray(projectPlan) ? (
-                <div className="space-y-2">
-                  {projectPlan.map((item: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-md bg-secondary/30">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{item.name || item.asset_name || `Item ${i + 1}`}</p>
-                        {item.due_date && <p className="text-xs text-muted-foreground">Fecha: {item.due_date}</p>}
-                      </div>
-                      {item.status && <StatusBadge status={item.status} />}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap text-muted-foreground">
-                  {typeof projectPlan === "string" ? projectPlan : JSON.stringify(projectPlan, null, 2)}
-                </pre>
+      {/* SECTION E — Briefing (collapsed by default) */}
+      <section>
+        <Tabs defaultValue="brief">
+          <TabsList>
+            <TabsTrigger value="brief">Mi briefing completo</TabsTrigger>
+            <TabsTrigger value="collect" className="relative">
+              <Paperclip className="w-3.5 h-3.5 mr-1" /> Archivos solicitados
+              {pendingRequestCount > 0 && (
+                <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
+                  {pendingRequestCount}
+                </Badge>
               )}
-            </div>
-          )}
-
-          {hasCampaigns && (
-            <div className="space-y-4 mb-8">
-              <h2 className="text-lg font-semibold text-foreground">Your Campaigns</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {campaigns.map((campaign) => {
-                  const cAssets = allAssets.filter((a) => a.campaign_id === campaign.id);
-                  const assetsByType = new Map<string, string[]>();
-                  for (const a of cAssets) {
-                    if (!assetsByType.has(a.asset_type)) assetsByType.set(a.asset_type, []);
-                    assetsByType.get(a.asset_type)!.push(a.status);
-                  }
-                  const { border, label } = getCampaignCardStyle(cAssets);
-
-                  return (
-                    <div key={campaign.id} className={`bg-card rounded-lg border ${border} p-5 space-y-3`}>
-                      <div className="flex items-start justify-between">
-                        <h3 className="font-semibold text-foreground">{campaign.name}</h3>
-                        <Badge variant="outline" className={`text-[10px] ${STATUS_COLORS[campaign.status] || ""}`}>
-                          {campaign.status}
-                        </Badge>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="brief" className="mt-4 space-y-3">
+            {briefingAnswers ? (
+              Object.entries(briefingFields).map(([section, fields]) => (
+                <Collapsible key={section}>
+                  <div className="bg-card rounded-xl border border-border overflow-hidden">
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
+                      <h3 className="font-semibold text-foreground text-sm">{section}</h3>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4">
+                        {fields.map((f) => {
+                          const val = (f as any).source === "prospect"
+                            ? prospectData?.[f.key]
+                            : briefingAnswers[f.key];
+                          return <BriefingRow key={f.key} label={f.label} value={val} />;
+                        })}
                       </div>
-
-                      {label && (
-                        <p className={`text-xs font-medium flex items-center gap-1 ${label.startsWith("✅") ? "text-[hsl(142,71%,35%)]" : "text-[hsl(var(--status-pending-review))]"}`}>
-                          {!label.startsWith("✅") && <AlertCircle className="w-3 h-3" />}
-                          {label}
-                        </p>
-                      )}
-
-                      {campaign.objective && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
-                          <Target className="w-3 h-3 shrink-0" /> {campaign.objective}
-                        </p>
-                      )}
-
-                      {cAssets.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {Array.from(assetsByType.entries()).map(([type, statuses]) => {
-                            const worstStatus = statuses.includes("change_requested") ? "change_requested" : statuses.includes("pending_review") ? "pending_review" : "approved";
-                            return (
-                              <span key={type} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary font-medium">
-                                {ASSET_SHORT[type] || type} {getStatusIcon(worstStatus)}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      <Button asChild size="sm">
-                        <Link to={`/client/campaign/${campaign.id}`}>Review campaign assets →</Link>
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {!hasCampaigns && allAssets.length === 0 && (
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
-              <p className="text-2xl">🚀</p>
-              <h3 className="text-lg font-semibold text-foreground">Your campaigns are being prepared</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Check back soon — your PRAGMA team is working on your marketing assets. We'll notify you when they're ready for review.
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              ))
+            ) : (
+              <EmptyState icon={<FileText />} title="Briefing no disponible" description="Tu información de briefing aparecerá aquí." />
+            )}
+          </TabsContent>
+          <TabsContent value="collect" className="mt-4">
+            <div className="bg-card rounded-xl border border-border p-5">
+              <p className="text-sm text-muted-foreground">
+                Ve a la <Link to="/client/collect" className="text-primary underline">página de subida</Link> para enviar los archivos solicitados.
               </p>
             </div>
-          )}
-
-          {pendingGroups.length > 0 && (
-            <div className="space-y-4 mb-8">
-              <h2 className="text-lg font-semibold text-foreground">{hasCampaigns ? "Other Assets" : "Needs Your Review"}</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {pendingGroups.map((g) => {
-                  const Icon = typeIcons[g.type] || FileText;
-                  return (
-                    <div key={g.type} className="bg-card rounded-lg border border-border p-5 flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-md bg-secondary">
-                          <Icon className="w-5 h-5 text-foreground" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-foreground">{typeLabels[g.type] || g.type}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <StatusBadge status={g.status} />
-                            <span className="text-xs text-muted-foreground">{g.count} item{g.count > 1 ? "s" : ""}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button asChild size="sm">
-                        <Link to={`/client/assets/${g.type}`}>Review now</Link>
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {approvedAssets.length > 0 && (
-            <div className="space-y-4 mb-8">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">✅ Approved assets</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">These have been approved and are being activated by the PRAGMA team.</p>
-              </div>
-              <div className="rounded-lg border-2 border-[hsl(142,71%,35%)]/30 bg-[hsl(142,71%,35%)]/5 divide-y divide-border">
-                {approvedAssets.map((asset) => {
-                  const Icon = typeIcons[asset.asset_type] || FileText;
-                  return (
-                    <div key={asset.id} className="flex items-center gap-3 p-4">
-                      <CheckCircle2 className="w-4 h-4 text-[hsl(142,71%,35%)] shrink-0" />
-                      <div className="p-1.5 rounded bg-secondary shrink-0">
-                        <Icon className="w-4 h-4 text-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{asset.asset_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Approved on {format(new Date(asset.created_at), "dd MMM yyyy")} — Version {asset.version || 1}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="briefing" className="mt-6 space-y-6">
-          {briefingAnswers ? (
-            Object.entries(briefingFields).map(([section, fields]) => (
-              <Collapsible key={section} defaultOpen>
-                <div className="bg-card rounded-lg border border-border overflow-hidden">
-                  <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
-                    <h3 className="font-semibold text-foreground text-sm">{section}</h3>
-                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="px-5 pb-5">
-                      {fields.map((f) => {
-                        const val = (f as any).source === "prospect"
-                          ? prospectData?.[f.key]
-                          : briefingAnswers[f.key];
-                        return <BriefingRow key={f.key} label={f.label} value={val} />;
-                      })}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            ))
-          ) : (
-            <div className="bg-card rounded-lg border border-border p-8 text-center space-y-3">
-              <p className="text-2xl">📋</p>
-              <h3 className="text-lg font-semibold text-foreground">Briefing not available</h3>
-              <p className="text-sm text-muted-foreground">Your briefing information will appear here once processed.</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="collect" className="mt-6">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-2">Files Requested by PRAGMA</h3>
-            <p className="text-sm text-muted-foreground">
-              Go to the <Link to="/client/collect" className="text-primary underline">upload page</Link> to submit the requested files.
-            </p>
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      </section>
     </div>
   );
 }
