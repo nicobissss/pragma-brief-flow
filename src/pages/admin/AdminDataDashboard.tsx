@@ -24,14 +24,12 @@ const statusBadgeClass: Record<string, string> = {
 
 export default function AdminDataDashboard() {
   const [prospects, setProspects] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
   const [generations, setGenerations] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [emailLog, setEmailLog] = useState<any[]>([]);
   const [kickoffs, setKickoffs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [prospectFilter, setProspectFilter] = useState("all");
   const [monthlyReview, setMonthlyReview] = useState<string | null>(null);
   const [generatingReview, setGeneratingReview] = useState(false);
 
@@ -49,16 +47,14 @@ export default function AdminDataDashboard() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [p, c, g, e, em, k] = await Promise.all([
-      supabase.from("prospects").select("*").order("created_at", { ascending: false }),
-      supabase.from("clients").select("*").order("created_at", { ascending: false }),
+    const [p, g, e, em, k] = await Promise.all([
+      supabase.from("prospects").select("id, briefing_answers").order("created_at", { ascending: false }),
       supabase.from("tool_generations").select("*, clients(name)").order("created_at", { ascending: false }),
       supabase.from("events").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("email_log").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("kickoff_briefs").select("*, clients(name, email)").order("created_at", { ascending: false }),
     ]);
     setProspects(p.data || []);
-    setClients(c.data || []);
     setGenerations(g.data || []);
     setEvents(e.data || []);
     setEmailLog(em.data || []);
@@ -67,26 +63,6 @@ export default function AdminDataDashboard() {
   };
 
   useEffect(() => { loadAll(); }, []);
-
-  const exportCSV = (data: any[], filename: string) => {
-    if (!data.length) return;
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data.map(r =>
-      Object.values(r).map(v =>
-        typeof v === "object" ? `"${JSON.stringify(v).replace(/"/g, '""')}"` : `"${String(v ?? "")}"`
-      ).join(",")
-    ).join("\n");
-    const blob = new Blob([headers + "\n" + rows], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-  };
-
-  const filteredProspects = prospectFilter === "all"
-    ? prospects
-    : prospects.filter(p => p.status === prospectFilter);
 
   const briefingProspects = prospects.filter(p => p.briefing_answers && Object.keys(p.briefing_answers as object).length > 0);
 
