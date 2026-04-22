@@ -3,11 +3,10 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   FileText, Image as ImageIcon, Mail, PenTool, ChevronDown,
-  CheckCircle2, AlertCircle, Paperclip,
+  CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { ProgressIndicator } from "@/components/shared/ProgressIndicator";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -287,12 +286,9 @@ export default function ClientDashboard() {
       {/* SECTION C — Tu campaña en números */}
       {activeOffering && offeringTpl && (
         <section className="bg-card rounded-2xl border border-border p-6 space-y-5">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu plan</p>
-              <h2 className="text-xl font-semibold text-foreground mt-0.5">{offeringName}</h2>
-            </div>
-            <Badge variant="outline" className={statusToneClass}>{campaignStatus.label}</Badge>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tu plan</p>
+            <h2 className="text-xl font-semibold text-foreground mt-0.5">{offeringName}</h2>
           </div>
 
           {/* Bullet description + steps — NO PRICING */}
@@ -307,15 +303,9 @@ export default function ClientDashboard() {
               tone="success"
             />
           )}
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assets aprobados</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{approvedCount}<span className="text-sm font-normal text-muted-foreground"> / {totalAssets}</span></p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pasos completados</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{tasksDone}<span className="text-sm font-normal text-muted-foreground"> / {tasksTotal}</span></p>
-            </div>
+          <div className="pt-2 border-t border-border">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Assets aprobados</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{approvedCount}<span className="text-sm font-normal text-muted-foreground"> / {totalAssets}</span></p>
           </div>
         </section>
       )}
@@ -352,7 +342,9 @@ export default function ClientDashboard() {
                       <Link to={`/client/assets/${type}`}>Revisar</Link>
                     </Button>
                   ) : (
-                    <CheckCircle2 className="w-5 h-5 text-[hsl(142,71%,35%)] shrink-0 mt-1" />
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/client/assets/${type}`}>Ver</Link>
+                    </Button>
                   )}
                 </div>
               );
@@ -362,54 +354,62 @@ export default function ClientDashboard() {
       </section>
 
       {/* SECTION E — Briefing (collapsed by default) */}
-      <section>
-        <Tabs defaultValue="brief">
-          <TabsList>
-            <TabsTrigger value="brief">Mi briefing completo</TabsTrigger>
-            <TabsTrigger value="collect" className="relative">
-              <Paperclip className="w-3.5 h-3.5 mr-1" /> Archivos solicitados
-              {pendingRequestCount > 0 && (
-                <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 h-4 min-w-4">
-                  {pendingRequestCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="brief" className="mt-4 space-y-3">
-            {briefingAnswers ? (
-              Object.entries(briefingFields).map(([section, fields]) => (
-                <Collapsible key={section}>
-                  <div className="bg-card rounded-xl border border-border overflow-hidden">
-                    <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
-                      <h3 className="font-semibold text-foreground text-sm">{section}</h3>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Mi briefing completo</h2>
+        {briefingAnswers ? (
+          Object.entries(briefingFields).map(([section, fields]) => {
+            const rows = fields.map((f) => {
+              const val = (f as any).source === "prospect"
+                ? prospectData?.[f.key]
+                : briefingAnswers[f.key];
+              const isEmpty = val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0);
+              return { field: f, value: val, isEmpty };
+            });
+            const filled = rows.filter((r) => !r.isEmpty);
+            const emptyCount = rows.length - filled.length;
+            return (
+              <Collapsible key={section}>
+                <div className="bg-card rounded-xl border border-border overflow-hidden">
+                  <CollapsibleTrigger className="w-full flex items-center justify-between p-4 hover:bg-secondary/30 transition-colors">
+                    <h3 className="font-semibold text-foreground text-sm">{section}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{filled.length}/{rows.length}</span>
                       <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-4 pb-4">
-                        {fields.map((f) => {
-                          const val = (f as any).source === "prospect"
-                            ? prospectData?.[f.key]
-                            : briefingAnswers[f.key];
-                          return <BriefingRow key={f.key} label={f.label} value={val} />;
-                        })}
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              ))
-            ) : (
-              <EmptyState icon={<FileText />} title="Briefing no disponible" description="Tu información de briefing aparecerá aquí." />
-            )}
-          </TabsContent>
-          <TabsContent value="collect" className="mt-4">
-            <div className="bg-card rounded-xl border border-border p-5">
-              <p className="text-sm text-muted-foreground">
-                Ve a la <Link to="/client/collect" className="text-primary underline">página de subida</Link> para enviar los archivos solicitados.
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <BriefingSection rows={rows} emptyCount={emptyCount} />
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })
+        ) : (
+          <EmptyState icon={<FileText />} title="Briefing no disponible" description="Tu información de briefing aparecerá aquí." />
+        )}
       </section>
+    </div>
+  );
+}
+
+function BriefingSection({ rows, emptyCount }: { rows: { field: any; value: any; isEmpty: boolean }[]; emptyCount: number }) {
+  const [showEmpty, setShowEmpty] = useState(false);
+  const visible = showEmpty ? rows : rows.filter((r) => !r.isEmpty);
+  return (
+    <div className="px-4 pb-4">
+      {visible.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic py-3">Aún sin datos en esta sección.</p>
+      ) : (
+        visible.map((r) => <BriefingRow key={r.field.key} label={r.field.label} value={r.value} />)
+      )}
+      {emptyCount > 0 && (
+        <button
+          onClick={() => setShowEmpty((v) => !v)}
+          className="text-xs text-primary hover:underline mt-3"
+        >
+          {showEmpty ? "Ocultar campos vacíos" : `Mostrar ${emptyCount} campo${emptyCount > 1 ? "s" : ""} vacío${emptyCount > 1 ? "s" : ""}`}
+        </button>
+      )}
     </div>
   );
 }
