@@ -7,17 +7,16 @@ const corsHeaders = {
 };
 
 /**
- * Triggers asset generation in Forge by sending a webhook with the full client
- * context. Forge will use the provided client_id/campaign_id to read briefer
- * data with its service role key, generate assets, and POST them back to the
- * `webhook-receiver` (action: "asset_generated").
+ * Triggers asset generation in Forge by sending a webhook with the FULL client
+ * context bundled in the payload. Forge no longer needs DB access — it consumes
+ * the payload and POSTs results back to `webhook-receiver` (action: "asset_generated").
  *
  * Body:
  *   - client_id (required)
- *   - campaign_id (optional) — generate for all asset types in the campaign
- *   - asset_type (optional) — single-asset trigger; one of landing_page | email_flow | social_post | blog_article
- *   - asset_id (optional) — regenerate a specific existing asset (passes its current version)
- *   - notes (optional) — free-form instructions to forward to Forge
+ *   - campaign_id (optional)
+ *   - asset_type (optional) — landing_page | email_flow | social_post | blog_article
+ *   - asset_id (optional) — regenerate a specific existing asset
+ *   - notes (optional)
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -52,29 +51,86 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Forge requires client_id + asset_type + asset_name on every call.
-    // Build one or more payloads (fan-out for campaign batches).
+    // ---------------------------------------------------------------------
+    // 1. Fetch FULL client context bundle (parallel reads)
+    // ---------------------------------------------------------------------
+    const [
+      clientRes,
+      kickoffRes,
+      campaignsRes,
+      offeringsRes,
+      platformsRes,
+      patternsRes,
+      pragmaRulesRes,
+      knowledgeRes,
+      existingAssetRes,
+      campaignRes,
+    ] = await Promise.all([
+      supabase.from("clients").select("*").eq("id", client_id).maybeSingle(),
+      supabase.from("kickoff_briefs").select("*").eq("client_id", client_id).maybeSingle(),
+      supabase.from("campaigns").select("*").eq("client_id", client_id),
+      supabase
+        .from("client_offerings")
+        .select("*, offering_template:offering_templates(*)")
+        .eq("client_id", client_id),
+      supabase
+        .from("client_platforms")
+        .select("*, platform:supported_platforms(*)")
+        .eq("client_id", client_id),
+      supabase.from("client_winning_patterns").select("*").eq("client_id", client_id),
+      supabase.from("pragma_rules").select("*").eq("is_active", true),
+      supabase.from("knowledge_base").select("*"),
+      asset_id
+        ? supabase
+            .from("assets")
+            .select("asset_name, asset_type, version, campaign_id, content")
+            .eq("id", asset_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      campaign_id
+        ? supabase.from("campaigns").select("*").eq("id", campaign_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const client = clientRes.data;
+    if (!client) {
+      return new Response(JSON.stringify({ error: `client_id ${client_id} not found` }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const kickoff = kickoffRes.data;
+    const existingAsset = existingAssetRes.data;
+    const targetCampaign = campaignRes.data;
+    const campaignName = targetCampaign?.name ?? null;
+
+    // Filter pragma_rules by client vertical
+    const pragmaRules = (pragmaRulesRes.data || []).filter(
+      (r: any) => !r.applies_to_vertical || r.applies_to_vertical === client.vertical,
+    );
+
+    const contextBundle = {
+      client,
+      kickoff_brief: kickoff || null,
+      voice_reference: kickoff?.voice_reference || null,
+      preferred_tone: kickoff?.preferred_tone || null,
+      client_rules: kickoff?.client_rules || [],
+      client_materials: kickoff?.client_materials || {},
+      transcript_text: kickoff?.transcript_text || null,
+      campaigns: campaignsRes.data || [],
+      target_campaign: targetCampaign,
+      client_offerings: offeringsRes.data || [],
+      client_platforms: platformsRes.data || [],
+      winning_patterns: patternsRes.data || [],
+      pragma_rules: pragmaRules,
+      knowledge_base: knowledgeRes.data || [],
+    };
+
+    // ---------------------------------------------------------------------
+    // 2. Build payloads (single asset, regeneration, or campaign fan-out)
+    // ---------------------------------------------------------------------
     const ASSET_TYPES = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
-
-    let existingAsset: any = null;
-    if (asset_id) {
-      const { data } = await supabase
-        .from("assets")
-        .select("asset_name, asset_type, version, campaign_id")
-        .eq("id", asset_id)
-        .maybeSingle();
-      existingAsset = data;
-    }
-
-    let campaignName: string | null = null;
-    if (campaign_id) {
-      const { data } = await supabase
-        .from("campaigns")
-        .select("name")
-        .eq("id", campaign_id)
-        .maybeSingle();
-      campaignName = data?.name ?? null;
-    }
 
     const buildAssetName = (type: string) => {
       const base = campaignName || "Asset";
@@ -93,9 +149,11 @@ Deno.serve(async (req) => {
       asset_name: string;
       asset_id: string | null;
       version?: number;
+      previous_content?: any;
       notes: string | null;
       callback_url: string;
       requested_at: string;
+      context: typeof contextBundle;
     };
 
     const payloads: ForgePayload[] = [];
@@ -109,12 +167,13 @@ Deno.serve(async (req) => {
         asset_name: existingAsset.asset_name,
         asset_id,
         version: (existingAsset.version ?? 1) + 1,
+        previous_content: existingAsset.content,
         notes: notes || null,
         callback_url: callbackUrl,
         requested_at: requestedAt,
+        context: contextBundle,
       });
     } else if (campaign_id && !asset_type) {
-      // Fan out: one call per asset type
       for (const t of ASSET_TYPES) {
         payloads.push({
           action: "generate_single_asset",
@@ -126,6 +185,7 @@ Deno.serve(async (req) => {
           notes: notes || null,
           callback_url: callbackUrl,
           requested_at: requestedAt,
+          context: contextBundle,
         });
       }
     } else {
@@ -140,18 +200,36 @@ Deno.serve(async (req) => {
         notes: notes || null,
         callback_url: callbackUrl,
         requested_at: requestedAt,
+        context: contextBundle,
       });
     }
 
+    // ---------------------------------------------------------------------
+    // 3. Send to Forge (with logging — payload trimmed in log to avoid bloat)
+    // ---------------------------------------------------------------------
     const results: Array<{ asset_type: string; ok: boolean; status?: number; error?: string }> = [];
 
     for (const payload of payloads) {
+      const logPayload = {
+        ...payload,
+        context: {
+          _summary: "full context bundle sent to Forge",
+          client_id: payload.client_id,
+          client_name: client.name,
+          campaigns_count: contextBundle.campaigns.length,
+          offerings_count: contextBundle.client_offerings.length,
+          rules_count: contextBundle.client_rules.length,
+          has_voice_reference: !!contextBundle.voice_reference,
+          has_kickoff: !!contextBundle.kickoff_brief,
+        },
+      };
+
       const { data: logRow } = await supabase
         .from("webhook_log")
         .insert({
           direction: "out",
           event_type: payload.action,
-          payload,
+          payload: logPayload,
           status: "sending",
         })
         .select("id")
@@ -213,7 +291,7 @@ Deno.serve(async (req) => {
         total: results.length,
         results,
         message: allOk
-          ? "Generation triggered. Forge will deliver assets via webhook."
+          ? "Generation triggered with full context bundle. Forge will deliver assets via webhook."
           : "Some asset types failed to trigger.",
       }),
       {
