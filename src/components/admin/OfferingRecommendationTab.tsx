@@ -9,9 +9,17 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
+  CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw, Clock,
 } from "lucide-react";
 import { OfferingDetails } from "@/components/shared/OfferingDetails";
+
+const TIER_FILTERS = [
+  { value: "all", label: "Todas" },
+  { value: "1", label: "Quick Wins" },
+  { value: "2", label: "Retainer" },
+  { value: "3", label: "One-shot" },
+] as const;
+type TierFilter = typeof TIER_FILTERS[number]["value"];
 
 type Offering = {
   id: string;

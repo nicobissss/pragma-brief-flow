@@ -340,45 +340,13 @@ export function FlowsRulesTab() {
         </Button>
       </div>
 
-      {/* Flows */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-foreground">Flows</h3>
-          <Button size="sm" onClick={() => setFlowModal({ open: true, flow: { is_active: true, estimated_total_days: 30 } })}>
-            <Plus className="w-4 h-4 mr-1" /> Añadir flow
-          </Button>
-        </div>
-        {flows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay flows configurados.</p>
-        ) : (
-          <div className="space-y-2">
-            {flows.map(f => {
-              let niches: string[] = [];
-              try { niches = typeof f.applicable_sub_niches === "string" ? JSON.parse(f.applicable_sub_niches) : Array.isArray(f.applicable_sub_niches) ? f.applicable_sub_niches : []; } catch { /* */ }
-              return (
-                <div key={f.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-foreground">{f.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">{f.vertical}</Badge>
-                      {!f.is_active && <Badge variant="outline" className="text-[10px]">Inactivo</Badge>}
-                      <span className="text-xs text-muted-foreground">~{f.estimated_total_days}d</span>
-                    </div>
-                    {f.description && <p className="text-xs text-muted-foreground truncate">{f.description}</p>}
-                    {niches.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {niches.map(n => <Badge key={n} variant="outline" className="text-[10px]">{n}</Badge>)}
-                      </div>
-                    )}
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => setFlowModal({ open: true, flow: f })}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Flows section removed: el catálogo ahora vive en offering_templates (tab Ofertas) */}
+      <section className="bg-secondary/30 border border-dashed border-border rounded-xl p-4">
+        <p className="text-sm text-muted-foreground">
+          Los flows ya no se gestionan aquí. El catálogo Tier 1/2/3 se administra desde
+          <strong className="text-foreground mx-1">Ofertas → Catálogo</strong>
+          y se aplica a cada cliente desde el tab <strong className="text-foreground">Oferta</strong> de su ficha.
+        </p>
       </section>
 
       {/* Tools */}
