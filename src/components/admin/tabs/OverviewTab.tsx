@@ -74,7 +74,6 @@ export default function OverviewTab({ client, kickoff, hasOffering, contextScore
 
   // Derive timeline status
   const briefDone = !!kickoff?.transcript_text && !!kickoff?.voice_reference;
-  const offeringDone = !!offering;
   const setupDone = offering?.status === "active" || offering?.status === "completed";
   const activeDone = assets.some((a: any) => a.status === "approved" || a.production_status === "deployed");
 
@@ -83,8 +82,8 @@ export default function OverviewTab({ client, kickoff, hasOffering, contextScore
 
   const steps: TimelineStep[] = [
     { label: "Brief", status: getStatus(briefDone, true) },
-    { label: "Oferta", status: getStatus(offeringDone, briefDone) },
-    { label: "Setup", status: getStatus(setupDone, offeringDone) },
+    { label: "Oferta", status: getStatus(!!offering, briefDone) },
+    { label: "Setup", status: getStatus(setupDone, !!offering) },
     { label: "Activa", status: getStatus(activeDone, setupDone) },
   ];
 
@@ -119,12 +118,17 @@ export default function OverviewTab({ client, kickoff, hasOffering, contextScore
 
       {/* Next Action + Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 relative">
+          {nextAction.proposalAgingDays !== undefined && nextAction.proposalAgingDays > 5 && (
+            <Badge variant="destructive" className="absolute -top-2 -right-2 z-10 text-[10px]">
+              SLA: {nextAction.proposalAgingDays}d
+            </Badge>
+          )}
           <NextActionCard
             title={nextAction.title}
             description={nextAction.description}
             ctaLabel={nextAction.ctaLabel}
-            onCta={() => onNavigateTab(nextAction.ctaTab)}
+            onCta={() => onNavigateTab(nextAction.ctaTab!)}
             variant={nextAction.variant}
           />
         </div>
