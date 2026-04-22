@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function generateRandomPassword(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -17,6 +23,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    const APP_URL = Deno.env.get("APP_URL") || "https://pragma-brief-flow.lovable.app";
 
     // 1. Fetch prospect
     const { data: prospect, error: pErr } = await supabaseAdmin
@@ -41,18 +48,20 @@ serve(async (req) => {
       });
     }
 
-    // 3. Auth user
+    // 3. Auth user (random password — user uses recovery link)
     const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
     const existingUser = users?.find((u: any) => u.email === prospect.email);
 
     let userId: string;
+    let isNewUser = false;
 
     if (existingUser) {
       userId = existingUser.id;
     } else {
+      const randomPassword = generateRandomPassword();
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: prospect.email,
-        password: "Pragma2026!",
+        password: randomPassword,
         email_confirm: true,
         user_metadata: { full_name: prospect.name, company: prospect.company_name, role: "client" },
         app_metadata: { role: "client" },
@@ -60,6 +69,7 @@ serve(async (req) => {
 
       if (createErr) throw new Error(`Failed to create user: ${createErr.message}`);
       userId = newUser.user.id;
+      isNewUser = true;
     }
 
     // 4. Role
@@ -68,7 +78,7 @@ serve(async (req) => {
       { onConflict: "user_id,role" }
     );
 
-    // 5. Client record (extract city + website_url from briefing answers if present)
+    // 5. Client record
     const briefingAnswers = (prospect.briefing_answers || {}) as Record<string, any>;
     const city = briefingAnswers.city || briefingAnswers.ciudad || briefingAnswers.location || null;
     const websiteUrl = briefingAnswers.website_url || briefingAnswers.website || briefingAnswers.url_sitio_web || null;
@@ -89,16 +99,15 @@ serve(async (req) => {
 
     if (clientErr) throw new Error(`Failed to create client: ${clientErr.message}`);
 
-    // 5b. Clone kickoff questions from vertical/sub_niche templates
+    // 5b. Clone kickoff questions
     try {
-      const { data: cloned, error: cloneErr } = await supabaseAdmin.rpc("clone_kickoff_questions_for_client", {
+      const { error: cloneErr } = await supabaseAdmin.rpc("clone_kickoff_questions_for_client", {
         p_client_id: client.id,
         p_vertical: prospect.vertical,
         p_sub_niche: prospect.sub_niche,
         p_replace: false,
       });
       if (cloneErr) console.error("clone_kickoff_questions error:", cloneErr);
-      else console.log(`Cloned ${cloned} kickoff questions for client ${client.id}`);
     } catch (cloneErr) {
       console.error("clone_kickoff_questions exception:", cloneErr);
     }
@@ -106,10 +115,7 @@ serve(async (req) => {
     // 6. Briefing answers
     const { error: bsErr } = await supabaseAdmin
       .from("briefing_submissions")
-      .upsert({
-        client_id: client.id,
-        answers: prospect.briefing_answers || {}
-      }, { onConflict: "client_id" });
+      .upsert({ client_id: client.id, answers: prospect.briefing_answers || {} }, { onConflict: "client_id" });
     if (bsErr) console.error("briefing_submissions error:", bsErr);
 
     // 7. Auto-create client_offering from proposal recommendation
@@ -147,21 +153,18 @@ serve(async (req) => {
           console.error("client_offerings insert error:", offErr);
         } else if (newOffering) {
           offeringId = newOffering.id;
-          // 8. Auto-generate tasks for this offering
           const { error: taskErr } = await supabaseAdmin.rpc("generate_tasks_for_offering", {
             p_client_offering_id: newOffering.id,
           });
           if (taskErr) console.error("generate_tasks_for_offering error:", taskErr);
         }
-      } else {
-        console.warn("No active offering_template found for code:", offeringCode);
       }
     }
 
-    // 9. Update prospect status
+    // 8. Update prospect status
     await supabaseAdmin.from("prospects").update({ status: "accepted" }).eq("id", prospect_id);
 
-    // 10. Log activity
+    // 9. Activity log
     await supabaseAdmin.from("activity_log").insert({
       entity_type: "prospect",
       entity_id: prospect.id,
@@ -169,17 +172,29 @@ serve(async (req) => {
       action: `accepted — client account created${offeringId ? " + offering auto-created" : ""}`,
     });
 
-    // 11. Welcome email (non-blocking)
+    // 10. Welcome email — generate password recovery link, send via send-transactional-email
     try {
-      await supabaseAdmin.functions.invoke("send-notification", {
-        body: {
-          type: "client_welcome",
-          data: {
-            name: prospect.name,
-            email: prospect.email,
-            app_url: "https://pragma-brief-flow.lovable.app"
-          }
+      let setPasswordUrl = `${APP_URL}/login`;
+      if (isNewUser) {
+        const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+          type: "recovery",
+          email: prospect.email,
+          options: { redirectTo: `${APP_URL}/update-password` },
+        });
+        if (linkErr) {
+          console.error("generateLink error:", linkErr);
+        } else if (linkData?.properties?.action_link) {
+          setPasswordUrl = linkData.properties.action_link;
         }
+      }
+
+      await supabaseAdmin.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "client-welcome",
+          recipientEmail: prospect.email,
+          idempotencyKey: `client-welcome-${client.id}`,
+          templateData: { name: prospect.name, setPasswordUrl, appUrl: APP_URL },
+        },
       });
     } catch (emailErr) {
       console.error("Welcome email error:", emailErr);
