@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
   CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
 } from "lucide-react";
+import { OfferingDetails } from "@/components/shared/OfferingDetails";
 
 type Offering = {
   id: string;
@@ -21,6 +22,8 @@ type Offering = {
   description: string | null;
   value_proposition: string | null;
   deliverables: any;
+  task_templates: any;
+  expected_outcomes: any;
   applicable_verticals: any;
   applicable_sub_niches: any;
   required_platforms: any;
