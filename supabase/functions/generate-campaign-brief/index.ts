@@ -114,8 +114,9 @@ Devuelve SOLO un objeto JSON:
     try {
       result = await callAI({
         prompt: userPrompt,
-        max_tokens: 500,
-        model: "google/gemini-2.5-pro",
+        max_tokens: 800,
+        model: "google/gemini-2.5-flash",
+        response_format: { type: "json_object" },
       });
     } catch (e: any) {
       if (e.status === 429) {
@@ -133,11 +134,27 @@ Devuelve SOLO un objeto JSON:
 
     const text = result.content?.find((b: any) => b.type === "text")?.text || "";
 
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in AI response");
+    // Robust JSON extraction
+    const extractJson = (raw: string): any => {
+      let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      const start = cleaned.search(/[\{\[]/);
+      const isArr = start !== -1 && cleaned[start] === "[";
+      const end = cleaned.lastIndexOf(isArr ? "]" : "}");
+      if (start === -1 || end === -1) throw new Error("No JSON found in AI response");
+      cleaned = cleaned.substring(start, end + 1);
+      try { return JSON.parse(cleaned); } catch {
+        cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+        return JSON.parse(cleaned);
+      }
+    };
 
-    const brief = JSON.parse(jsonMatch[0]);
+    let brief;
+    try {
+      brief = extractJson(text);
+    } catch (parseErr) {
+      console.error("generate-campaign-brief parse error. Raw text:", text.slice(0, 500));
+      throw new Error("AI response was not valid JSON");
+    }
 
     return new Response(JSON.stringify(brief), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
