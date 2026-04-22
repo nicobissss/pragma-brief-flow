@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadClientAsset } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,10 +100,7 @@ export default function ClientMaterials({ clientId, kickoffId, materials, onMate
   // Upload helpers
   const uploadFile = async (file: File, folder: string): Promise<string> => {
     const path = `kickoff/${clientId}/${folder}/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from("client-assets").upload(path, file);
-    if (error) throw error;
-    const { data } = supabase.storage.from("client-assets").getPublicUrl(path);
-    return data.publicUrl;
+    return uploadClientAsset(path, file);
   };
 
   // 1. Logo upload

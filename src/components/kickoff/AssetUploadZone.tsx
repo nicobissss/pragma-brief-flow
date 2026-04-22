@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadClientAsset } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -278,7 +279,7 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
           client_id: clientId,
           asset_type: assetType,
           asset_name: itemName,
-          file_url: urlData.publicUrl,
+          file_url: signedUrl,
           content,
           ...(campaignId ? { campaign_id: campaignId } : {}),
         } as any).select("id, asset_name, file_url, status, content, version, created_at").single();

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadClientAsset } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -94,15 +95,13 @@ export default function ClientCollect() {
     setUploading((prev) => ({ ...prev, [index]: true }));
     try {
       const filePath = `${clientId}/collected/${Date.now()}_${file.name}`;
-      const { error: uploadErr } = await supabase.storage.from("client-assets").upload(filePath, file);
-      if (uploadErr) throw uploadErr;
-      const { data: urlData } = supabase.storage.from("client-assets").getPublicUrl(filePath);
+      const signedUrl = await uploadClientAsset(filePath, file);
 
       const newItems = [...request.requested_items];
       newItems[index] = {
         ...newItems[index],
         status: "uploaded",
-        file_url: urlData.publicUrl,
+        file_url: signedUrl,
       };
       await updateRequestItems(newItems);
       toast.success(`"${newItems[index].label}" uploaded!`);
