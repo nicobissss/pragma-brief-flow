@@ -20,10 +20,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
-    const { data: client } = await supabase
+    const { callAI } = await import("../_shared/ai.ts");
       .from("clients")
       .select("name, vertical, sub_niche, city")
       .eq("id", client_id)
