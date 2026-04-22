@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -220,9 +221,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
     // Build dynamic rules from DB
     const dynamicRules = await buildDynamicRules(supabaseAdmin);
 
@@ -285,28 +283,28 @@ Only include tools that are relevant for this client based on their vertical, su
 
     const userPrompt = `Generate tool-specific prompts for this client using ALL the context below.\n\n${contextBlocks.join("\n\n---\n\n")}`;
 
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8192,
+    let aiData;
+    try {
+      aiData = await callAI({
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("Claude API error:", aiResponse.status, errText);
-      throw new Error(`Claude error: ${aiResponse.status}`);
+        prompt: userPrompt,
+        max_tokens: 8192,
+        model: "google/gemini-2.5-pro",
+      });
+    } catch (e: any) {
+      if (e.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (e.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds in Lovable settings." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
     }
 
-    const aiData = await aiResponse.json();
     const textContent = aiData.content?.find((b: any) => b.type === "text")?.text || "";
 
     let result;
@@ -365,7 +363,7 @@ Only include tools that are relevant for this client based on their vertical, su
       client_id,
       snapshot_type: "kickoff_prompts",
       context_data: result,
-      tokens_used: (aiData.usage?.input_tokens || 0) + (aiData.usage?.output_tokens || 0),
+      tokens_used: 0,
     });
 
     return new Response(

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { STRICT_RULES, fetchActiveOfferings, formatOfferingsForPrompt, getRecommendedOfferings } from "../_shared/strict-rules.ts";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,9 +17,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
-
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Fetch client with prospect
@@ -112,28 +110,28 @@ Devuelve SOLO un objeto JSON:
   "timeline": ""
 }`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+    let result;
+    try {
+      result = await callAI({
+        prompt: userPrompt,
         max_tokens: 500,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-      throw new Error(`Anthropic API error: ${response.status}`);
+        model: "google/gemini-2.5-pro",
+      });
+    } catch (e: any) {
+      if (e.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (e.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
     }
 
-    const result = await response.json();
-    const text = result.content?.[0]?.text || "";
+    const text = result.content?.find((b: any) => b.type === "text")?.text || "";
 
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);

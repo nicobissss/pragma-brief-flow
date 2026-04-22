@@ -6,6 +6,7 @@ import {
   formatOfferingsForPrompt,
   getRecommendedOfferings,
 } from "../_shared/strict-rules.ts";
+import { callAIWithTool } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,9 +58,6 @@ serve(async (req) => {
 
     const { data: prospect, error: pErr } = prospectRes;
     if (pErr || !prospect) throw new Error("Prospect not found");
-
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
     const market = prospect.market;
     const outputLanguage = market === "it" ? "italiano" : "español";
@@ -181,37 +179,31 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
       },
     };
 
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
+    let aiData;
+    try {
+      aiData = await callAIWithTool({
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-        tools: [toolDef],
-        tool_choice: { type: "tool", name: "create_proposal" },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("Claude API error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) {
+        prompt: userPrompt,
+        tool: toolDef,
+        max_tokens: 4096,
+        model: "google/gemini-2.5-pro",
+      });
+    } catch (e: any) {
+      if (e.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error(`Claude error: ${aiResponse.status}`);
+      if (e.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds in Lovable settings." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
     }
 
-    const aiData = await aiResponse.json();
     const toolUseBlock = aiData.content?.find((b: any) => b.type === "tool_use");
-    if (!toolUseBlock) throw new Error("No tool_use block in Claude response");
+    if (!toolUseBlock) throw new Error("No tool_use block in AI response");
 
     const proposal = toolUseBlock.input;
     const summary = proposal.summary || {};

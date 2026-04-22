@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,30 +77,27 @@ Priority actions for next month based on current pipeline status of all clients.
 
 Be specific and actionable. Use the actual data provided. Write as if you are a strategic advisor to the PRAGMA team.`;
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
-    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+    let data;
+    try {
+      data = await callAI({
+        prompt,
         max_tokens: 3000,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("Claude API error:", aiResponse.status, errText);
-      throw new Error(`Claude error: ${aiResponse.status}`);
+        model: "google/gemini-2.5-pro",
+      });
+    } catch (e: any) {
+      if (e.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (e.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
     }
 
-    const data = await aiResponse.json();
     const reviewText = data.content?.find((b: any) => b.type === "text")?.text || "";
 
     await supabase.from("activity_log").insert({
