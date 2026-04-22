@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ChevronDown, Building2, Calendar } from "lucide-react";
+import { ChevronDown, Building2, Calendar, Sparkles } from "lucide-react";
 
 import OfferingRecommendationTab from "@/components/admin/OfferingRecommendationTab";
 import ActionPlanTab from "@/components/admin/ActionPlanTab";
