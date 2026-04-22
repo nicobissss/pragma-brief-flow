@@ -216,6 +216,7 @@ export default function AdminClientDetail() {
       const campaignsPromise = (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false });
       const notesPromise = supabase.from("client_notes").select("*").eq("client_id", id!).order("created_at", { ascending: false });
       const toolGensPromise = supabase.from("tool_generations").select("*").eq("client_id", id!).order("created_at", { ascending: false });
+      const offeringPromise = supabase.from("client_offerings").select("id").eq("client_id", id!).limit(1);
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
@@ -225,12 +226,13 @@ export default function AdminClientDetail() {
         proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
       }
 
-      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise]);
+      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes, offeringRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise, offeringPromise]);
       const kickoffData = kickoffRes.data;
       const assetsData = (assetsRes.data || []) as AssetRow[];
       setCampaigns((campaignsRes.data || []) as any[]);
       setNotes((notesRes.data || []) as ClientNote[]);
       setToolGenerations((toolGensRes.data || []) as ToolGeneration[]);
+      setHasOffering(!!(offeringRes.data && offeringRes.data.length > 0));
 
       if (kickoffData) {
         setKickoff(kickoffData as unknown as KickoffBrief);
