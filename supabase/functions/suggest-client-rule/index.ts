@@ -14,6 +14,7 @@ Deno.serve(async (req) => {
 
     const data = await callAI({
       max_tokens: 80,
+      model: "google/gemini-2.5-flash",
       prompt: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for the AI (max 15 words). Just the rule, nothing else.`,
     });
 

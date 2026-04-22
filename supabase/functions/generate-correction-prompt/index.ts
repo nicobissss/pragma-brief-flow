@@ -102,7 +102,7 @@ Generate a correction prompt that:
 Return a single correction prompt ready to paste into the asset generation tool.
 Do not include explanations — just the prompt.`;
 
-    const result = await callAI({ prompt: userPrompt, max_tokens: 2000 });
+    const result = await callAI({ prompt: userPrompt, max_tokens: 2000, model: "google/gemini-2.5-flash" });
     const correctionPrompt = result.content?.[0]?.type === "text" ? (result.content[0] as any).text : "";
 
     // Save to asset
