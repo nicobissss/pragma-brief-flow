@@ -55,6 +55,7 @@ export async function callAI(opts: {
   messages?: AIMessage[];
   max_tokens?: number;
   model?: string;
+  response_format?: { type: "json_object" | "text" };
 }): Promise<AIResponse> {
   const messages: AIMessage[] = [];
   if (opts.system) messages.push({ role: "system", content: opts.system });
@@ -64,11 +65,14 @@ export async function callAI(opts: {
     messages.push({ role: "user", content: opts.prompt });
   }
 
-  const res = await postGateway({
+  const body: Record<string, any> = {
     model: opts.model || DEFAULT_MODEL,
     messages,
     max_tokens: opts.max_tokens || 2048,
-  });
+  };
+  if (opts.response_format) body.response_format = opts.response_format;
+
+  const res = await postGateway(body);
 
   if (!res.ok) {
     const errText = await res.text();
