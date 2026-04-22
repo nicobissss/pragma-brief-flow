@@ -113,18 +113,9 @@ Deno.serve(async (req) => {
       materials: kickoff?.client_materials,
     });
 
-    // Block if not ready (unless force=true)
-    if (!contextScore.ready && !force) {
-      return new Response(
-        JSON.stringify({
-          error: 'CONTEXT_INSUFFICIENT',
-          message: 'Context score below 70% or missing critical items',
-          score: contextScore.percentage,
-          missingCritical: contextScore.missingCritical,
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
-    }
+    // Context score is informative only — never blocks generation.
+    // The AI falls back to sensible defaults when context is partial.
+    console.log(`[generate-kickoff-prompts] context score: ${contextScore.percentage}% (missing critical: ${contextScore.missingCritical?.length || 0})`);
 
     // Save score to DB
     if (kickoff) {

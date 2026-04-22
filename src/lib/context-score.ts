@@ -236,7 +236,9 @@ export function calculateContextScore(params: {
     score,
     maxScore,
     percentage,
-    ready: percentage >= READY_THRESHOLD && missingCritical.length === 0,
+    // Context score is informative only — never blocks generation.
+    // `ready` reflects "high-quality context", not a hard gate.
+    ready: true,
     checks,
     missing,
     missingCritical,
@@ -250,42 +252,43 @@ export function getScoreStatus(percentage: number, hasCriticalMissing: boolean):
   color: 'red' | 'amber' | 'green';
   canGenerate: boolean;
 } {
+  // canGenerate is always true: score is informative.
   if (hasCriticalMissing) {
     return {
-      label: 'Missing critical items',
-      labelEs: 'Faltan elementos críticos',
-      color: 'red',
-      canGenerate: false,
+      label: 'Critical items missing — AI will use defaults',
+      labelEs: 'Faltan elementos críticos — la IA usará valores por defecto',
+      color: 'amber',
+      canGenerate: true,
     };
   }
   if (percentage >= 80) {
     return {
-      label: 'Ready to generate',
-      labelEs: 'Listo para generar',
+      label: 'High-quality context',
+      labelEs: 'Contexto de alta calidad',
       color: 'green',
       canGenerate: true,
     };
   }
   if (percentage >= 70) {
     return {
-      label: 'Minimum reached',
-      labelEs: 'Mínimo alcanzado',
-      color: 'amber',
+      label: 'Good context',
+      labelEs: 'Buen contexto',
+      color: 'green',
       canGenerate: true,
     };
   }
   if (percentage >= 50) {
     return {
-      label: 'Almost there',
-      labelEs: 'Casi listo',
+      label: 'Partial context — output may be generic',
+      labelEs: 'Contexto parcial — el resultado puede ser genérico',
       color: 'amber',
-      canGenerate: false,
+      canGenerate: true,
     };
   }
   return {
-    label: 'Needs more context',
-    labelEs: 'Necesita más contexto',
-    color: 'red',
-    canGenerate: false,
+    label: 'Low context — AI will rely on defaults',
+    labelEs: 'Contexto bajo — la IA usará defaults',
+    color: 'amber',
+    canGenerate: true,
   };
 }
