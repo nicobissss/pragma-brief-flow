@@ -21,6 +21,7 @@ import ClientCampaignReview from "./pages/client/ClientCampaignReview";
 import ClientCollect from "./pages/client/ClientCollect";
 import NotFound from "./pages/NotFound";
 import UpdatePasswordPage from "./pages/UpdatePassword";
+import UnsubscribePage from "./pages/Unsubscribe";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/update-password" element={<UpdatePasswordPage />} />
+            <Route path="/unsubscribe" element={<UnsubscribePage />} />
 
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboard />} />
