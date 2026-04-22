@@ -1,122 +1,197 @@
 
 
-# Sprint 5 — Fix critici + UX gravi + debito tecnico (escluso #6)
+# Sprint 6 — Discovery & Insight Layer (final, revised)
 
-Implemento tutti i punti dell'audit precedente **tranne #6 (default_owner Nicolò/Karla)**.
+## Focus chiave
+- Domande **adattive per vertical/sub_niche** (briefing pre-call + kickoff)
+- Connettori Lovable per servizi esterni
+- Client Bible web-first, no PDF (rinviato)
+- Prerequisiti schema risolti prima di costruire features
 
-## P1 — Fix critici
+---
 
-**1. `generate-proposal`: constraint UNIQUE su `proposals.prospect_id`**
-- Migrazione SQL: `ALTER TABLE proposals ADD CONSTRAINT proposals_prospect_id_key UNIQUE (prospect_id)`
-- Verifica preliminare: dedup eventuali righe duplicate prima di applicare
+## Fase 0 — Prerequisiti schema (DA FARE PRIMA DI TUTTO)
 
-**2. `recommended_flow` salva nome commerciale, non codice**
-- `generate-proposal`: salva `recommended_offering_name` in `recommended_flow` (retro-compat con UI legacy)
-- Aggiungo nuova colonna `proposals.recommended_offering_code` per la chiave tecnica
-- `generate-campaign-brief`: passa il nome commerciale al prompt
+Migrazione SQL:
+- `clients`: aggiungo `city text`, `website_url text` (necessari per VoC + competitor)
+- `kickoff_questions`: aggiungo `vertical text`, `sub_niche text` (oggi mancano)
+- Nuova tabella `kickoff_question_templates` (master per vertical) — clonata in `kickoff_questions` al `accept-prospect`
+- `client_context_snapshots.snapshot_type`: CHECK constraint con valori ammessi (`'voc'`, `'competitor'`, `'winning_pattern'`, `'kickoff_summary'`)
+- Deprecazione formale `clients.activated_tools` → migrazione dati residui in `client_platforms` + commento "DEPRECATED, use client_platforms"
+- Nuove tabelle: `client_competitor_analyses`, `client_winning_patterns`, `vertical_pattern_suggestions` (come da piano precedente)
+- Seed `briefing_questions` e `kickoff_question_templates` per `salud_estetica/clinica_estetica`, `salud_estetica/dentista`, `e_learning`, `deporte_offline/gimnasio`
 
-**3. Shim `getFlowForSubNiche` rimosso**
-- Audit imports in tutti gli edge: `accept-prospect`, `generate-project-plan`, `generate-campaign-brief`, `analyze-kickoff-transcript`
-- Sostituisco con lettura diretta da `offering_templates`
+---
 
-**4. Residui `pragma_flows` nella UI**
-- Rimuovo query a `pragma_flows` da `AdminDataDashboard`, `OfferingRecommendationTab` (linked_flow_ids)
-- DROP delle tabelle `pragma_flows`, `pragma_flow_types` e funzione `get_flow_with_details` (non più referenziate)
+## Fase 1 — Connettori Lovable
 
-**5. Auto-creazione `client_offering` su `accept-prospect`**
-- Quando admin accetta prospect, leggo `proposals.recommended_offering_code` 
-- Trovo l'`offering_template` corrispondente
-- Inserisco `client_offerings` con `status='proposed'` e `was_recommended=true`
-- Genero automaticamente i task via `generate_tasks_for_offering()`
+Attivo via `standard_connectors--connect`:
+- **Firecrawl** (direct API, Free 500 crediti/mese) → competitor scraping
+- **Perplexity** (direct API, ~$0.02/cliente) → VoC mining + review locali
 
-## P2 — Gravi UX (escluso #6)
+Le edge function useranno `Deno.env.get('FIRECRAWL_API_KEY')` e `Deno.env.get('PERPLEXITY_API_KEY')`. Niente API key manuali.
 
-**7. SLA / aging badges su offerte proposte**
-- `OverviewTab` admin: badge "⚠ Propuesta enviada hace N días" se `client_offerings.status='proposed'` da > 5 giorni
-- `AdminDashboard`: KPI "Propuestas abiertas" con count delle offerte ferme
+Fallback per VoC se Perplexity non connesso: textarea "incolla review" → Claude analizza (zero costi extra).
 
-**8. Notifica admin quando cliente completa task**
-- Trigger DB `on_task_status_change`: insert in `activity_log` + invoca `send-notification` con tipo `task_completed`
-- Aggiungo template email `task_completed` in `email_templates`
+---
 
-**9. Dedup "tools attivati"**
-- `client_platforms` diventa l'unica source of truth
-- Deprecate `clients.activated_tools` e `proposals.recommended_tools` per la lettura runtime
-- Migrazione: copio dati esistenti da `activated_tools` → `client_platforms` se mancanti
-- Aggiorno `ClientPlatformsPanel` e `OfferingDetails` per leggere solo da `client_platforms`
+## Fase 2 — Client Bible View
 
-**10. `briefing_questions` e `kickoff_questions` in spagnolo**
-- Migrazione UPDATE su questi due table per tradurre tutti i record IT esistenti in ES
-- Mantengo `vertical='all'` per le domande generiche
+**Route**: `/admin/clients/:id/bible` — pagina full-width.
+Bottone "📖 Client Bible" in `AdminClientDetail` header.
 
-**11. Auto-aggiornamento `clients.pipeline_status`**
-- Trigger DB su `client_offerings.status`: 
-  - `proposed` → `pipeline_status='kickoff'`
-  - `active` + nessun asset → `'materiales'`
-  - primo asset creato → `'producción'`
-  - asset in pending_review → `'revisión'`
-  - tutti asset approvati → `'completado'`
+Sezioni con **freshness indicator** (ultima update + ⚠️ se > 60gg):
+1. Identità + Pipeline + Pre-cualificación
+2. Briefing & Kickoff (transcript summary, voice, tono)
+3. **Cliente reale (VoC)** — JTBD, obiezioni, frasi reali
+4. **Competitor locales** — gap di posizionamento
+5. **Winning patterns** (opzionale, se presenti)
+6. Reglas attive + suggested patterns
+7. Materiales + Platforms (solo `client_platforms`, non `activated_tools`)
+8. Offerings & Action Plan
+9. Context score matrix (informativo)
 
-## P3 — Debito tecnico
+**Stampa**: CSS `@media print` + bottone "🖨️ Imprimir / Guardar PDF" che chiama `window.print()`. Niente edge function PDF.
 
-**12. Rimuovo `proposals.pitch_suggestions` (text duplicato)**
-- Migrazione DROP COLUMN
-- Tutti i lettori passano a `full_proposal_content` (jsonb)
+---
 
-**13. Refactor "next action" in hook condiviso**
-- Nuovo `src/hooks/useNextAction.ts` che ritorna `{label, href, severity}` dato `{client, offering, assets}`
-- Usato da `OverviewTab` e `ClientDashboard` (con `audience: 'admin'|'client'`)
+## Fase 3 — Adattamento domande per vertical
 
-**14. `activity_log` completo**
-- Nuovi trigger: 
-  - `kickoff_briefs.pragma_approved=true` → "kickoff completed"
-  - `client_offerings.status='active'` → "offering activated"
-  - `action_plan_tasks.status='done' AND assignee='client'` → "client completed task X"
-  - `tool_generations.status='content_ready'` → "campaign brief ready"
+### Briefing pre-call (`briefing_questions`)
+Seed nuove domande per `salud_estetica/clinica_estetica`:
+- "¿Cuál es tu tratamiento estrella?"
+- "¿Tienes un tratamiento gateway (low-cost, alta satisfacción)?"
+- "¿En qué ciudad/zona operas?" (alimenta city del cliente)
+- "URL del sitio web actual" (alimenta website_url)
+- "Instagram principal de la clínica"
 
-**15. Cleanup `tool_results` orfani**
-- Migrazione: aggiungo FK `tool_results.generation_id REFERENCES tool_generations(id) ON DELETE CASCADE`
-- Pulizia preliminare degli orfani esistenti
+Stessa logica per altri vertical (set ridotto iniziale, espandibile da admin via UI esistente).
 
-**16. Skip rate limit (vincolo piattaforma)**
-- Non implemento rate limit su `generate-proposal` — il backend non ha primitive per farlo. Annotato per il futuro.
+### Kickoff call (`kickoff_question_templates` → cloning a `kickoff_questions`)
+Per `salud_estetica/clinica_estetica`, domande **strategiche** che solo founder sa rispondere:
+- "Tratamiento con miglior margine vs. quello che vorresti vendere di più"
+- "Paciente perfetto da raddoppiare en 6 meses"
+- "Pre-mortem: ¿cómo falla este proyecto?"
+- "2-3 clínicas locales para analizar" → input diretto a `analyze-local-competitors`
+- "Frase más bonita de un paciente satisfecho" → seed VoC
+- "Objeción #1 en consulta" → cross-check VoC
 
-## File toccati (preview)
+**Rimuovo** dal set generico (perché VoC le estrae meglio):
+- "Descrivi cliente tipo"
+- "Quali obiezioni senti"
 
-**Migrazioni SQL** (1 file unico):
-- UNIQUE su `proposals.prospect_id`
-- Nuove colonne: `proposals.recommended_offering_code`
-- DROP: `pragma_flows`, `pragma_flow_types`, `proposals.pitch_suggestions`, funzione `get_flow_with_details`
-- Nuovi trigger: `on_task_status_change`, `on_offering_status_change`, `on_kickoff_approved`, `on_tool_generation_ready`
-- FK + cascade su `tool_results.generation_id`
-- UPDATE traduzioni `briefing_questions` + `kickoff_questions`
-- Template email `task_completed`
+Per altri vertical: set base ereditato da `all` + 3-5 specifiche per sub_niche.
 
-**Edge functions**:
-- `accept-prospect/index.ts` — auto-crea `client_offering` + tasks
-- `generate-proposal/index.ts` — salva nome commerciale + nuovo codice
-- `generate-campaign-brief/index.ts` — passa nome commerciale
-- `generate-project-plan/index.ts` — rimuove shim
-- `analyze-kickoff-transcript/index.ts` — rimuove shim
-- `_shared/strict-rules.ts` — rimuove definitivamente `getFlowForSubNiche`
-- `send-notification/index.ts` — aggiunge case `task_completed`
+UI: `KickoffQuestionsManager` esistente legge le clonate; aggiungo bottone "Resetear desde template del vertical".
 
-**Frontend**:
-- `src/hooks/useNextAction.ts` — nuovo hook condiviso
-- `src/components/admin/tabs/OverviewTab.tsx` — usa hook + aging badges
-- `src/pages/client/ClientDashboard.tsx` — usa hook
-- `src/pages/admin/AdminDashboard.tsx` — KPI "Propuestas abiertas"
-- `src/pages/admin/AdminDataDashboard.tsx` — rimuove riferimenti `pragma_flows`
-- `src/components/admin/OfferingRecommendationTab.tsx` — rimuove `linked_flow_ids`
-- `src/components/admin/ClientPlatformsPanel.tsx` — sola source of truth
-- `src/components/shared/OfferingDetails.tsx` — legge da `client_platforms`
+---
+
+## Fase 4 — Competitor Teardown locale (manuale)
+
+Panel "Competidores locales" in `KickoffTab`:
+- Admin inserisce 2-3 URL website + IG handle
+- Bottone "Analizar" → edge `analyze-local-competitors`
+
+Edge function:
+- Firecrawl scrape sito (servizi, prezzi, hero copy)
+- Firecrawl scrape IG bio + ultimi 6 post
+- Perplexity per Google Maps reviews della clinica concorrente
+- Claude summary: treatments, prices, hooks, **gap opportunities per il cliente**
+- Salva in `client_competitor_analyses`
+
+---
+
+## Fase 5 — VoC Mining
+
+Edge `extract-voice-of-customer`:
+- Input: `clients.website_url` + `clients.name` + `clients.city`
+- Perplexity con `search_domain_filter: ['google.com/maps','trustpilot.com','yelp.com']`
+- Estrae JTBD, obiezioni, frasi reali, trigger events
+- Salva in `client_context_snapshots` con `snapshot_type='voc'`
+- Trigger: bottone manuale in KickoffTab + auto al `accept-prospect` (background job)
+- Iniettato in tutti i prompt AI quando disponibile
+
+**Fallback manuale** se Perplexity non connesso: textarea "incolla 5-10 review" → Claude estrae.
+
+---
+
+## Fase 6 — Asset Audit (opzionale, non bloccante)
+
+Panel "Lo que ya funciona" in `KickoffTab`:
+- Admin **può** caricare 1-3 esempi performanti
+- Edge `analyze-winning-patterns` estrae pattern → `client_winning_patterns`
+- Iniettato come reference nei prompt SE presenti, mai bloccante
+
+---
+
+## Fase 7 — Context Score informativo (mai bloccante)
+
+Refactor `src/lib/context-score.ts`:
+- Score per-asset-type (matrice)
+- **Generazione sempre permessa**
+- Avviso giallo se < 70%: *"Contexto al 45%. L'AI userà valori di default. Puoi mejorar después."*
+- Bottone "Mejorar con más contexto" sui draft → porta al campo mancante
+- Prompt AI ricevono confidence per campo → Claude marca `[bassa confidenza]` e suggerisce miglioramenti
+- Componente `ContextScoreMatrix.tsx` sostituisce `ContextScorePanel`
+
+Rimozione blocchi in: `generate-campaign-brief`, `generate-proposal`, generation hooks frontend.
+
+---
+
+## Fase 8 — Pattern Library cross-cliente
+
+Route `/admin/insights`:
+- Aggregazione `client_rules` per `vertical + sub_niche`
+- Soglia 3+ clienti stesso vertical → "Suggested Default Rule"
+- Modale al nuovo cliente: "13 cliniche estetiche usano queste 5 regole — applicare?"
+- Edge `compute-vertical-patterns` (manuale + cron settimanale)
+- Tabella `vertical_pattern_suggestions` con admin approval
+
+---
+
+## Fase 9 — Iniezione AI
+
+Aggiorno prompt di:
+- `generate-campaign-brief`: + VoC + winning patterns + competitor gaps + confidence per campo
+- `generate-proposal`: + competitor gaps + city + website analysis
+- `analyze-kickoff-transcript`: + VoC per cross-check obiezioni dichiarate vs reali
+- `accept-prospect`: trigger auto VoC + cloning kickoff template
+
+---
+
+## Costi mensili stimati
+- **Free tier (primi mesi)**: $0 fino a ~20 nuovi clienti/mese
+- **A regime**: $0-5 Perplexity + $0-19 Firecrawl = **$5-25/mese**
+
+## Default scelti
+- VoC: incluso, con fallback manuale
+- Competitor: input manuale admin
+- Pattern library: soglia 3+, admin approva
+- Asset audit: opzionale, non bloccante
+- Context score: **mai bloccante**
+- Kickoff & briefing questions: **adattive per vertical/sub_niche** via template clonabili
+- Connettori: **Lovable connectors** per Firecrawl + Perplexity
+- PDF export: **rinviato** — per ora `window.print()` con CSS print
+- City + website_url: nuovi campi cliente, raccolti in briefing
+- Bible freshness: badge ⚠️ se sezione > 60gg
 
 ## Ordine di esecuzione
+1. **Fase 0**: schema (incluso seed templates per vertical principali)
+2. **Fase 1**: richiesta connessione Firecrawl + Perplexity
+3. **Fase 9** (parziale): aggiorno `accept-prospect` per cloning + trigger VoC
+4. **Fasi 4-5-6**: edge functions discovery
+5. **Fase 7**: refactor context score
+6. **Fase 2**: Client Bible View (consuma tutto il resto)
+7. **Fase 8**: Pattern library + insights
+8. **Fase 9** (completamento): aggiornamento prompt AI
 
-1. Migrazione SQL completa (tutte le modifiche schema in un'unica transazione)
-2. Edge functions (rimozione shim → nessun deploy break)
-3. Frontend (hook condiviso → componenti)
-4. Verifica con un walkthrough manuale (prospect → accept → offering auto-creato → task → completion → notifica)
-
-Nota: rate limit (#16) saltato per limite piattaforma. Default owner Nicolò/Karla (#6) escluso come da tua richiesta — i task resteranno con `assignee='admin'` generico.
+## Migliorie aggiunte rispetto al piano precedente
+- ✅ Schema fix prerequisito (city, website_url, vertical su kickoff)
+- ✅ Template di domande clonabili per vertical
+- ✅ Connettori Lovable invece di API key manuali
+- ✅ Standardizzazione `snapshot_type` con CHECK
+- ✅ Deprecazione `activated_tools`
+- ✅ Bible freshness indicator
+- ✅ PDF rinviato → `window.print()` (semplificazione)
+- ✅ Seed briefing_questions per vertical (oggi tutto su `all`)
 
