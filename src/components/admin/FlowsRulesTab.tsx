@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Loader2, X, Play } from "lucide-react";
+import { Plus, Pencil, Loader2, Play } from "lucide-react";
 
 const SUB_NICHES: Record<string, string[]> = {
   "Salud & Estética": ["Dental", "Estética Corporal", "Psicología", "Nutrición", "Oftalmología", "Fisioterapia", "Audiometría", "Capilar"],
@@ -300,24 +300,18 @@ function TestConfigModal({ open, onClose }: { open: boolean; onClose: () => void
 
 // ─── Main Component ─────────────────────────────────────
 export function FlowsRulesTab() {
-  const [flows, setFlows] = useState<Flow[]>([]);
   const [tools, setTools] = useState<Rule[]>([]);
   const [globalRules, setGlobalRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [flowModal, setFlowModal] = useState<{ open: boolean; flow: Partial<Flow> | null }>({ open: false, flow: null });
   const [ruleModal, setRuleModal] = useState<{ open: boolean; rule: Partial<Rule> | null; category: string }>({ open: false, rule: null, category: "" });
   const [testModal, setTestModal] = useState(false);
 
   const fetchAll = async () => {
-    const [flowsRes, rulesRes] = await Promise.all([
-      supabase.from("pragma_flows").select("*").order("vertical"),
-      supabase.from("pragma_rules").select("*").order("category"),
-    ]);
-    if (flowsRes.data) setFlows(flowsRes.data as unknown as Flow[]);
-    if (rulesRes.data) {
-      setTools((rulesRes.data as unknown as Rule[]).filter(r => r.category === "tools_available"));
-      setGlobalRules((rulesRes.data as unknown as Rule[]).filter(r => r.category === "global_rules"));
+    const { data: rules } = await supabase.from("pragma_rules").select("*").order("category");
+    if (rules) {
+      setTools((rules as unknown as Rule[]).filter(r => r.category === "tools_available"));
+      setGlobalRules((rules as unknown as Rule[]).filter(r => r.category === "global_rules"));
     }
     setLoading(false);
   };
@@ -416,7 +410,6 @@ export function FlowsRulesTab() {
       </section>
 
       {/* Modals */}
-      <FlowModal open={flowModal.open} flow={flowModal.flow} onClose={() => setFlowModal({ open: false, flow: null })} onSaved={fetchAll} />
       <RuleModal open={ruleModal.open} rule={ruleModal.rule} category={ruleModal.category} onClose={() => setRuleModal({ open: false, rule: null, category: "" })} onSaved={fetchAll} />
       <TestConfigModal open={testModal} onClose={() => setTestModal(false)} />
     </div>
