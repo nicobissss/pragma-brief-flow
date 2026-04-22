@@ -964,6 +964,8 @@ ${context}`
             }}
           />
 
+          <ClientPlatformsPanel clientId={client.id} />
+
           <AssetCollectionRequest clientId={client.id} clientName={client.name} />
 
           {/* FEAT-09: Client rules */}
