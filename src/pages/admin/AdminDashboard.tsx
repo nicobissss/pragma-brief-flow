@@ -139,12 +139,13 @@ export default function AdminDashboard() {
       const today = format(new Date(), "yyyy-MM-dd");
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
 
-      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes] = await Promise.all([
+      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes, offeringsRes] = await Promise.all([
         supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, call_date, status, follow_up_date"),
         supabase.from("clients").select("id, name, company_name, vertical, pipeline_status, created_at, status").eq("status", "active"),
         supabase.from("assets").select("id, client_id, asset_type, asset_name, asset_title, status, created_at"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
+        supabase.from("client_offerings").select("id, status, proposed_at").eq("status", "proposed"),
       ]);
 
       const allProspects = (prospectsRes.data || []) as any[];
@@ -152,15 +153,19 @@ export default function AdminDashboard() {
       const allAssets = (assetsRes.data || []) as any[];
       const allFollowUps = (followUpsRes.data || []) as FollowUp[];
       const allActivity = (activityRes.data || []) as ActivityItem[];
+      const openOfferings = (offeringsRes.data || []) as any[];
 
       const newThisWeek = allProspects.filter(p => p.created_at >= weekStart).length;
       const verticals = new Set(allClients.map((c: any) => c.vertical));
       const pendingAssets = allAssets.filter((a: any) => a.status === "pending_review" || a.status === "change_requested").length;
       const waitingClient = allAssets.filter((a: any) => a.status === "pending_review").length;
       const overdueCount = allFollowUps.filter(f => isBefore(new Date(f.follow_up_date), startOfDay(new Date())) && !isToday(new Date(f.follow_up_date))).length;
+      const agingProposals = openOfferings.filter(o => o.proposed_at && differenceInDays(new Date(), new Date(o.proposed_at)) > 5).length;
 
+      // Normalize legacy EN pipeline statuses → ES
       const clientRows: ClientRow[] = allClients.map((c: any) => ({
         ...c,
+        pipeline_status: PIPELINE_LEGACY_MAP[c.pipeline_status || ""] || c.pipeline_status,
         assets: allAssets.filter((a: any) => a.client_id === c.id),
       }));
 
@@ -171,6 +176,12 @@ export default function AdminDashboard() {
         actions.push({
           text: `${newProspects.length} prospect${newProspects.length > 1 ? "s" : ""} sin revisar`,
           link: "/admin/prospects", type: "urgent"
+        });
+      }
+      if (agingProposals > 0) {
+        actions.push({
+          text: `${agingProposals} propuesta${agingProposals > 1 ? "s" : ""} sin respuesta hace +5 días`,
+          link: "/admin/clients", type: "urgent"
         });
       }
       const todayCalls = allProspects.filter(p => p.call_date && isToday(new Date(p.call_date)));
@@ -197,6 +208,8 @@ export default function AdminDashboard() {
         waitingClientApproval: waitingClient,
         followUpsDue: allFollowUps.length,
         overdueCount,
+        openProposals: openOfferings.length,
+        agingProposals,
       });
       setProspects(allProspects);
       setClients(clientRows);
