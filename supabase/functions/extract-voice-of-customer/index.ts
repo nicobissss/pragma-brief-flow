@@ -20,8 +20,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const { callAI } = await import("../_shared/ai.ts");
 
     const { data: client } = await supabase
       .from("clients")
@@ -49,26 +48,11 @@ REGLAS:
 - En español, salvo si las reseñas están en otro idioma
 - Sé concreto, no genérico`;
 
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: `Reseñas reales:\n\n${reviews_text.slice(0, 12000)}` }],
-      }),
+    const aiData = await callAI({
+      system: systemPrompt,
+      prompt: `Reseñas reales:\n\n${reviews_text.slice(0, 12000)}`,
+      max_tokens: 2048,
     });
-
-    if (!aiRes.ok) {
-      const errTxt = await aiRes.text();
-      throw new Error(`Claude error ${aiRes.status}: ${errTxt}`);
-    }
-    const aiData = await aiRes.json();
     const text = aiData.content?.find((b: any) => b.type === "text")?.text || "";
     const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
 

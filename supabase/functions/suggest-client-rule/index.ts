@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,32 +12,11 @@ Deno.serve(async (req) => {
     const { feedback_text } = await req.json();
     if (!feedback_text) throw new Error("feedback_text is required");
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 80,
-        messages: [{
-          role: "user",
-          content: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for Claude (max 15 words). Just the rule, nothing else.`,
-        }],
-      }),
+    const data = await callAI({
+      max_tokens: 80,
+      prompt: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for the AI (max 15 words). Just the rule, nothing else.`,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Claude error: ${response.status}`);
-    }
-
-    const data = await response.json();
     const suggestedRule = data.content?.find((b: any) => b.type === "text")?.text?.trim() || "";
 
     return new Response(JSON.stringify({ suggested_rule: suggestedRule }), {
@@ -45,7 +24,7 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("suggest-client-rule error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

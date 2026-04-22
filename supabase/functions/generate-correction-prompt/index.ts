@@ -15,8 +15,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
+    const { callAI } = await import("../_shared/ai.ts");
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -103,28 +102,8 @@ Generate a correction prompt that:
 Return a single correction prompt ready to paste into the asset generation tool.
 Do not include explanations — just the prompt.`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
-      throw new Error(`Anthropic API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const correctionPrompt = result.content?.[0]?.text || "";
+    const result = await callAI({ prompt: userPrompt, max_tokens: 2000 });
+    const correctionPrompt = result.content?.[0]?.type === "text" ? (result.content[0] as any).text : "";
 
     // Save to asset
     await supabase

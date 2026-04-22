@@ -30,8 +30,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
+    const { callAI } = await import("../_shared/ai.ts");
 
     const offeringName = offering?.custom_name || offering?.offering_templates?.name || "Pack estándar";
     const deliverables = offering?.offering_templates?.deliverables || [];
@@ -47,25 +46,7 @@ Return ONLY valid JSON:
   "summary": "One paragraph in Spanish for the client explaining the plan simply"
 }`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Claude error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await callAI({ prompt, max_tokens: 1500 });
     const text = data.content?.find((b: any) => b.type === "text")?.text || "{}";
     const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
     const plan = JSON.parse(cleaned);

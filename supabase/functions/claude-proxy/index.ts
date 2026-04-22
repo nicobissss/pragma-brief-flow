@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,35 +14,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "prompt is required" }), { status: 400, headers: corsHeaders });
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
-    const messages = [{ role: "user", content: prompt }];
-
-    const body: any = {
-      model: "claude-sonnet-4-20250514",
-      max_tokens: max_tokens || 1000,
-      messages,
-    };
-    if (system) body.system = system;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Claude API error:", response.status, errText);
-      throw new Error(`Claude error: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await callAI({ system, prompt, max_tokens: max_tokens || 1000 });
     const text = data.content?.find((b: any) => b.type === "text")?.text || "";
 
     return new Response(JSON.stringify({ text }), {
