@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadClientAsset } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -313,16 +314,14 @@ function AddAssetDrawer({
       else {
         for (const file of files) {
           const filePath = `${clientId}/${assetType}/${Date.now()}_${file.name}`;
-          const { error: uploadErr } = await supabase.storage.from("client-assets").upload(filePath, file);
-          if (uploadErr) throw uploadErr;
-          const { data: urlData } = supabase.storage.from("client-assets").getPublicUrl(filePath);
+          const signedUrl = await uploadClientAsset(filePath, file);
 
           const name = files.length === 1 ? deriveName() : file.name.replace(/\.[^/.]+$/, "");
           const { error } = await supabase.from("assets").insert({
             client_id: clientId,
             asset_type: assetType,
             asset_name: name,
-            file_url: urlData.publicUrl,
+            file_url: signedUrl,
             content: { notes: notes.trim() || undefined },
             campaign_id: campaignId,
           } as any);
@@ -549,10 +548,7 @@ function NewVersionDrawer({
       } else if (files.length > 0) {
         const file = files[0];
         const filePath = `${clientId}/${asset.asset_type}/${Date.now()}_${file.name}`;
-        const { error: uploadErr } = await supabase.storage.from("client-assets").upload(filePath, file);
-        if (uploadErr) throw uploadErr;
-        const { data: urlData } = supabase.storage.from("client-assets").getPublicUrl(filePath);
-        fileUrl = urlData.publicUrl;
+        fileUrl = await uploadClientAsset(filePath, file);
         content = { notes: changeNotes.trim() || undefined };
       }
 
