@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,8 +54,6 @@ Deno.serve(async (req) => {
     );
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
     // Fetch client for context
     const { data: client } = await supabase.from("clients").select("name, vertical, sub_niche, city, market").eq("id", client_id).single();
@@ -127,26 +126,12 @@ Devuelve SOLO JSON válido con esta estructura:
   "summary": "1-2 párrafos en español sobre cómo se posiciona y qué puede hacer ${client.name} para diferenciarse"
 }`;
 
-        const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 2048,
-            system: systemPrompt,
-            messages: [{ role: "user", content: `Competidor: ${name}\n\nContenido scrapeado:${scrapedContent}` }],
-          }),
+        const aiData = await callAI({
+          system: systemPrompt,
+          prompt: `Competidor: ${name}\n\nContenido scrapeado:${scrapedContent}`,
+          max_tokens: 2048,
+          model: "google/gemini-2.5-pro",
         });
-
-        if (!aiRes.ok) {
-          const errTxt = await aiRes.text();
-          throw new Error(`Claude error ${aiRes.status}: ${errTxt}`);
-        }
-        const aiData = await aiRes.json();
         const text = aiData.content?.find((b: any) => b.type === "text")?.text || "";
         const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
 

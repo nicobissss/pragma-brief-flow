@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,9 +32,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
-
     const prompt = `Analyze this kickoff call transcript for a PRAGMA marketing client.
 Client: ${client?.name} (${client?.company_name}) — ${client?.vertical} / ${client?.sub_niche}
 
@@ -51,26 +49,11 @@ Return ONLY valid JSON:
   "key_insights": ["Business insight 1", "Business insight 2"]
 }`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const data = await callAI({
+      prompt,
+      max_tokens: 2000,
+      model: "google/gemini-2.5-pro",
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Claude error: ${response.status} ${errText}`);
-    }
-
-    const data = await response.json();
     const text = data.content?.find((b: any) => b.type === "text")?.text || "{}";
     const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
     const result = JSON.parse(cleaned);

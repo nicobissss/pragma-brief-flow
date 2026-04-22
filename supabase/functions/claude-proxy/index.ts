@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "prompt is required" }), { status: 400, headers: corsHeaders });
     }
 
-    const data = await callAI({ system, prompt, max_tokens: max_tokens || 1000 });
+    const data = await callAI({ system, prompt, max_tokens: max_tokens || 1000, model: "google/gemini-2.5-flash" });
     const text = data.content?.find((b: any) => b.type === "text")?.text || "";
 
     return new Response(JSON.stringify({ text }), {
