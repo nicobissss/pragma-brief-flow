@@ -133,6 +133,7 @@ export default function ClientAssetReview() {
     if (error) { toast.error(error.message); return; }
     setAssets((prev) => prev.map((a) => a.id === asset.id ? { ...a, status: "approved" } : a));
     toast.success(`${asset.asset_name} approved!`);
+    notifyAdminApproved([asset]);
   };
 
   const approveAll = async () => {
@@ -142,6 +143,31 @@ export default function ClientAssetReview() {
     }
     setAssets((prev) => prev.map((a) => ({ ...a, status: "approved" })));
     toast.success("All items approved!");
+    notifyAdminApproved(pending);
+  };
+
+  const notifyAdminApproved = async (approved: Asset[]) => {
+    if (!clientId || approved.length === 0) return;
+    try {
+      const { data: client } = await supabase
+        .from("clients").select("name").eq("id", clientId).maybeSingle();
+      const assetNames = approved.map((a) => a.asset_name).join(", ");
+      const ids = approved.map((a) => a.id).sort().join("-");
+      await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "asset-approved",
+          idempotencyKey: `asset-approved-${ids}`,
+          templateData: {
+            clientName: client?.name,
+            assetName: assetNames,
+            assetType: type,
+            adminUrl: `${window.location.origin}/admin/clients/${clientId}`,
+          },
+        },
+      });
+    } catch (e) {
+      console.error("approval email error:", e);
+    }
   };
 
   const submitAllFeedback = async () => {

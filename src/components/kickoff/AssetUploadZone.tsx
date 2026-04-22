@@ -311,6 +311,7 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
         .in("id", ids);
       if (error) throw error;
 
+      // Legacy notification (kept for compatibility)
       const { error: notifErr } = await supabase.functions.invoke("send-notification", {
         body: {
           type: "assets_ready",
@@ -320,6 +321,33 @@ export default function AssetUploadZone({ clientId, assetType, campaignId, onAss
         },
       });
       if (notifErr) console.error("Notification error:", notifErr);
+
+      // Branded transactional email to client
+      try {
+        const { data: client } = await supabase
+          .from("clients")
+          .select("name, email")
+          .eq("id", clientId)
+          .maybeSingle();
+        if (client?.email) {
+          const assetNames = savedAssets.map((a) => a.asset_name).join(", ");
+          await supabase.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "asset-ready-for-review",
+              recipientEmail: client.email,
+              idempotencyKey: `asset-ready-${ids.sort().join("-")}`,
+              templateData: {
+                name: client.name,
+                assetType,
+                assetName: assetNames,
+                reviewUrl: `${window.location.origin}/client/dashboard`,
+              },
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Branded email error:", e);
+      }
 
       setSavedAssets((prev) => prev.map((a) => ({ ...a, status: "pending_review" })));
       toast.success("Client notified by email! Assets are now pending review.");
