@@ -287,8 +287,6 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
   if (activeOffering && !changing) {
     const tpl = activeOffering.template;
     const name = activeOffering.custom_name || tpl?.name || "Oferta";
-    const deliverables = (tpl?.deliverables as any) || [];
-    const deliverablesArr = Array.isArray(deliverables) ? deliverables : Object.values(deliverables);
     const doneTasks = tasks.filter((t) => t.status === "done").length;
     const totalTasks = tasks.length;
     const taskProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -296,8 +294,8 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     return (
       <div className="space-y-6">
         <div className="bg-card border border-border rounded-2xl p-6 space-y-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-2 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl font-semibold text-foreground">{name}</h2>
                 <Badge variant="outline" className={STATUS_BADGE[activeOffering.status] || ""}>
@@ -309,33 +307,17 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                   </Badge>
                 )}
               </div>
-              {tpl && (
-                <p className="text-sm text-muted-foreground">{tpl.value_proposition || tpl.description}</p>
-              )}
-              {tpl && (
-                <p className="text-base font-medium text-foreground">{formatPricing(tpl)}</p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Pricing interno: <span className="font-medium text-foreground">{tpl ? formatPricing(tpl) : "—"}</span>
+                {tpl?.setup_hours_estimate ? ` · ~${tpl.setup_hours_estimate}h setup` : ""}
+              </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
               <RefreshCw className="w-4 h-4 mr-1" /> Cambiar oferta
             </Button>
           </div>
 
-          {deliverablesArr.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Deliverables
-              </h3>
-              <ul className="space-y-1.5">
-                {deliverablesArr.map((d: any, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <span>{typeof d === "string" ? d : d.label || d.name || JSON.stringify(d)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {tpl && <OfferingDetails offering={tpl as any} audience="admin" />}
 
           {totalTasks > 0 && (
             <div>
