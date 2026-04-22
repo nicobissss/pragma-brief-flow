@@ -1,40 +1,39 @@
 project_id = "udhlikcjuyirtkdjzscc"
 
-[functions.create-user]
-verify_jwt = false
-
-[functions.generate-proposal]
-verify_jwt = false
-
-[functions.accept-prospect]
-verify_jwt = false
-
-[functions.send-notification]
-verify_jwt = false
-
-[functions.fetch-website-context]
-verify_jwt = false
-
-[functions.extract-pdf-text]
-verify_jwt = false
-
-[functions.generate-kickoff-prompts]
-verify_jwt = false
-
-[functions.generate-correction-prompt]
-verify_jwt = false
-
-[functions.generate-campaign-brief]
-verify_jwt = false
-
-[functions.webhook-receiver]
-verify_jwt = false
-
-[functions.analyze-kickoff-transcript]
-verify_jwt = false
-
-[functions.suggest-client-rule]
-verify_jwt = false
-
-[functions.generate-project-plan]
-verify_jwt = false
+[functions]
+  [functions.accept-prospect]
+    verify_jwt = false
+  [functions.analyze-kickoff-transcript]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.create-user]
+    verify_jwt = false
+  [functions.extract-pdf-text]
+    verify_jwt = false
+  [functions.fetch-website-context]
+    verify_jwt = false
+  [functions.generate-campaign-brief]
+    verify_jwt = false
+  [functions.generate-correction-prompt]
+    verify_jwt = false
+  [functions.generate-kickoff-prompts]
+    verify_jwt = false
+  [functions.generate-project-plan]
+    verify_jwt = false
+  [functions.generate-proposal]
+    verify_jwt = false
+  [functions.send-notification]
+    verify_jwt = false
+  [functions.suggest-client-rule]
+    verify_jwt = false
+  [functions.webhook-receiver]
+    verify_jwt = false
+  [functions.send-transactional-email]
+    verify_jwt = true
+  [functions.preview-transactional-email]
+    verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
+  [functions.handle-email-suppression]
+    verify_jwt = false
