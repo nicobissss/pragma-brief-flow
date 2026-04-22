@@ -27,6 +27,8 @@ import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel"
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import ClientMaterials, { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
 import ClientPlatformsPanel from "@/components/admin/ClientPlatformsPanel";
+import OfferingRecommendationTab from "@/components/admin/OfferingRecommendationTab";
+import ActionPlanTab from "@/components/admin/ActionPlanTab";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import { ContextScorePanel, useContextScore } from "@/components/admin/ContextScorePanel";
@@ -200,6 +202,7 @@ export default function AdminClientDetail() {
   const promptsRef = useRef<HTMLDivElement>(null);
 
   const [defaultTab, setDefaultTab] = useState<string>("prospect");
+  const [hasOffering, setHasOffering] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -213,6 +216,7 @@ export default function AdminClientDetail() {
       const campaignsPromise = (supabase.from("campaigns" as any) as any).select("*").eq("client_id", id!).order("created_at", { ascending: false });
       const notesPromise = supabase.from("client_notes").select("*").eq("client_id", id!).order("created_at", { ascending: false });
       const toolGensPromise = supabase.from("tool_generations").select("*").eq("client_id", id!).order("created_at", { ascending: false });
+      const offeringPromise = supabase.from("client_offerings").select("id").eq("client_id", id!).limit(1);
 
       let prospectPromise: any = null;
       let proposalPromise: any = null;
@@ -222,12 +226,13 @@ export default function AdminClientDetail() {
         proposalPromise = supabase.from("proposals").select("full_proposal_content").eq("prospect_id", clientData.prospect_id).maybeSingle();
       }
 
-      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise]);
+      const [kickoffRes, assetsRes, campaignsRes, notesRes, toolGensRes, offeringRes] = await Promise.all([kickoffPromise, assetsPromise, campaignsPromise, notesPromise, toolGensPromise, offeringPromise]);
       const kickoffData = kickoffRes.data;
       const assetsData = (assetsRes.data || []) as AssetRow[];
       setCampaigns((campaignsRes.data || []) as any[]);
       setNotes((notesRes.data || []) as ClientNote[]);
       setToolGenerations((toolGensRes.data || []) as ToolGeneration[]);
+      setHasOffering(!!(offeringRes.data && offeringRes.data.length > 0));
 
       if (kickoffData) {
         setKickoff(kickoffData as unknown as KickoffBrief);
@@ -685,6 +690,19 @@ ${context}`
             Kickoff
             {kickoffBadge && <span className="ml-1.5 w-2 h-2 rounded-full bg-accent inline-block" />}
           </TabsTrigger>
+          <TabsTrigger value="oferta" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5 relative">
+            Oferta
+            {!hasOffering && (
+              <Badge variant="outline" className="ml-1.5 text-[9px] px-1.5 py-0 h-4 bg-amber-500/10 text-amber-700 border-amber-500/30">
+                Por proponer
+              </Badge>
+            )}
+          </TabsTrigger>
+          {hasOffering && (
+            <TabsTrigger value="plan" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
+              Plan de Acción
+            </TabsTrigger>
+          )}
           <TabsTrigger value="prompts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
             Prompts
           </TabsTrigger>
@@ -1004,6 +1022,16 @@ ${context}`
               </CollapsibleContent>
             </div>
           </Collapsible>
+        </TabsContent>
+
+        {/* TAB — Oferta */}
+        <TabsContent value="oferta" className="mt-6">
+          {client && <OfferingRecommendationTab clientId={client.id} />}
+        </TabsContent>
+
+        {/* TAB — Plan de Acción */}
+        <TabsContent value="plan" className="mt-6">
+          {client && <ActionPlanTab clientId={client.id} />}
         </TabsContent>
 
         {/* TAB 3 — Prompts */}

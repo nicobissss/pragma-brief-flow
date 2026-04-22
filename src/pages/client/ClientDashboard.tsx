@@ -104,6 +104,15 @@ const STATUS_COLORS: Record<string, string> = {
 
 const getStatusIcon = (s: string) => s === "approved" ? "✅" : s === "change_requested" ? "💬" : "⏳";
 
+type ClientTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  status: string | null;
+  blocked_reason: string | null;
+};
+
 export default function ClientDashboard() {
   const [companyName, setCompanyName] = useState("");
   const [allAssets, setAllAssets] = useState<AssetItem[]>([]);
@@ -113,6 +122,7 @@ export default function ClientDashboard() {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [projectPlan, setProjectPlan] = useState<any>(null);
   const [projectPlanShared, setProjectPlanShared] = useState(false);
+  const [clientTasksList, setClientTasksList] = useState<ClientTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTooltip, setShowTooltip] = useState(() => !localStorage.getItem("pragma_tooltip_shown"));
 
@@ -157,6 +167,21 @@ export default function ClientDashboard() {
       if (requestsRes.data && requestsRes.data.length > 0) {
         const pending = (requestsRes.data[0].requested_items as any[]).filter((i: any) => i.status === "pending").length;
         setPendingRequestCount(pending);
+      }
+
+      // Fetch client-assigned action plan tasks
+      const { data: offerings } = await supabase
+        .from("client_offerings").select("id").eq("client_id", client.id);
+      const offeringIds = (offerings || []).map((o: any) => o.id);
+      if (offeringIds.length > 0) {
+        const { data: ctasks } = await supabase
+          .from("action_plan_tasks")
+          .select("id, title, description, category, status, blocked_reason")
+          .in("client_offering_id", offeringIds)
+          .eq("assignee", "client")
+          .neq("status", "done")
+          .order("order_index");
+        setClientTasksList((ctasks || []) as ClientTask[]);
       }
 
       setLoading(false);
@@ -241,6 +266,56 @@ export default function ClientDashboard() {
           </button>
         </div>
       )}
+
+      {/* Qué necesitamos de ti — client action plan tasks */}
+      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+          Qué necesitamos de ti
+        </h3>
+        {clientTasksList.length === 0 ? (
+          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="font-medium">✅ Todo en orden, te avisamos cuando necesitemos algo</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {clientTasksList.map((task) => {
+              const cta = task.category === "client_input" ? "Subir / Enviar info"
+                : task.category === "review" ? "Revisar ahora"
+                : "Marcar hecho";
+              const link = task.category === "client_input" ? "/client/collect" : "/client/dashboard";
+              return (
+                <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
+                  {task.status === "blocked" && <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{task.title}</p>
+                    {task.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a href={link} className="text-xs px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/85 font-medium">
+                      {cta}
+                    </a>
+                    <button
+                      onClick={async () => {
+                        const { error } = await supabase
+                          .from("action_plan_tasks")
+                          .update({ status: "done", completed_at: new Date().toISOString() } as any)
+                          .eq("id", task.id);
+                        if (error) return;
+                        setClientTasksList((prev) => prev.filter((t) => t.id !== task.id));
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                      title="Marcar hecho"
+                    >
+                      ✓
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* UX-03: Today's tasks */}
       <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
