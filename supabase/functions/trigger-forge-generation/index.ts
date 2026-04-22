@@ -143,70 +143,83 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Log outbound webhook
-    const { data: logRow } = await supabase
-      .from("webhook_log")
-      .insert({
-        direction: "out",
-        event_type: payload.action,
-        payload,
-        status: "sending",
-      })
-      .select("id")
-      .maybeSingle();
+    const results: Array<{ asset_type: string; ok: boolean; status?: number; error?: string }> = [];
 
-    let forgeResponse: Response;
-    try {
-      forgeResponse = await fetch(forgeUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(forgeSecret ? { "x-pragma-secret": forgeSecret } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (fetchErr: any) {
+    for (const payload of payloads) {
+      const { data: logRow } = await supabase
+        .from("webhook_log")
+        .insert({
+          direction: "out",
+          event_type: payload.action,
+          payload,
+          status: "sending",
+        })
+        .select("id")
+        .maybeSingle();
+
+      let forgeResponse: Response;
+      try {
+        forgeResponse = await fetch(forgeUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(forgeSecret ? { "x-pragma-secret": forgeSecret } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchErr: any) {
+        if (logRow?.id) {
+          await supabase
+            .from("webhook_log")
+            .update({ status: "error", error: String(fetchErr.message || fetchErr) })
+            .eq("id", logRow.id);
+        }
+        results.push({
+          asset_type: payload.asset_type,
+          ok: false,
+          error: `Failed to reach Forge: ${fetchErr.message || fetchErr}`,
+        });
+        continue;
+      }
+
+      const responseText = await forgeResponse.text();
+      const ok = forgeResponse.ok;
+
       if (logRow?.id) {
         await supabase
           .from("webhook_log")
-          .update({ status: "error", error: String(fetchErr.message || fetchErr) })
+          .update({
+            status: ok ? "sent" : "error",
+            error: ok ? null : `Forge ${forgeResponse.status}: ${responseText.slice(0, 500)}`,
+          })
           .eq("id", logRow.id);
       }
-      return new Response(
-        JSON.stringify({ error: `Failed to reach Forge: ${fetchErr.message || fetchErr}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+
+      results.push({
+        asset_type: payload.asset_type,
+        ok,
+        status: forgeResponse.status,
+        error: ok ? undefined : responseText.slice(0, 500),
+      });
     }
 
-    const responseText = await forgeResponse.text();
-    const ok = forgeResponse.ok;
-
-    if (logRow?.id) {
-      await supabase
-        .from("webhook_log")
-        .update({
-          status: ok ? "sent" : "error",
-          error: ok ? null : `Forge ${forgeResponse.status}: ${responseText.slice(0, 500)}`,
-        })
-        .eq("id", logRow.id);
-    }
-
-    if (!ok) {
-      return new Response(
-        JSON.stringify({
-          error: `Forge returned ${forgeResponse.status}`,
-          detail: responseText.slice(0, 500),
-        }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const anyOk = results.some((r) => r.ok);
+    const allOk = results.every((r) => r.ok);
 
     return new Response(
       JSON.stringify({
-        ok: true,
-        message: "Generation triggered. Forge will deliver assets via webhook.",
+        ok: anyOk,
+        triggered: results.filter((r) => r.ok).length,
+        total: results.length,
+        results,
+        message: allOk
+          ? "Generation triggered. Forge will deliver assets via webhook."
+          : "Some asset types failed to trigger.",
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: anyOk ? 200 : 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   } catch (err: any) {
     console.error("trigger-forge-generation error:", err);
