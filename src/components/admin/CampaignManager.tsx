@@ -14,7 +14,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import {
   Plus, Loader2, Sparkles, Target, Users, MessageSquare, Calendar,
   Pencil, ChevronDown, ChevronUp, Upload, FileText, Mail, Image, PenTool,
-  X, Eye, ExternalLink, Wrench, Bell, AlertTriangle,
+  X, Eye, ExternalLink, Wrench, Bell, AlertTriangle, Wand2,
 } from "lucide-react";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
@@ -147,6 +147,7 @@ function AssetCard({
 }) {
   const Icon = ASSET_TYPE_ICONS[asset.asset_type] || FileText;
   const isImage = asset.file_url?.match(/\.(png|jpg|jpeg|webp|gif)$/i);
+  const [regenerating, setRegenerating] = useState(false);
   const statusBadgeClass =
     asset.status === "approved"
       ? "bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30"
@@ -155,6 +156,28 @@ function AssetCard({
         : asset.status === "pending_review"
           ? "bg-[hsl(var(--status-pending-review))]/15 text-[hsl(var(--status-pending-review))] border-[hsl(var(--status-pending-review))]/30"
           : "bg-muted text-muted-foreground";
+
+  const regenerateWithForge = async () => {
+    setRegenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("trigger-forge-generation", {
+        body: {
+          client_id: clientId,
+          campaign_id: asset.campaign_id,
+          asset_id: asset.id,
+          asset_type: asset.asset_type,
+          notes: asset.client_comment || asset.correction_prompt || null,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Forge sta rigenerando — riceverai l'asset come nuova versione.");
+    } catch (e: any) {
+      toast.error(e.message || "Impossibile contattare Forge");
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-secondary/10 overflow-hidden">
@@ -182,6 +205,16 @@ function AssetCard({
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Rigenera con Forge"
+            onClick={regenerateWithForge}
+            disabled={regenerating}
+          >
+            {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+          </Button>
           {asset.file_url && (
             <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="icon" className="h-7 w-7">
