@@ -1,72 +1,63 @@
 
 
-# Review della parte cliente — chiarezza & sfoltimento
+# Connessione Forge ↔ questo progetto (Briefer)
 
-Onestamente: **la struttura è solida**, ma ci sono **3-4 ridondanze evidenti** e **un paio di cose che il cliente non capisce** al primo colpo. Niente da rifare da zero, solo pulizia chirurgica.
+Forge resta **separato** (come deciso). Lo agganciamo a questo progetto via webhook + chiamate dirette al DB con service role, così tu mantieni il briefer leggero e Forge fa solo generazione.
 
----
+## Architettura
 
-## ✂️ Cose inutili / ridondanti da rimuovere
+```text
+   ┌─────────────┐    1. legge brief         ┌──────────────┐
+   │             │ ────────────────────────▶ │              │
+   │   FORGE     │                           │   BRIEFER    │
+   │ (generator) │ ◀──────────────────────── │  (questo)    │
+   │             │  2. POST asset_generated  │              │
+   └─────────────┘                           └──────────────┘
+        │                                          │
+        │ usa SERVICE_ROLE_KEY                     │ webhook-receiver
+        │ (passato come secret in Forge)           │ valida x-pragma-secret
+        ▼                                          ▼
+   legge: clients,                            scrive: assets
+   kickoff_briefs,                            (status=pending_review)
+   campaigns,
+   client_offerings
+```
 
-### 1. La tab "Archivos solicitados" nel briefing è doppia
-In `ClientDashboard` ci sono **due Tabs**: "Mi briefing completo" + "Archivos solicitados". Ma "Archivos solicitados" mostra solo un link che dice *"Vai alla página de subida"*. È un click in più per niente — il cliente ha già l'icona 📎 nella nav top con badge rosso, e ha già la card "Subir N archivos" in **Sección B (Qué necesitamos de ti)**.
-→ **Rimuovere la Tab.** Lasciare solo "Mi briefing completo" (e magari togliere le Tabs del tutto, è un singolo collapsible).
+## Cosa cambia in **questo progetto** (Briefer)
 
-### 2. "Sección C" duplica metà delle info di "Sección B"
-La sezione "Tu plan" mostra: status badge (già nell'hero), progress bar (utile), e poi **"Assets aprobados X/Y" + "Pasos completados X/Y"** — ma "Pasos completados" è già la stessa info della progress bar appena sopra.
-→ **Rimuovere il duplicato "Pasos completados"**, lasciare solo "Assets aprobados X/Y" come unica metrica numerica.
+1. **Estendere `webhook-receiver`** con una nuova action `asset_generated` che accetta:
+   - `client_id`, `campaign_id` (opz.), `asset_name`, `asset_type`, `content` (jsonb), `preview_url`, `file_url`
+   - Inserisce riga in `assets` con `status = 'pending_review'`, `version = 1`
+   - Logga in `webhook_log` (già fa)
+2. **Nessuna migrazione DB** necessaria — la tabella `assets` ha già tutti i campi.
+3. **Documentare il contratto**: aggiungere `mem://architecture/integration-system` la nuova action.
 
-### 3. Status badge ripetuto 2 volte
-Il badge "🚀 Campaña activa" appare nell'hero E nella card "Tu plan" (Sección C).
-→ **Tenerlo solo nell'hero.**
+## Cosa va fatto in **Forge** (separatamente, quando lo apri)
 
-### 4. ClientCollect: la "Text alternative" sotto ogni file
-Ogni richiesta di file ha sia upload box sia textarea "Or add a text response". Per richieste che sono chiaramente file (es. "Logo aziendale", "Foto del local") la textarea confonde — il cliente si chiede *"devo scrivere qualcosa anche se ho caricato il file?"*.
-→ **Mostrare la textarea solo per item con `type_hint === "Text"`.** Per file fisici, solo upload.
+Te lo elenco così sai cosa toccare lì — non lo faccio io ora perché è un altro progetto:
 
----
+1. Aggiungere come secret in Forge: `BRIEFER_SUPABASE_URL`, `BRIEFER_SERVICE_ROLE_KEY`, `BRIEFER_WEBHOOK_SECRET` (quest'ultimo già esiste qui)
+2. Sostituire le query alle tabelle inesistenti (`client_briefs`, `pragma_flows`, `generated_assets`) con quelle reali (`clients`, `kickoff_briefs`, `campaigns`, `client_offerings`)
+3. Sostituire il placeholder `callGeneration()` con vera chiamata Claude/Lovable AI
+4. A fine generazione → `POST {BRIEFER_URL}/functions/v1/webhook-receiver` con header `x-pragma-secret` e `{ action: "asset_generated", ... }`
 
-## 😵 Cose poco chiare per il cliente
+## Sicurezza
 
-### 5. Mix italiano/spagnolo/inglese
-La dashboard è in spagnolo ("Qué necesitamos de ti"), ma:
-- `ClientCollect` è **tutto in inglese** ("Files requested by PRAGMA", "All items uploaded!", "Replace file")
-- `ClientAssetReview` è **misto**: titoli inglese ("Approve All", "Hover over any section..."), domande guidate in italiano, bottoni in italiano ("Volver al panel" è spagnolo dentro a tutto inglese)
-→ **Standardizzare tutto in spagnolo** (lingua principale del cliente target SP/LATAM).
+- Forge **non** usa anon key — usa service role (server-side, mai esposta al browser di Forge)
+- Webhook protetto da `x-pragma-secret` (già implementato)
+- RLS resta intatta su `assets`: client vede solo i suoi via `user_id`
 
-### 6. "Tus assets" — il cliente non sa cosa fare se status ≠ pending_review
-Nella card asset, se non ci sono assets in `pending_review` mostro solo una ✓ verde. Niente CTA, niente "Ver aprobados". Il cliente che vuole **rivedere** un asset già approvato non ha modo di farlo.
-→ **Rendere la card sempre cliccabile** (anche solo per consultare). Bottone secondario "Ver" quando non c'è pending.
+## Test end-to-end (dopo deploy)
 
-### 7. "ClientAssetReview" — "Approve All" è troppo aggressivo
-Il bottone "Approve All" (in alto a destra, primary blu, sempre visibile se ci sono >1 assets) è la **prima cosa che vedi**. Può portare ad approvazioni accidentali di campagne intere senza leggere.
-→ **Spostarlo in fondo alla pagina** dopo che il cliente ha scrollato attraverso gli asset. O renderlo `variant="outline"` invece di primary.
+Test manuale con `curl` al `webhook-receiver` simulando Forge per verificare che l'asset compaia in `/admin/clients/[id]` come "pending_review".
 
-### 8. La frase "Hover over any section and click 💬"
-Su mobile non esiste hover. Il cliente da telefono non capisce come commentare.
-→ Riscrivere: *"Toca cualquier sección para dejar tu feedback. Puedes aprobar sin comentar."*
+## Out of scope (per ora)
 
-### 9. Briefing: campi vuoti mostrano "—" silenzioso
-In Sección E briefing, i campi non compilati mostrano un trattino italico. 30+ trattini di seguito danno la sensazione di "manca tutto" anche se l'80% non è obbligatorio.
-→ **Nascondere i campi vuoti di default**, con un piccolo toggle "Mostrar campos vacíos" se serve.
-
----
-
-## ✅ Cose che funzionano già bene (non toccare)
-
-- Hero con nome cliente + status badge: pulito, calmo
-- Sección B "Qué necesitamos de ti" con priority high in ambra: chiarissima
-- Empty state "Todo en orden" in verde: rassicurante
-- ProgressIndicator + count assets: leggibili
-- Collapsible per sezioni del briefing: giusto compromesso
+- Retry automatico se webhook fallisce (Forge dovrà gestirlo lato suo)
+- UI in Briefer per "trigger generation in Forge" (oggi Forge parte autonomamente)
+- Migrazione contenuti già esistenti
 
 ---
 
-## 📋 Piano di esecuzione (se approvi)
-
-1. **ClientDashboard**: rimuovere Tabs (-tab "Archivos"), rimuovere duplicato "Pasos completados" e badge ripetuto in Sección C, rendere card asset sempre cliccabile, nascondere campi vuoti briefing
-2. **ClientCollect**: tradurre tutto in spagnolo, mostrare textarea solo per `type_hint === "Text"`
-3. **ClientAssetReview**: tradurre tutto in spagnolo, riscrivere istruzione mobile-friendly, spostare/declassare "Approve All"
-
-Stimato: una sessione media. Nessuna migrazione DB, solo UI.
+**Effort qui:** ~15 min (solo estensione `webhook-receiver`). Su Forge è lavoro tuo separato — ti lascio il contratto pronto.
 
