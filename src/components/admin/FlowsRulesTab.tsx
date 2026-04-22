@@ -16,17 +16,6 @@ const SUB_NICHES: Record<string, string[]> = {
   "Deporte Offline": ["Pádel/Tenis", "Danza", "Yoga/Pilates", "Artes Marciales", "Natación", "Fútbol", "Personal Trainer"],
 };
 
-type Flow = {
-  id: string;
-  name: string;
-  vertical: string;
-  description: string | null;
-  applicable_sub_niches: any;
-  estimated_total_days: number | null;
-  is_active: boolean | null;
-  updated_at: string | null;
-};
-
 type Rule = {
   id: string;
   name: string;
@@ -35,125 +24,6 @@ type Rule = {
   is_active: boolean | null;
   updated_at: string | null;
 };
-
-// ─── Flow Modal ─────────────────────────────────────────
-function FlowModal({ open, flow, onClose, onSaved }: {
-  open: boolean;
-  flow: Partial<Flow> | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [form, setForm] = useState<Partial<Flow>>({});
-  const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (flow) {
-      setForm({ ...flow });
-      let niches: string[] = [];
-      try {
-        niches = typeof flow.applicable_sub_niches === "string"
-          ? JSON.parse(flow.applicable_sub_niches)
-          : Array.isArray(flow.applicable_sub_niches) ? flow.applicable_sub_niches : [];
-      } catch { niches = []; }
-      setSelectedNiches(niches);
-    }
-  }, [flow]);
-
-  const isNew = !flow?.id;
-  const availableNiches = SUB_NICHES[form.vertical || ""] || [];
-
-  const save = async () => {
-    if (!form.name?.trim() || !form.vertical) {
-      toast.error("Nombre y vertical son obligatorios");
-      return;
-    }
-    setSaving(true);
-    const payload = {
-      name: form.name,
-      vertical: form.vertical,
-      description: form.description || null,
-      applicable_sub_niches: selectedNiches,
-      estimated_total_days: form.estimated_total_days || 30,
-      is_active: form.is_active ?? true,
-      updated_at: new Date().toISOString(),
-      updated_by: "admin",
-    };
-    let error;
-    if (isNew) {
-      ({ error } = await supabase.from("pragma_flows").insert(payload));
-    } else {
-      ({ error } = await supabase.from("pragma_flows").update(payload).eq("id", flow!.id!));
-    }
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(isNew ? "Flow creado" : "Flow actualizado");
-    onClose();
-    onSaved();
-  };
-
-  const toggleNiche = (n: string) => {
-    setSelectedNiches(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n]);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isNew ? "Añadir flow" : "Editar flow"}</DialogTitle>
-          <DialogDescription>{isNew ? "Crea un nuevo flow de trabajo." : "Modifica los detalles del flow."}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground">Nombre *</label>
-            <Input value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Vertical *</label>
-            <Select value={form.vertical || ""} onValueChange={v => { setForm(f => ({ ...f, vertical: v })); setSelectedNiches([]); }}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-              <SelectContent>
-                {Object.keys(SUB_NICHES).map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Descripción</label>
-            <Textarea value={form.description || ""} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1" rows={3} />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground">Duración estimada (días)</label>
-            <Input type="number" value={form.estimated_total_days || ""} onChange={e => setForm(f => ({ ...f, estimated_total_days: parseInt(e.target.value) || 0 }))} className="mt-1 w-32" />
-          </div>
-          {availableNiches.length > 0 && (
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Sub-niches aplicables</label>
-              <div className="flex flex-wrap gap-2">
-                {availableNiches.map(n => (
-                  <button key={n} type="button" onClick={() => toggleNiche(n)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                      selectedNiches.includes(n) ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-foreground hover:bg-secondary"
-                    }`}>{n}</button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Switch checked={form.is_active ?? true} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
-            <span className="text-sm text-foreground">Activo</span>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={save} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
-            {isNew ? "Crear flow" : "Guardar cambios"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ─── Rule Modal ─────────────────────────────────────────
 function RuleModal({ open, rule, category, onClose, onSaved }: {
@@ -409,9 +279,16 @@ export function FlowsRulesTab() {
         )}
       </section>
 
-      {/* Modals */}
-      <RuleModal open={ruleModal.open} rule={ruleModal.rule} category={ruleModal.category} onClose={() => setRuleModal({ open: false, rule: null, category: "" })} onSaved={fetchAll} />
+      <RuleModal
+        open={ruleModal.open}
+        rule={ruleModal.rule}
+        category={ruleModal.category}
+        onClose={() => setRuleModal({ open: false, rule: null, category: "" })}
+        onSaved={fetchAll}
+      />
       <TestConfigModal open={testModal} onClose={() => setTestModal(false)} />
     </div>
   );
 }
+
+export default FlowsRulesTab;

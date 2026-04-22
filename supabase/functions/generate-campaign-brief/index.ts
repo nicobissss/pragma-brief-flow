@@ -32,21 +32,29 @@ serve(async (req) => {
     const prospect = client.prospects;
     const briefingAnswers = prospect?.briefing_answers || {};
 
-    // Fetch proposal
-    let recommendedFlow = "";
-    let recommendedTools: string[] = [];
+    // Fetch proposal — usa nombre comercial (recommended_flow)
+    let recommendedOfferingName = "";
     if (prospect?.id) {
       const { data: proposal } = await supabase
         .from("proposals")
-        .select("recommended_flow, recommended_tools, full_proposal_content")
+        .select("recommended_flow, full_proposal_content")
         .eq("prospect_id", prospect.id)
         .maybeSingle();
-      if (proposal) {
-        const rawFlow = proposal.recommended_flow;
-        recommendedFlow = typeof rawFlow === "string" ? rawFlow : JSON.stringify(rawFlow || "");
-        recommendedTools = (proposal.recommended_tools as string[]) || [];
+      if (proposal?.recommended_flow) {
+        const raw = proposal.recommended_flow;
+        recommendedOfferingName = typeof raw === "string" ? raw : "";
       }
     }
+
+    // Tools activados desde client_platforms (single source of truth)
+    const { data: platforms } = await supabase
+      .from("client_platforms")
+      .select("supported_platforms(name)")
+      .eq("client_id", client_id)
+      .eq("has_access", true);
+    const recommendedTools: string[] = (platforms || [])
+      .map((p: any) => p.supported_platforms?.name)
+      .filter(Boolean);
 
     // Fetch transcript
     let transcriptSummary = "";
@@ -85,7 +93,7 @@ Contexto del cliente:
 Vertical: ${client.vertical}
 Sub-niche: ${client.sub_niche}
 Mercado: ${client.market}
-${recommendedFlow ? `Oferta recomendada en propuesta: ${recommendedFlow}` : ""}
+${recommendedOfferingName ? `Oferta recomendada en propuesta: ${recommendedOfferingName}` : ""}
 ${recommendedTools.length > 0 ? `Tools activados: ${recommendedTools.join(", ")}` : ""}
 ${briefingSummary ? `Resumen briefing:\n${briefingSummary}` : ""}
 ${transcriptSummary ? `Resumen kickoff:\n${transcriptSummary}` : ""}
