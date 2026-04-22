@@ -68,7 +68,11 @@ serve(async (req) => {
       { onConflict: "user_id,role" }
     );
 
-    // 5. Client record
+    // 5. Client record (extract city + website_url from briefing answers if present)
+    const briefingAnswers = (prospect.briefing_answers || {}) as Record<string, any>;
+    const city = briefingAnswers.city || briefingAnswers.ciudad || briefingAnswers.location || null;
+    const websiteUrl = briefingAnswers.website_url || briefingAnswers.website || briefingAnswers.url_sitio_web || null;
+
     const { data: client, error: clientErr } = await supabaseAdmin.from("clients").insert({
       name: prospect.name,
       company_name: prospect.company_name,
@@ -76,12 +80,28 @@ serve(async (req) => {
       market: prospect.market,
       vertical: prospect.vertical,
       sub_niche: prospect.sub_niche,
+      city,
+      website_url: websiteUrl,
       prospect_id: prospect.id,
       user_id: userId,
       status: "active",
     }).select("id").single();
 
     if (clientErr) throw new Error(`Failed to create client: ${clientErr.message}`);
+
+    // 5b. Clone kickoff questions from vertical/sub_niche templates
+    try {
+      const { data: cloned, error: cloneErr } = await supabaseAdmin.rpc("clone_kickoff_questions_for_client", {
+        p_client_id: client.id,
+        p_vertical: prospect.vertical,
+        p_sub_niche: prospect.sub_niche,
+        p_replace: false,
+      });
+      if (cloneErr) console.error("clone_kickoff_questions error:", cloneErr);
+      else console.log(`Cloned ${cloned} kickoff questions for client ${client.id}`);
+    } catch (cloneErr) {
+      console.error("clone_kickoff_questions exception:", cloneErr);
+    }
 
     // 6. Briefing answers
     const { error: bsErr } = await supabaseAdmin
