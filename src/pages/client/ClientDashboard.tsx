@@ -169,6 +169,21 @@ export default function ClientDashboard() {
         setPendingRequestCount(pending);
       }
 
+      // Fetch client-assigned action plan tasks
+      const { data: offerings } = await supabase
+        .from("client_offerings").select("id").eq("client_id", client.id);
+      const offeringIds = (offerings || []).map((o: any) => o.id);
+      if (offeringIds.length > 0) {
+        const { data: ctasks } = await supabase
+          .from("action_plan_tasks")
+          .select("id, title, description, category, status, blocked_reason")
+          .in("client_offering_id", offeringIds)
+          .eq("assignee", "client")
+          .neq("status", "done")
+          .order("order_index");
+        setClientTasksList((ctasks || []) as ClientTask[]);
+      }
+
       setLoading(false);
     };
     load();
