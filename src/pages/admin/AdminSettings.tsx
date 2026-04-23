@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Upload, Trash2, Pencil, Save, FileText } from "lucide-react";
+import { Loader2, Pencil, Save } from "lucide-react";
 
 import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
@@ -13,13 +12,10 @@ import OfferingsCatalogTab from "@/components/admin/OfferingsCatalogTab";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Procesos" },
-  { key: "pricing", title: "Precios" },
-  { key: "suite_tools", title: "Suite Tools" },
   { key: "pitch_guidelines", title: "Pitch Guidelines" },
 ] as const;
 
 type KBRow = { id: string; category: string; content: string; updated_at: string };
-type DocRow = { id: string; filename: string; file_url: string; is_active: boolean; extracted_text: string | null; created_at: string };
 
 function KBBlock({ row, onSaved }: { row: KBRow; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
