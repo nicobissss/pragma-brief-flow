@@ -6,6 +6,9 @@ import { ActivityFeed, type ActivityItem } from "@/components/shared/ActivityFee
 import { ProgressIndicator } from "@/components/shared/ProgressIndicator";
 import { deriveNextAction } from "@/hooks/useNextAction";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 
 type Props = {
   client: any;
@@ -13,6 +16,8 @@ type Props = {
   hasOffering: boolean;
   contextScorePct: number;
   assets: any[];
+  prospect?: any | null;
+  marketLabel?: string;
   onNavigateTab: (tab: string) => void;
 };
 
