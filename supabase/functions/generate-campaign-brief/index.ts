@@ -12,14 +12,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { client_id, campaign_name } = await req.json();
+    const { client_id, campaign_name, feedback, current_brief } = await req.json();
     if (!client_id || !campaign_name) throw new Error("client_id and campaign_name required");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Fetch client with prospect
     const { data: client } = await supabase
       .from("clients")
       .select("*, prospects(*)")
@@ -30,7 +29,6 @@ serve(async (req) => {
     const prospect = client.prospects;
     const briefingAnswers = prospect?.briefing_answers || {};
 
-    // Fetch proposal — usa nombre comercial (recommended_flow)
     let recommendedOfferingName = "";
     if (prospect?.id) {
       const { data: proposal } = await supabase
@@ -44,7 +42,6 @@ serve(async (req) => {
       }
     }
 
-    // Tools activados desde client_platforms (single source of truth)
     const { data: platforms } = await supabase
       .from("client_platforms")
       .select("supported_platforms(name)")
@@ -54,11 +51,10 @@ serve(async (req) => {
       .map((p: any) => p.supported_platforms?.name)
       .filter(Boolean);
 
-    // Fetch transcript
     let transcriptSummary = "";
     const { data: kickoff } = await supabase
       .from("kickoff_briefs")
-      .select("transcript_text")
+      .select("transcript_text, voice_reference, preferred_tone")
       .eq("client_id", client_id)
       .maybeSingle();
     if (kickoff?.transcript_text) {
@@ -76,6 +72,10 @@ serve(async (req) => {
     const recommendedCodes = getRecommendedOfferings(client.sub_niche);
     const outputLanguage = client.market === "it" ? "italiano" : "español";
 
+    const feedbackBlock = feedback && current_brief
+      ? `\n\n# BRIEF ACTUAL (a refinar según feedback del usuario)\n${JSON.stringify(current_brief, null, 2)}\n\n# FEEDBACK DEL USUARIO (aplicar estos cambios)\n${feedback}\n\nReformula el brief incorporando el feedback. Mantén lo que ya funciona, cambia solo lo necesario.`
+      : "";
+
     const userPrompt = `Eres estratega de marketing en PRAGMA.
 
 ${STRICT_RULES}
@@ -83,7 +83,7 @@ ${STRICT_RULES}
 ${catalogBlock}
 
 Las ofertas mejor adaptadas a la sub-niche "${client.sub_niche}" son: ${recommendedCodes.join(", ") || "TIER1_RECUPERACION"}.
-Genera el brief de campaña SOLO alineado con una de estas ofertas. Nunca propongas estrategias fuera del catálogo (no webinars para Salud, no ads locales para E-Learning, etc.).
+Genera el brief de campaña SOLO alineado con una de estas ofertas. Nunca propongas estrategias fuera del catálogo.
 
 IDIOMA DE OUTPUT: ${outputLanguage} (mercado ${client.market.toUpperCase()}).
 
@@ -93,28 +93,37 @@ Sub-niche: ${client.sub_niche}
 Mercado: ${client.market}
 ${recommendedOfferingName ? `Oferta recomendada en propuesta: ${recommendedOfferingName}` : ""}
 ${recommendedTools.length > 0 ? `Tools activados: ${recommendedTools.join(", ")}` : ""}
+${kickoff?.voice_reference ? `Voz de marca: ${kickoff.voice_reference.slice(0, 300)}` : ""}
 ${briefingSummary ? `Resumen briefing:\n${briefingSummary}` : ""}
 ${transcriptSummary ? `Resumen kickoff:\n${transcriptSummary}` : ""}
+${feedbackBlock}
 
 Genera para la campaña "${campaign_name}":
 - objective: una frase clara alineada con la oferta
 - target_audience: descripción específica para vertical y sub-niche
 - key_message: propuesta de valor central
 - timeline: duración sugerida según el tipo de oferta
+- reasoning: para CADA campo, una explicación breve (1-2 frases) de POR QUÉ propones eso, citando datos del kickoff/oferta/vertical/voz de marca.
 
-Devuelve SOLO un objeto JSON:
+Devuelve SOLO un objeto JSON con esta forma exacta:
 {
   "objective": "",
   "target_audience": "",
   "key_message": "",
-  "timeline": ""
+  "timeline": "",
+  "reasoning": {
+    "objective": "Por qué este objetivo (basado en X dato del kickoff/oferta)",
+    "target_audience": "Por qué esta audiencia",
+    "key_message": "Por qué este mensaje (cita voz de marca o pain point)",
+    "timeline": "Por qué este timeline"
+  }
 }`;
 
     let result;
     try {
       result = await callAI({
         prompt: userPrompt,
-        max_tokens: 800,
+        max_tokens: 1400,
         model: "google/gemini-2.5-flash",
         response_format: { type: "json_object" },
       });
@@ -134,7 +143,6 @@ Devuelve SOLO un objeto JSON:
 
     const text = result.content?.find((b: any) => b.type === "text")?.text || "";
 
-    // Robust JSON extraction
     const extractJson = (raw: string): any => {
       let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
       const start = cleaned.search(/[\{\[]/);
