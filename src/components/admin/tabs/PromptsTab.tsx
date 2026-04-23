@@ -57,15 +57,19 @@ export default function PromptsTab({
 }: Props) {
   return (
     <div className="space-y-6">
+      <div className="rounded-md border border-dashed border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+        <strong className="text-foreground">¿Qué son estos prompts?</strong> Son las instrucciones que la IA usa para generar los assets de esta campaña. Se construyen automáticamente a partir del <strong>Brief</strong> (tab Contexto) + el kickoff + la oferta seleccionada. Edítalos solo si quieres afinar manualmente.
+      </div>
+
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Target className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="font-semibold">Brief di questa campagna</h3>
-          <span className="text-xs text-muted-foreground ml-auto mr-2">Compilare prima di generare i prompts</span>
+          <h3 className="font-semibold">Brief de esta campaña</h3>
+          <span className="text-xs text-muted-foreground ml-auto mr-2">Compilar antes de generar los prompts</span>
           <Button variant="outline" size="sm" onClick={onAutoGenerateBrief} disabled={generatingBrief}>
-            {generatingBrief ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</> : <><Sparkles className="w-4 h-4 mr-1" />Genera con AI</>}
+            {generatingBrief ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />Generando...</> : <><Sparkles className="w-4 h-4 mr-1" />Generar con AI</>}
           </Button>
         </div>
 
@@ -144,8 +148,8 @@ export default function PromptsTab({
                   <Button onClick={onGeneratePrompts} disabled={generating}
                     className={!generating ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white" : ""}>
                     {generating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Generando con AI...</>
-                      : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
-                      : <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>}
+                      : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar prompts desde el brief</>
+                      : <><Sparkles className="w-4 h-4 mr-2" />Preparar prompts para generación de assets</>}
                   </Button>
                 </span>
               </TooltipTrigger>

@@ -1303,10 +1303,109 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
   const [newVersionDrawer, setNewVersionDrawer] = useState<{ asset: AssetRow; campaignId: string; summary: string } | null>(null);
   const [notifyConfirm, setNotifyConfirm] = useState<{ campaign: Campaign; assets: AssetRow[] } | null>(null);
   const [notifying, setNotifying] = useState(false);
-  const [forgeBusyCampaignId, setForgeBusyCampaignId] = useState<string | null>(null);
+  const [aiBusyCampaignId, setAiBusyCampaignId] = useState<string | null>(null);
+  const [briefReasoning, setBriefReasoning] = useState<Record<string, any>>({});
+  const [briefFeedback, setBriefFeedback] = useState<string>("");
+  const [campaignMaterials, setCampaignMaterials] = useState<Record<string, any[]>>({});
+  const [loadingMaterials, setLoadingMaterials] = useState<string | null>(null);
+  const [autoSelectingMaterials, setAutoSelectingMaterials] = useState<string | null>(null);
+  const [allClientMaterials, setAllClientMaterials] = useState<Array<{ ref: string; type: string; label: string; url?: string }>>([]);
 
-  const triggerForgeForCampaign = async (campaign: Campaign) => {
-    setForgeBusyCampaignId(campaign.id);
+  // Realtime: refresh assets when new ones arrive for any campaign
+  useEffect(() => {
+    const channel = supabase
+      .channel(`assets-client-${clientId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "assets", filter: `client_id=eq.${clientId}` },
+        () => onAssetsChanged?.(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clientId, onAssetsChanged]);
+
+  // Load client materials (flat list) once
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("kickoff_briefs")
+        .select("client_materials")
+        .eq("client_id", clientId)
+        .maybeSingle();
+      const cm: any = data?.client_materials || {};
+      const flat: Array<{ ref: string; type: string; label: string; url?: string }> = [];
+      if (cm.logo_url) flat.push({ ref: "logo", type: "logo", label: "Logo de marca", url: cm.logo_url });
+      if (cm.primary_color) flat.push({ ref: "primary_color", type: "color", label: `Color primario: ${cm.primary_color}` });
+      if (cm.secondary_color) flat.push({ ref: "secondary_color", type: "color", label: `Color secundario: ${cm.secondary_color}` });
+      if (Array.isArray(cm.brand_tags) && cm.brand_tags.length) flat.push({ ref: "brand_tags", type: "brand", label: `Tags: ${cm.brand_tags.join(", ")}` });
+      (cm.photos || []).forEach((p: any, i: number) => flat.push({ ref: `photo_${i}`, type: "photo", label: p.description || `Foto ${i + 1}`, url: p.url }));
+      if (cm.website_url) flat.push({ ref: "website_url", type: "link", label: "Sitio web", url: cm.website_url });
+      if (cm.website_context) flat.push({ ref: "website_context", type: "text", label: "Texto del sitio web" });
+      if (cm.pricing_pdf_url) flat.push({ ref: "pricing_pdf", type: "document", label: "PDF precios", url: cm.pricing_pdf_url });
+      if (cm.pricing_pdf_text) flat.push({ ref: "pricing_text", type: "text", label: "Precios extraídos" });
+      (cm.email_files || []).forEach((e: any, i: number) => flat.push({ ref: `email_${i}`, type: "email_example", label: e.name || `Email ${i + 1}`, url: e.url }));
+      if (cm.email_text) flat.push({ ref: "email_text", type: "text", label: "Email/copy ejemplo" });
+      (cm.social_posts || []).forEach((s: any, i: number) => flat.push({ ref: `social_${i}`, type: "social_post", label: s.caption?.slice(0, 80) || `Post ${i + 1}`, url: s.url }));
+      setAllClientMaterials(flat);
+    })();
+  }, [clientId]);
+
+  const loadCampaignMaterials = async (campaignId: string) => {
+    setLoadingMaterials(campaignId);
+    try {
+      const { data } = await supabase.from("campaign_materials").select("*").eq("campaign_id", campaignId);
+      setCampaignMaterials((prev) => ({ ...prev, [campaignId]: (data || []) as any[] }));
+    } finally {
+      setLoadingMaterials(null);
+    }
+  };
+
+  const upsertCampaignMaterial = async (campaignId: string, mat: { ref: string; type: string; label: string; url?: string }, patch: { selected?: boolean; usage_hint?: string }) => {
+    const existing = (campaignMaterials[campaignId] || []).find((m) => m.material_ref === mat.ref);
+    const payload: any = {
+      campaign_id: campaignId,
+      material_ref: mat.ref,
+      material_type: mat.type,
+      material_label: mat.label,
+      material_url: mat.url || null,
+      selected: patch.selected ?? existing?.selected ?? true,
+      usage_hint: patch.usage_hint ?? existing?.usage_hint ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await (supabase.from("campaign_materials") as any)
+      .upsert(payload, { onConflict: "campaign_id,material_ref" })
+      .select()
+      .single();
+    if (error) { toast.error("Error guardando material"); return; }
+    setCampaignMaterials((prev) => {
+      const list = prev[campaignId] || [];
+      const idx = list.findIndex((m) => m.material_ref === mat.ref);
+      const next = idx >= 0 ? list.map((m, i) => i === idx ? data : m) : [...list, data];
+      return { ...prev, [campaignId]: next };
+    });
+  };
+
+  const autoSelectMaterials = async (campaignId: string) => {
+    setAutoSelectingMaterials(campaignId);
+    try {
+      const { data, error } = await supabase.functions.invoke("select-campaign-materials", {
+        body: { campaign_id: campaignId },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`IA seleccionó ${(data as any)?.applied || 0} materiales para esta campaña`);
+      await loadCampaignMaterials(campaignId);
+    } catch (e: any) {
+      toast.error(e.message || "Falló la selección automática");
+    } finally {
+      setAutoSelectingMaterials(null);
+    }
+  };
+
+  const triggerGenerationForCampaign = async (campaign: Campaign) => {
+    setAiBusyCampaignId(campaign.id);
     try {
       const { data, error } = await supabase.functions.invoke("generate-asset-internal", {
         body: {
@@ -1317,12 +1416,13 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      const msg = (data as any)?.message || "Asset generati. Aggiorna la pagina per vederli.";
-      toast.success(msg);
+      const count = (data as any)?.assets_created ?? (data as any)?.count ?? null;
+      toast.success(count ? `${count} assets generados en esta campaña — recargando...` : "Assets generados — recargando...");
+      onAssetsChanged?.();
     } catch (e: any) {
-      toast.error(e.message || "Generazione fallita");
+      toast.error(e.message || "Generación fallida");
     } finally {
-      setForgeBusyCampaignId(null);
+      setAiBusyCampaignId(null);
     }
   };
 
@@ -1339,21 +1439,30 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
 
   const resetForm = () => {
     setName(""); setStatus("draft"); setObjective(""); setTargetAudience(""); setKeyMessage(""); setTimeline("");
+    setBriefReasoning({}); setBriefFeedback("");
   };
 
-  const generateBrief = async () => {
+  const generateBrief = async (opts?: { campaignId?: string; feedback?: string }) => {
     if (!name.trim()) { toast.error("Enter a campaign name first"); return; }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-campaign-brief", {
-        body: { client_id: clientId, campaign_name: name },
-      });
+      const body: any = { client_id: clientId, campaign_name: name };
+      if (opts?.feedback) {
+        body.feedback = opts.feedback;
+        body.current_brief = { objective, target_audience: targetAudience, key_message: keyMessage, timeline };
+      }
+      const { data, error } = await supabase.functions.invoke("generate-campaign-brief", { body });
       if (error) throw error;
       if (data?.objective) setObjective(data.objective);
       if (data?.target_audience) setTargetAudience(data.target_audience);
       if (data?.key_message) setKeyMessage(data.key_message);
       if (data?.timeline) setTimeline(data.timeline);
-      toast.success("Campaign brief generated!");
+      const reasoningKey = opts?.campaignId || "__new__";
+      if (data?.reasoning) {
+        setBriefReasoning((prev) => ({ ...prev, [reasoningKey]: data.reasoning }));
+      }
+      setBriefFeedback("");
+      toast.success(opts?.feedback ? "Brief regenerado con tu feedback" : "Campaign brief generated!");
     } catch (e: any) {
       toast.error(e.message || "Failed to generate brief");
     } finally {
@@ -1614,15 +1723,15 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                           <Button
                             size="sm"
                             variant="default"
-                            onClick={() => triggerForgeForCampaign(campaign)}
-                            disabled={forgeBusyCampaignId === campaign.id}
+                            onClick={() => triggerGenerationForCampaign(campaign)}
+                            disabled={aiBusyCampaignId === campaign.id}
                           >
-                            {forgeBusyCampaignId === campaign.id ? (
+                            {aiBusyCampaignId === campaign.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
                             ) : (
                               <Wand2 className="w-3.5 h-3.5 mr-1" />
                             )}
-                            Genera asset con Forge
+                            Generar assets con IA
                           </Button>
                         </div>
                       </div>

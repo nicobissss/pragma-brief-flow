@@ -15,6 +15,8 @@ project_id = "udhlikcjuyirtkdjzscc"
     verify_jwt = false
   [functions.generate-campaign-brief]
     verify_jwt = false
+  [functions.select-campaign-materials]
+    verify_jwt = false
   [functions.generate-correction-prompt]
     verify_jwt = false
   [functions.generate-kickoff-prompts]

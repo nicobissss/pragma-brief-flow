@@ -73,6 +73,18 @@ function buildContextBlock(ctx: any): string {
     if (camp.timeline) lines.push(`Timeline: ${camp.timeline}`);
   }
 
+  const mats: any[] = ctx.selected_materials || [];
+  if (mats.length) {
+    lines.push(`\n# MATERIALES DEL CLIENTE A USAR EN ESTA CAMPAÑA`);
+    mats.forEach((m: any, i: number) => {
+      const parts = [`${i + 1}. [${m.material_type}] ${m.material_label}`];
+      if (m.material_url) parts.push(`URL: ${m.material_url}`);
+      if (m.usage_hint) parts.push(`→ Uso: ${m.usage_hint}`);
+      lines.push(parts.join(" | "));
+    });
+    lines.push(`Referencia estos materiales explícitamente cuando sea relevante (ej: "usar foto X en el hero", "aplicar color primario en CTAs").`);
+  }
+
   return lines.join("\n");
 }
 
@@ -305,7 +317,7 @@ function getInstructions(assetType: AssetType, lang: string): string {
 // ---------- Context loader ----------
 
 async function loadContext(supabase: any, clientId: string, campaignId: string | null) {
-  const [clientRes, kickoffRes, offeringsRes, platformsRes, patternsRes, rulesRes, kbRes, campRes] = await Promise.all([
+  const [clientRes, kickoffRes, offeringsRes, platformsRes, patternsRes, rulesRes, kbRes, campRes, matsRes] = await Promise.all([
     supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
     supabase.from("kickoff_briefs").select("*").eq("client_id", clientId).maybeSingle(),
     supabase.from("client_offerings").select("*, offering_template:offering_templates(*)").eq("client_id", clientId),
@@ -314,6 +326,7 @@ async function loadContext(supabase: any, clientId: string, campaignId: string |
     supabase.from("pragma_rules").select("*").eq("is_active", true),
     supabase.from("knowledge_base").select("*"),
     campaignId ? supabase.from("campaigns").select("*").eq("id", campaignId).maybeSingle() : Promise.resolve({ data: null }),
+    campaignId ? supabase.from("campaign_materials").select("*").eq("campaign_id", campaignId).eq("selected", true) : Promise.resolve({ data: [] }),
   ]);
 
   const client = clientRes.data;
@@ -336,6 +349,7 @@ async function loadContext(supabase: any, clientId: string, campaignId: string |
     pragma_rules,
     knowledge_base: kbRes.data || [],
     target_campaign: campRes.data,
+    selected_materials: matsRes.data || [],
   };
 }
 
