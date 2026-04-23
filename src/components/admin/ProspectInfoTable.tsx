@@ -54,9 +54,17 @@ type Props = {
   prospect: any;
   marketLabel: string;
   onUpdated?: (p: any) => void;
+  readOnly?: boolean;
+  title?: string;
+  description?: string;
 };
 
-export default function ProspectInfoTable({ prospect, marketLabel, onUpdated }: Props) {
+export default function ProspectInfoTable({
+  prospect, marketLabel, onUpdated,
+  readOnly = false,
+  title = "Información del prospect",
+  description = "Resumen completo del briefing inicial. Haz clic en cualquier fila para editar.",
+}: Props) {
   const [local, setLocal] = useState<any>(prospect);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -107,10 +115,8 @@ export default function ProspectInfoTable({ prospect, marketLabel, onUpdated }: 
   return (
     <div className="bg-card rounded-lg border border-border overflow-hidden">
       <div className="p-5 border-b border-border">
-        <h3 className="font-semibold text-foreground">Información del prospect</h3>
-        <p className="text-xs text-muted-foreground mt-1">
-          Resumen completo del briefing inicial. Haz clic en cualquier fila para editar.
-        </p>
+        <h3 className="font-semibold text-foreground">{title}</h3>
+        {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
       </div>
       <div className="divide-y divide-border">
         <div className="px-5 py-3 flex justify-between items-center">
@@ -118,7 +124,7 @@ export default function ProspectInfoTable({ prospect, marketLabel, onUpdated }: 
           <span className="text-sm font-medium text-foreground">{marketLabel}</span>
         </div>
         {FIELDS.map((f) => {
-          const isEditing = editingKey === f.key;
+          const isEditing = !readOnly && editingKey === f.key;
           return (
             <div key={f.key} className="px-5 py-3 hover:bg-secondary/20 transition-colors">
               {isEditing ? (
@@ -137,6 +143,13 @@ export default function ProspectInfoTable({ prospect, marketLabel, onUpdated }: 
                       <Check className="w-3.5 h-3.5 mr-1" /> Guardar
                     </Button>
                   </div>
+                </div>
+              ) : readOnly ? (
+                <div className="w-full flex justify-between items-start gap-4 text-left">
+                  <span className="text-sm text-muted-foreground shrink-0">{f.label}</span>
+                  <span className="text-sm font-medium text-right text-foreground max-w-[60%] break-words">
+                    {formatValue(getValue(f))}
+                  </span>
                 </div>
               ) : (
                 <button

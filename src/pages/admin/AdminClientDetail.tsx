@@ -540,6 +540,8 @@ ${context}`
             hasOffering={hasOffering}
             contextScorePct={completenessPct}
             assets={assets}
+            prospect={prospect}
+            marketLabel={marketLabel}
             onNavigateTab={setActiveTab}
           />
         </TabsContent>
