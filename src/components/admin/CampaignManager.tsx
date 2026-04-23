@@ -61,6 +61,7 @@ interface CampaignManagerProps {
   clientId: string;
   campaigns: Campaign[];
   assets: AssetRow[];
+  promptsTabContent?: React.ReactNode;
   onCampaignCreated: (c: Campaign) => void;
   onCampaignUpdated: (c: Campaign) => void;
   onAssetsChanged?: () => void;
