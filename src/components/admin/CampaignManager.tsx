@@ -15,7 +15,15 @@ import {
   Plus, Loader2, Sparkles, Target, Users, MessageSquare, Calendar,
   Pencil, ChevronDown, ChevronUp, Upload, FileText, Mail, Image, PenTool,
   X, Eye, ExternalLink, Wrench, Bell, AlertTriangle, Wand2,
+  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 
@@ -46,6 +54,7 @@ type AssetRow = {
   correction_prompt: string | null;
   created_at: string;
   campaign_id: string | null;
+  production_status?: string | null;
 };
 
 interface CampaignManagerProps {
@@ -133,145 +142,339 @@ function AssetTypeSummary({ assets }: { assets: AssetRow[] }) {
   );
 }
 
+// ─── Markdown export helper ─────────────────────────────
+function assetToMarkdown(asset: { asset_name: string; asset_type: string; content: any; version: number }): string {
+  const c = asset.content || {};
+  const title = `# ${asset.asset_name} (v${asset.version || 1})`;
+  const lines: string[] = [title, ""];
+
+  if (asset.asset_type === "landing_page") {
+    if (c.meta) {
+      lines.push(`> **SEO title:** ${c.meta.seo_title || ""}`);
+      lines.push(`> **SEO description:** ${c.meta.seo_description || ""}`, "");
+    }
+    if (c.hero) {
+      lines.push(`## Hero`, `### ${c.hero.headline || ""}`, c.hero.subheadline || "", "");
+      if (c.hero.cta_primary) lines.push(`**CTA:** ${c.hero.cta_primary}`, "");
+      if (Array.isArray(c.hero.trust_badges)) lines.push(...c.hero.trust_badges.map((b: string) => `- ${b}`), "");
+    }
+    if (c.problem_section) {
+      lines.push(`## ${c.problem_section.title || "Problem"}`, "");
+      (c.problem_section.pain_points || []).forEach((p: string) => lines.push(`- ${p}`));
+      lines.push("");
+    }
+    if (c.solution_section) {
+      lines.push(`## ${c.solution_section.title || "Solution"}`, c.solution_section.description || "", "");
+      (c.solution_section.benefits || []).forEach((b: any) => {
+        lines.push(`### ${b.title}`, b.description || "", "");
+      });
+    }
+    if (c.social_proof) {
+      lines.push(`## ${c.social_proof.title || "Social proof"}`, "");
+      (c.social_proof.testimonials || []).forEach((t: any) => {
+        lines.push(`> "${t.quote}"`, `> — **${t.author}**, ${t.detail}`, "");
+      });
+    }
+    if (c.offer_section) {
+      lines.push(`## ${c.offer_section.title || "Offer"}`, c.offer_section.description || "", "");
+      (c.offer_section.bullets || []).forEach((b: string) => lines.push(`- ${b}`));
+      if (c.offer_section.cta) lines.push("", `**CTA:** ${c.offer_section.cta}`);
+      if (c.offer_section.urgency) lines.push(`_${c.offer_section.urgency}_`, "");
+    }
+    if (Array.isArray(c.faq) && c.faq.length) {
+      lines.push(`## FAQ`, "");
+      c.faq.forEach((f: any) => lines.push(`**${f.q}**`, "", f.a, ""));
+    }
+    if (c.final_cta) {
+      lines.push(`## ${c.final_cta.headline || "Final CTA"}`, `**Button:** ${c.final_cta.button || ""}`, c.final_cta.reassurance || "");
+    }
+  } else if (asset.asset_type === "email_flow") {
+    if (c.flow_name) lines.push(`**Flow:** ${c.flow_name}`);
+    if (c.flow_objective) lines.push(`**Objective:** ${c.flow_objective}`);
+    if (c.target_segment) lines.push(`**Segment:** ${c.target_segment}`);
+    lines.push("");
+    (c.emails || []).forEach((e: any, i: number) => {
+      lines.push(`---`, "", `## Email ${i + 1} — Day ${e.day_offset ?? "?"}`, "");
+      lines.push(`**Subject:** ${e.subject || ""}`);
+      lines.push(`**Preview:** ${e.preview_text || ""}`, "");
+      lines.push(e.body_markdown || e.body || "", "");
+      lines.push(`**CTA:** ${e.cta_text || e.cta || ""}`);
+      if (e.cta_purpose) lines.push(`_Purpose:_ ${e.cta_purpose}`);
+      lines.push("");
+    });
+    if (c.success_metric) lines.push(`---`, "", `**Success metric:** ${c.success_metric}`);
+  } else if (asset.asset_type === "social_post") {
+    if (c.platform) lines.push(`**Platform:** ${c.platform} · **Format:** ${c.format || ""}`, "");
+    if (c.hook) lines.push(`## Hook`, c.hook, "");
+    if (c.caption) lines.push(`## Caption`, c.caption, "");
+    if (Array.isArray(c.hashtags)) lines.push(`## Hashtags`, c.hashtags.map((h: string) => `#${h.replace(/^#/, "")}`).join(" "), "");
+    if (c.cta) lines.push(`**CTA:** ${c.cta}`, "");
+    if (c.visual_brief) lines.push(`## Visual brief`, c.visual_brief, "");
+    if (Array.isArray(c.carousel_slides)) {
+      lines.push(`## Carousel slides`, "");
+      c.carousel_slides.forEach((s: any) => lines.push(`### Slide ${s.slide_number}: ${s.headline}`, s.body, ""));
+    }
+  } else if (asset.asset_type === "blog_article") {
+    if (c.seo_title) lines.push(`> **SEO title:** ${c.seo_title}`);
+    if (c.seo_description) lines.push(`> **SEO description:** ${c.seo_description}`);
+    if (c.slug) lines.push(`> **Slug:** /${c.slug}`);
+    if (c.target_keyword) lines.push(`> **Keyword:** ${c.target_keyword}`, "");
+    if (c.h1) lines.push(`# ${c.h1}`, "");
+    if (c.intro) lines.push(c.intro, "");
+    (c.sections || []).forEach((s: any) => {
+      lines.push(`## ${s.h2 || s.heading || ""}`, "", s.body_markdown || s.body || "", "");
+    });
+    if (c.conclusion) lines.push(`## Conclusion`, c.conclusion, "");
+  } else {
+    lines.push("```json", JSON.stringify(c, null, 2), "```");
+  }
+  return lines.join("\n");
+}
+
+function downloadMarkdown(asset: { asset_name: string; asset_type: string; content: any; version: number }) {
+  const md = assetToMarkdown(asset);
+  const safeName = asset.asset_name.replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60);
+  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${safeName}_v${asset.version || 1}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── Generated Content Viewer ───────────────────────────
 function AssetContentView({ assetType, content, fileUrl }: { assetType: string; content: any; fileUrl: string | null }) {
   if (!content || Object.keys(content).length === 0) {
     return <p className="text-sm text-muted-foreground italic">No generated content yet.</p>;
   }
 
-  // Landing page
+  // ── Landing page ──
   if (assetType === "landing_page") {
     return (
       <div className="space-y-4 text-sm">
+        {content.meta && (
+          <section className="p-3 rounded-md bg-muted/40 border border-border text-xs text-muted-foreground">
+            <div><span className="font-medium text-foreground">SEO title:</span> {content.meta.seo_title}</div>
+            <div><span className="font-medium text-foreground">SEO description:</span> {content.meta.seo_description}</div>
+          </section>
+        )}
         {content.hero && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
             <h3 className="font-semibold text-foreground mb-2">Hero</h3>
             {content.hero.headline && <p className="text-lg font-bold text-foreground">{content.hero.headline}</p>}
             {content.hero.subheadline && <p className="text-muted-foreground mt-1">{content.hero.subheadline}</p>}
-            {content.hero.cta && <Badge className="mt-2">{content.hero.cta}</Badge>}
+            {content.hero.cta_primary && <Badge className="mt-2">{content.hero.cta_primary}</Badge>}
+            {Array.isArray(content.hero.trust_badges) && content.hero.trust_badges.length > 0 && (
+              <ul className="mt-2 flex flex-wrap gap-1">
+                {content.hero.trust_badges.map((b: string, i: number) => (
+                  <li key={i}><Badge variant="outline" className="text-[10px]">{b}</Badge></li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
-        {content.problem && (
+        {content.problem_section && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
-            <h3 className="font-semibold text-foreground mb-2">Problem</h3>
-            <p className="text-foreground whitespace-pre-wrap">{typeof content.problem === "string" ? content.problem : JSON.stringify(content.problem, null, 2)}</p>
-          </section>
-        )}
-        {content.solution && (
-          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
-            <h3 className="font-semibold text-foreground mb-2">Solution</h3>
-            <p className="text-foreground whitespace-pre-wrap">{typeof content.solution === "string" ? content.solution : JSON.stringify(content.solution, null, 2)}</p>
-          </section>
-        )}
-        {content.benefits && Array.isArray(content.benefits) && (
-          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
-            <h3 className="font-semibold text-foreground mb-2">Benefits</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              {content.benefits.map((b: any, i: number) => (
-                <li key={i} className="text-foreground">{typeof b === "string" ? b : (b.title || b.text || JSON.stringify(b))}</li>
-              ))}
+            <h3 className="font-semibold text-foreground mb-2">{content.problem_section.title || "Problem"}</h3>
+            <ul className="list-disc pl-5 space-y-1 text-foreground">
+              {(content.problem_section.pain_points || []).map((p: string, i: number) => <li key={i}>{p}</li>)}
             </ul>
           </section>
         )}
-        {content.social_proof && (
+        {content.solution_section && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
-            <h3 className="font-semibold text-foreground mb-2">Social Proof</h3>
-            <pre className="whitespace-pre-wrap text-foreground text-xs">{typeof content.social_proof === "string" ? content.social_proof : JSON.stringify(content.social_proof, null, 2)}</pre>
-          </section>
-        )}
-        {content.faq && Array.isArray(content.faq) && (
-          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
-            <h3 className="font-semibold text-foreground mb-2">FAQ</h3>
-            <div className="space-y-2">
-              {content.faq.map((f: any, i: number) => (
-                <div key={i}>
-                  <p className="font-medium text-foreground">{f.question || f.q}</p>
-                  <p className="text-muted-foreground">{f.answer || f.a}</p>
+            <h3 className="font-semibold text-foreground mb-2">{content.solution_section.title || "Solution"}</h3>
+            {content.solution_section.description && <p className="text-foreground mb-3">{content.solution_section.description}</p>}
+            <div className="grid gap-2">
+              {(content.solution_section.benefits || []).map((b: any, i: number) => (
+                <div key={i} className="p-2.5 rounded bg-background border border-border">
+                  <p className="font-medium text-foreground">{b.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{b.description}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
-        {content.cta && (
+        {content.social_proof && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">{content.social_proof.title || "Social proof"}</h3>
+            <div className="space-y-2">
+              {(content.social_proof.testimonials || []).map((t: any, i: number) => (
+                <blockquote key={i} className="border-l-2 border-primary/40 pl-3 py-1">
+                  <p className="text-foreground italic">"{t.quote}"</p>
+                  <p className="text-xs text-muted-foreground mt-1">— {t.author}, {t.detail}</p>
+                </blockquote>
+              ))}
+            </div>
+          </section>
+        )}
+        {content.offer_section && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">{content.offer_section.title || "Offer"}</h3>
+            {content.offer_section.description && <p className="text-foreground mb-2">{content.offer_section.description}</p>}
+            <ul className="list-disc pl-5 space-y-1 text-foreground">
+              {(content.offer_section.bullets || []).map((b: string, i: number) => <li key={i}>{b}</li>)}
+            </ul>
+            {content.offer_section.cta && <Badge className="mt-2">{content.offer_section.cta}</Badge>}
+            {content.offer_section.urgency && <p className="text-xs text-muted-foreground mt-2 italic">{content.offer_section.urgency}</p>}
+          </section>
+        )}
+        {Array.isArray(content.faq) && content.faq.length > 0 && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">FAQ</h3>
+            <div className="space-y-3">
+              {content.faq.map((f: any, i: number) => (
+                <div key={i}>
+                  <p className="font-medium text-foreground">{f.q || f.question}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{f.a || f.answer}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {content.final_cta && (
           <section className="p-4 rounded-lg bg-primary/10 border border-primary/30">
-            <h3 className="font-semibold text-foreground mb-2">Final CTA</h3>
-            <p className="text-foreground whitespace-pre-wrap">{typeof content.cta === "string" ? content.cta : JSON.stringify(content.cta, null, 2)}</p>
+            <h3 className="font-semibold text-foreground mb-1">{content.final_cta.headline || "Final CTA"}</h3>
+            {content.final_cta.button && <Badge className="mt-1">{content.final_cta.button}</Badge>}
+            {content.final_cta.reassurance && <p className="text-xs text-muted-foreground mt-2">{content.final_cta.reassurance}</p>}
           </section>
         )}
       </div>
     );
   }
 
-  // Email flow
+  // ── Email flow ──
   if (assetType === "email_flow") {
     const emails = Array.isArray(content.emails) ? content.emails : (content.subject ? [content] : []);
     return (
       <div className="space-y-4 text-sm">
+        {(content.flow_name || content.flow_objective || content.target_segment) && (
+          <section className="p-3 rounded-md bg-muted/40 border border-border text-xs space-y-0.5">
+            {content.flow_name && <div><span className="font-medium text-foreground">Flow:</span> {content.flow_name}</div>}
+            {content.flow_objective && <div><span className="font-medium text-foreground">Objective:</span> {content.flow_objective}</div>}
+            {content.target_segment && <div><span className="font-medium text-foreground">Segment:</span> {content.target_segment}</div>}
+          </section>
+        )}
         {emails.map((email: any, i: number) => (
           <section key={i} className="rounded-lg border border-border overflow-hidden">
             <div className="p-3 bg-secondary/40 border-b border-border">
-              <p className="text-xs text-muted-foreground">Email {i + 1}</p>
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant="outline" className="text-[10px]">Email {i + 1}</Badge>
+                {typeof email.day_offset === "number" && (
+                  <Badge variant="outline" className="text-[10px]">Day {email.day_offset}</Badge>
+                )}
+              </div>
               {email.subject && <p className="font-semibold text-foreground">{email.subject}</p>}
-              {email.preview_text && <p className="text-xs text-muted-foreground italic">{email.preview_text}</p>}
+              {email.preview_text && <p className="text-xs text-muted-foreground italic mt-0.5">{email.preview_text}</p>}
             </div>
-            <div className="p-4 bg-background">
-              {email.body && <div className="text-foreground whitespace-pre-wrap">{email.body}</div>}
-              {email.cta && <Badge className="mt-3">{email.cta}</Badge>}
+            <div className="p-4 bg-background space-y-3">
+              {(email.body_markdown || email.body) && (
+                <div className="text-foreground whitespace-pre-wrap leading-relaxed">
+                  {email.body_markdown || email.body}
+                </div>
+              )}
+              {(email.cta_text || email.cta) && (
+                <div className="pt-2 border-t border-border">
+                  <Badge className="mr-2">{email.cta_text || email.cta}</Badge>
+                  {email.cta_purpose && <span className="text-xs text-muted-foreground italic">{email.cta_purpose}</span>}
+                </div>
+              )}
             </div>
           </section>
         ))}
+        {content.success_metric && (
+          <section className="p-3 rounded-md bg-primary/5 border border-primary/20 text-xs">
+            <span className="font-medium text-foreground">Success metric:</span> {content.success_metric}
+          </section>
+        )}
       </div>
     );
   }
 
-  // Social post
+  // ── Social post ──
   if (assetType === "social_post") {
     return (
       <div className="space-y-3 text-sm">
+        {(content.platform || content.format) && (
+          <div className="flex gap-2">
+            {content.platform && <Badge variant="outline" className="text-xs">{content.platform}</Badge>}
+            {content.format && <Badge variant="outline" className="text-xs">{content.format}</Badge>}
+          </div>
+        )}
         {content.hook && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
             <h3 className="font-semibold text-foreground mb-1">Hook</h3>
-            <p className="text-foreground whitespace-pre-wrap">{content.hook}</p>
+            <p className="text-foreground whitespace-pre-wrap text-base">{content.hook}</p>
           </section>
         )}
         {content.caption && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
             <h3 className="font-semibold text-foreground mb-1">Caption</h3>
-            <p className="text-foreground whitespace-pre-wrap">{content.caption}</p>
+            <p className="text-foreground whitespace-pre-wrap leading-relaxed">{content.caption}</p>
           </section>
         )}
-        {content.hashtags && (
+        {Array.isArray(content.hashtags) && content.hashtags.length > 0 && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
             <h3 className="font-semibold text-foreground mb-1">Hashtags</h3>
-            <p className="text-primary">{Array.isArray(content.hashtags) ? content.hashtags.join(" ") : content.hashtags}</p>
+            <p className="text-primary text-sm">{content.hashtags.map((h: string) => `#${h.replace(/^#/, "")}`).join(" ")}</p>
+          </section>
+        )}
+        {content.cta && (
+          <section className="p-3 rounded-md bg-primary/10 border border-primary/30 text-sm">
+            <span className="font-medium">CTA:</span> {content.cta}
           </section>
         )}
         {content.visual_brief && (
           <section className="p-4 rounded-lg bg-secondary/30 border border-border">
             <h3 className="font-semibold text-foreground mb-1">Visual brief</h3>
-            <p className="text-foreground whitespace-pre-wrap">{typeof content.visual_brief === "string" ? content.visual_brief : JSON.stringify(content.visual_brief, null, 2)}</p>
+            <p className="text-foreground whitespace-pre-wrap">{content.visual_brief}</p>
+          </section>
+        )}
+        {Array.isArray(content.carousel_slides) && content.carousel_slides.length > 0 && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Carousel slides</h3>
+            <div className="space-y-2">
+              {content.carousel_slides.map((s: any) => (
+                <div key={s.slide_number} className="p-3 rounded bg-background border border-border">
+                  <p className="text-xs text-muted-foreground">Slide {s.slide_number}</p>
+                  <p className="font-medium text-foreground">{s.headline}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{s.body}</p>
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </div>
     );
   }
 
-  // Blog article
+  // ── Blog article ──
   if (assetType === "blog_article") {
     return (
-      <article className="prose prose-sm max-w-none text-foreground space-y-3">
+      <article className="text-foreground space-y-3 text-sm">
+        {(content.seo_title || content.seo_description || content.target_keyword) && (
+          <section className="p-3 rounded-md bg-muted/40 border border-border text-xs space-y-0.5">
+            {content.seo_title && <div><span className="font-medium">SEO title:</span> {content.seo_title}</div>}
+            {content.seo_description && <div><span className="font-medium">SEO description:</span> {content.seo_description}</div>}
+            {content.slug && <div><span className="font-medium">Slug:</span> /{content.slug}</div>}
+            {content.target_keyword && <div><span className="font-medium">Keyword:</span> {content.target_keyword}</div>}
+          </section>
+        )}
         {content.h1 && <h1 className="text-2xl font-bold">{content.h1}</h1>}
-        {content.intro && <p className="text-muted-foreground italic">{content.intro}</p>}
+        {content.intro && <p className="text-muted-foreground italic leading-relaxed">{content.intro}</p>}
         {Array.isArray(content.sections) && content.sections.map((s: any, i: number) => (
           <section key={i}>
-            {s.heading && <h2 className="text-lg font-semibold mt-4">{s.heading}</h2>}
-            {s.body && <p className="whitespace-pre-wrap">{s.body}</p>}
+            {(s.h2 || s.heading) && <h2 className="text-lg font-semibold mt-4">{s.h2 || s.heading}</h2>}
+            {(s.body_markdown || s.body) && <p className="whitespace-pre-wrap leading-relaxed mt-1">{s.body_markdown || s.body}</p>}
           </section>
         ))}
         {content.conclusion && (
           <section>
             <h2 className="text-lg font-semibold mt-4">Conclusion</h2>
-            <p className="whitespace-pre-wrap">{content.conclusion}</p>
+            <p className="whitespace-pre-wrap leading-relaxed mt-1">{content.conclusion}</p>
           </section>
         )}
       </article>
@@ -299,17 +502,28 @@ function AssetCard({
   campaigns,
   clientId,
   onAssignCampaign,
+  onChanged,
 }: {
   asset: AssetRow;
   campaigns: Campaign[];
   clientId: string;
   onAssignCampaign?: (assetId: string, campaignId: string) => void;
+  onChanged?: () => void;
 }) {
   const Icon = ASSET_TYPE_ICONS[asset.asset_type] || FileText;
   const isImage = asset.file_url?.match(/\.(png|jpg|jpeg|webp|gif)$/i);
   const [regenerating, setRegenerating] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(asset.asset_name);
+  const [savingName, setSavingName] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const hasContent = asset.content && Object.keys(asset.content).length > 0;
+  const isArchived = asset.production_status === "archived";
+  const isSelected = asset.production_status === "selected_for_client";
+
   const statusBadgeClass =
     asset.status === "approved"
       ? "bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30"
@@ -333,7 +547,8 @@ function AssetCard({
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Nuova versione generata — controlla la lista qui sotto.");
+      toast.success("Nuova versione generata.");
+      onChanged?.();
     } catch (e: any) {
       toast.error(e.message || "Generazione fallita");
     } finally {
@@ -341,8 +556,91 @@ function AssetCard({
     }
   };
 
+  const handleRename = async () => {
+    const newName = renameValue.trim();
+    if (!newName || newName === asset.asset_name) { setRenameOpen(false); return; }
+    setSavingName(true);
+    try {
+      const { error } = await (supabase.from("assets") as any)
+        .update({ asset_name: newName })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success("Nome aggiornato.");
+      setRenameOpen(false);
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore rinomina");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const toggleArchive = async () => {
+    try {
+      const newStatus = isArchived ? "not_started" : "archived";
+      const { error } = await (supabase.from("assets") as any)
+        .update({ production_status: newStatus })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success(isArchived ? "Asset ripristinato." : "Asset archiviato.");
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore");
+    }
+  };
+
+  const toggleSelectedForClient = async () => {
+    try {
+      const newStatus = isSelected ? "not_started" : "selected_for_client";
+      const { error } = await (supabase.from("assets") as any)
+        .update({ production_status: newStatus })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success(isSelected ? "Rimosso dalla selezione cliente." : "Selezionato per il cliente.");
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore");
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("assets").delete().eq("id", asset.id);
+      if (error) throw error;
+      toast.success("Asset eliminato.");
+      setDeleteOpen(false);
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore eliminazione");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!hasContent) { toast.error("Nessun contenuto da scaricare."); return; }
+    downloadMarkdown(asset);
+    toast.success("Markdown scaricato.");
+  };
+
+  const handleCopy = async () => {
+    if (!hasContent) return;
+    try {
+      await navigator.clipboard.writeText(assetToMarkdown(asset));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Copia fallita");
+    }
+  };
+
   return (
-    <div className="rounded-lg border border-border bg-secondary/10 overflow-hidden">
+    <div className={`rounded-lg border overflow-hidden transition ${
+      isArchived ? "border-dashed border-border bg-muted/20 opacity-60" :
+      isSelected ? "border-primary/40 bg-primary/5" :
+      "border-border bg-secondary/10"
+    }`}>
       <div className="p-3 flex items-center gap-3">
         {/* Thumbnail */}
         {isImage && asset.file_url ? (
@@ -354,8 +652,10 @@ function AssetCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            {isSelected && <Star className="w-3.5 h-3.5 text-primary fill-primary shrink-0" />}
             <span className="text-sm font-medium text-foreground truncate">{asset.asset_name}</span>
             <Badge variant="outline" className="text-[10px] shrink-0">v{asset.version || 1}</Badge>
+            {isArchived && <Badge variant="outline" className="text-[10px] shrink-0">Archiviato</Badge>}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <Badge variant="outline" className={`text-[10px] ${statusBadgeClass}`}>
@@ -363,26 +663,16 @@ function AssetCard({
             </Badge>
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            Uploaded {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
+            Caricato {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="Rigenera con Forge"
-            onClick={regenerateWithForge}
-            disabled={regenerating}
-          >
-            {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-          </Button>
           {hasContent && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              title="View generated content"
+              title="Apri contenuto"
               onClick={() => setViewOpen(true)}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -390,18 +680,70 @@ function AssetCard({
           )}
           {asset.file_url && !hasContent && (
             <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open file">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Apri file">
                 <Eye className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
           {asset.content?.url && (
             <a href={asset.content.url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open URL">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Apri URL">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Rigenera"
+            onClick={regenerateWithForge}
+            disabled={regenerating}
+          >
+            {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Azioni">
+                <MoreVertical className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {hasContent && (
+                <>
+                  <DropdownMenuItem onClick={handleDownload}>
+                    <Download className="w-3.5 h-3.5 mr-2" /> Scarica .md
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopy}>
+                    {copied ? <Check className="w-3.5 h-3.5 mr-2" /> : <Copy className="w-3.5 h-3.5 mr-2" />}
+                    {copied ? "Copiato!" : "Copia testo"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onClick={() => { setRenameValue(asset.asset_name); setRenameOpen(true); }}>
+                <Pencil className="w-3.5 h-3.5 mr-2" /> Rinomina
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleSelectedForClient}>
+                <Star className={`w-3.5 h-3.5 mr-2 ${isSelected ? "fill-primary text-primary" : ""}`} />
+                {isSelected ? "Rimuovi selezione" : "Seleziona per cliente"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleArchive}>
+                {isArchived ? (
+                  <><ArchiveRestore className="w-3.5 h-3.5 mr-2" /> Ripristina</>
+                ) : (
+                  <><Archive className="w-3.5 h-3.5 mr-2" /> Archivia</>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" /> Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -415,9 +757,66 @@ function AssetCard({
               <Badge variant="outline" className="text-[10px]">v{asset.version || 1}</Badge>
             </DialogTitle>
           </DialogHeader>
+          <div className="flex items-center gap-2 pb-3 border-b border-border">
+            <Button size="sm" variant="outline" onClick={handleDownload} disabled={!hasContent}>
+              <Download className="w-3.5 h-3.5 mr-1.5" /> Scarica .md
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleCopy} disabled={!hasContent}>
+              {copied ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+              {copied ? "Copiato" : "Copia testo"}
+            </Button>
+          </div>
           <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
         </DialogContent>
       </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rinomina asset</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Es: Email 1 — Welcome"
+              onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRenameOpen(false)}>Annulla</Button>
+              <Button onClick={handleRename} disabled={savingName || !renameValue.trim()}>
+                {savingName && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                Salva
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare questo asset?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{asset.asset_name}" verrà eliminato definitivamente. Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Client feedback */}
       {asset.status === "change_requested" && asset.client_comment && (
@@ -1178,7 +1577,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                     ) : (
                       <div className="space-y-2">
                         {cAssets.map((asset) => (
-                          <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} />
+                          <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} onChanged={onAssetsChanged} />
                         ))}
                       </div>
                     )}
@@ -1313,6 +1712,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                   campaigns={campaigns}
                   clientId={clientId}
                   onAssignCampaign={assignAssetToCampaign}
+                  onChanged={onAssetsChanged}
                 />
               ))}
             </div>
