@@ -281,41 +281,11 @@ export default function AdminProspectDetail() {
             </div>
           </div>
 
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">About the Business</h3>
-            <InfoRow label="Full name" value={prospect.name} />
-            <InfoRow label="Company" value={prospect.company_name} />
-            <InfoRow label="Email" value={prospect.email} />
-            <InfoRow label="Phone" value={prospect.phone} />
-            <InfoRow label="Market" value={marketLabel} />
-            <InfoRow label="Vertical" value={prospect.vertical} />
-            <InfoRow label="Sub-niche" value={prospect.sub_niche} />
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Current Situation</h3>
-            <InfoRow label="Years in operation" value={answers.years_in_operation} />
-            <InfoRow label="Monthly new clients" value={answers.monthly_new_clients} />
-            <InfoRow label="Client sources" value={answers.client_sources} />
-            <InfoRow label="Runs paid ads" value={answers.runs_paid_ads} />
-            <InfoRow label="Ad platforms" value={answers.ad_platforms} />
-            <InfoRow label="Monthly budget" value={answers.monthly_budget} />
-            <InfoRow label="Has email list" value={answers.has_email_list} />
-            <InfoRow label="Email list size" value={answers.email_list_size} />
-            <InfoRow label="Has website" value={answers.has_website} />
-            <InfoRow label="Website URL" value={answers.website_url} />
-            <InfoRow label="Uses CRM" value={answers.uses_crm} />
-            <InfoRow label="CRM system" value={answers.crm_name} />
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Goals</h3>
-            <InfoRow label="Main goal" value={answers.main_goal} />
-            <InfoRow label="Average ticket" value={answers.average_ticket ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}` : undefined} />
-            <InfoRow label="Biggest challenge" value={answers.biggest_challenge} />
-            <InfoRow label="Differentiator" value={answers.differentiator} />
-            <InfoRow label="Additional info" value={answers.additional_info} />
-          </div>
+          <ProspectInfoTable
+            prospect={prospect}
+            marketLabel={marketLabel}
+            onUpdated={(p) => setProspect(p as Prospect)}
+          />
         </TabsContent>
 
         <TabsContent value="proposal" className="mt-6 space-y-6">
