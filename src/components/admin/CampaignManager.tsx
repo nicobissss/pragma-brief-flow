@@ -1293,7 +1293,7 @@ function NewVersionDrawer({
 }
 
 // ─── Main CampaignManager Component ─────────────────────
-export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated, onCampaignUpdated, onAssetsChanged }: CampaignManagerProps) {
+export function CampaignManager({ clientId, campaigns, assets, promptsTabContent, onCampaignCreated, onCampaignUpdated, onAssetsChanged }: CampaignManagerProps) {
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
