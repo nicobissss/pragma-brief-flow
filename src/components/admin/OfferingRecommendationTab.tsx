@@ -740,19 +740,19 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
         </div>
       )}
 
-      {/* Confirm dialog — editable proposal */}
+      {/* Confirm dialog — editable proposal with AI */}
       <Dialog open={!!confirmOffering} onOpenChange={(open) => !open && setConfirmOffering(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Revisar antes de proponer</DialogTitle>
+            <DialogTitle>Personalizar y proponer</DialogTitle>
             <DialogDescription>
-              Personaliza nombre, notas y (opcionalmente) un precio antes de proponer la oferta al cliente. El precio queda oculto si no lo añades.
+              Edita la oferta antes de seleccionarla. Por defecto queda como <strong>selección interna</strong> (el cliente no la ve hasta que pulses "Enviar al cliente").
             </DialogDescription>
           </DialogHeader>
           {confirmOffering && (
             <div className="space-y-4 py-2">
               <div className="bg-secondary/40 rounded-lg p-3 text-xs text-muted-foreground">
-                <p>Plantilla: <span className="font-medium text-foreground">{confirmOffering.name}</span></p>
+                <p>Plantilla base: <span className="font-medium text-foreground">{confirmOffering.name}</span></p>
                 {confirmOffering.value_proposition && (
                   <p className="mt-1">{confirmOffering.value_proposition}</p>
                 )}
@@ -768,12 +768,28 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                 />
               </div>
 
+              {customDeliverables && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Deliverables (modificados por IA)</label>
+                  <div className="space-y-1 max-h-40 overflow-y-auto border border-border rounded-md p-2 bg-secondary/20">
+                    {customDeliverables.map((d: any, i: number) => {
+                      const label = typeof d === "string"
+                        ? d
+                        : `${d.count ? d.count + "× " : ""}${d.name || d.label || d.type || "Item"}${d.description ? " — " + d.description : ""}`;
+                      return (
+                        <p key={i} className="text-sm text-foreground px-1.5 py-0.5">• {label}</p>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Notas internas (opcional)</label>
-                <textarea
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[70px]"
+                <Textarea
                   value={proposeNotes}
                   onChange={(e) => setProposeNotes(e.target.value)}
+                  rows={2}
                   placeholder="Contexto solo para el equipo Pragma…"
                 />
               </div>
@@ -807,16 +823,55 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                   </p>
                 )}
               </div>
+
+              <div className="border-t border-border pt-4 space-y-2">
+                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Modificar con IA (opcional)
+                </label>
+                <Textarea
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Ej: añade 1 SMS · enfoca en pacientes nuevos · cambia tono a más urgente…"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleCustomizeWithAI(confirmOffering)}
+                  disabled={aiCustomizing || !aiInstructions.trim()}
+                  className="w-full"
+                >
+                  {aiCustomizing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+                  Aplicar con IA
+                </Button>
+                {aiRationale && (
+                  <p className="text-[11px] text-muted-foreground bg-primary/5 border border-primary/20 rounded p-2">
+                    🤖 {aiRationale}
+                  </p>
+                )}
+              </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOffering(null)}>Cancelar</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setConfirmOffering(null)} className="sm:order-1">
+              Cancelar
+            </Button>
             <Button
-              onClick={() => confirmOffering && handlePropose(confirmOffering)}
+              variant="outline"
+              onClick={() => confirmOffering && handlePropose(confirmOffering, "selected_internal")}
               disabled={!!proposing || !proposeName.trim()}
+              className="sm:order-2"
             >
-              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
-              Confirmar y proponer
+              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              Solo seleccionar (interno)
+            </Button>
+            <Button
+              onClick={() => confirmOffering && handlePropose(confirmOffering, "proposed")}
+              disabled={!!proposing || !proposeName.trim()}
+              className="sm:order-3"
+            >
+              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              Seleccionar y enviar al cliente
             </Button>
           </DialogFooter>
         </DialogContent>
