@@ -160,7 +160,7 @@ function AssetCard({
   const regenerateWithForge = async () => {
     setRegenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("trigger-forge-generation", {
+      const { data, error } = await supabase.functions.invoke("generate-asset-internal", {
         body: {
           client_id: clientId,
           campaign_id: asset.campaign_id,
@@ -171,9 +171,9 @@ function AssetCard({
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Forge sta rigenerando — riceverai l'asset come nuova versione.");
+      toast.success("Nuova versione generata — controlla la lista qui sotto.");
     } catch (e: any) {
-      toast.error(e.message || "Impossibile contattare Forge");
+      toast.error(e.message || "Generazione fallita");
     } finally {
       setRegenerating(false);
     }
@@ -721,7 +721,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
   const triggerForgeForCampaign = async (campaign: Campaign) => {
     setForgeBusyCampaignId(campaign.id);
     try {
-      const { data, error } = await supabase.functions.invoke("trigger-forge-generation", {
+      const { data, error } = await supabase.functions.invoke("generate-asset-internal", {
         body: {
           client_id: clientId,
           campaign_id: campaign.id,
@@ -730,9 +730,10 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Forge sta generando gli asset della campagna — appariranno qui appena pronti.");
+      const msg = (data as any)?.message || "Asset generati. Aggiorna la pagina per vederli.";
+      toast.success(msg);
     } catch (e: any) {
-      toast.error(e.message || "Impossibile contattare Forge");
+      toast.error(e.message || "Generazione fallita");
     } finally {
       setForgeBusyCampaignId(null);
     }
