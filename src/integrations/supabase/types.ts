@@ -2009,7 +2009,7 @@ export type Database = {
         | "done_negative"
         | "no_show"
       campaign_status: "draft" | "active" | "completed"
-      client_status: "active" | "paused" | "churned"
+      client_status: "active" | "paused" | "churned" | "archived"
       market: "es" | "it" | "ar"
       prospect_status:
         | "new"
@@ -2168,7 +2168,7 @@ export const Constants = {
         "no_show",
       ],
       campaign_status: ["draft", "active", "completed"],
-      client_status: ["active", "paused", "churned"],
+      client_status: ["active", "paused", "churned", "archived"],
       market: ["es", "it", "ar"],
       prospect_status: [
         "new",
