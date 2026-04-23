@@ -288,31 +288,31 @@ function AiFeedbackBox({
     <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles className="w-4 h-4 text-primary" />
-        <h4 className="text-sm font-semibold">Indicazioni per l'AI</h4>
+        <h4 className="text-sm font-semibold">Indicaciones para la IA</h4>
       </div>
       <p className="text-xs text-muted-foreground">
-        Scrivi cosa vuoi cambiare in questo asset (tono, sezioni, CTA, lunghezza...). L'AI userà queste istruzioni per generare la versione successiva.
+        Escribe qué quieres cambiar en este asset (tono, secciones, CTA, longitud...). La IA usará estas instrucciones para generar la siguiente versión.
       </p>
       {asset.client_comment && (
         <div className="rounded-md bg-background border border-border p-2 text-xs">
-          <span className="font-medium text-muted-foreground">Commento cliente: </span>
+          <span className="font-medium text-muted-foreground">Comentario del cliente: </span>
           <span>{asset.client_comment}</span>
         </div>
       )}
       <Textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Es: rendi l'hero più diretto, accorcia il body della seconda email, sostituisci la CTA con 'Prenota ora'..."
+        placeholder="Ej: haz el hero más directo, acorta el body del segundo email, sustituye la CTA por 'Reserva ahora'..."
         className="min-h-[100px] bg-background"
       />
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={savePrompt} disabled={saving || regenerating}>
+        <Button size="sm" variant="outline" onClick={savePrompt} disabled={saving || regenerating} title="Solo guarda el texto. No regenera el asset.">
           {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          Salva indicazioni
+          Guardar indicaciones
         </Button>
-        <Button size="sm" onClick={saveAndRegenerate} disabled={saving || regenerating}>
+        <Button size="sm" onClick={saveAndRegenerate} disabled={saving || regenerating} title="Guarda y crea una nueva versión del asset usando estas indicaciones.">
           {regenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
-          Genera nuova versione
+          Generar nueva versión
         </Button>
       </div>
     </div>
