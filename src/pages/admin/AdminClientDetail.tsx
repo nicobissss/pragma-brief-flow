@@ -464,12 +464,11 @@ ${context}`
 
       {/* Status & pipeline */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <Select value={client.status} onValueChange={updateClientStatus}>
+        <Select value={client.status === "paused" ? "active" : client.status} onValueChange={updateClientStatus}>
           <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="active">🟢 Activo</SelectItem>
-            <SelectItem value="paused">🟡 Pausado</SelectItem>
-            <SelectItem value="churned">🔴 Churned</SelectItem>
+            <SelectItem value="archived">📁 Archivado</SelectItem>
           </SelectContent>
         </Select>
         <Select value={client.pipeline_status || "kickoff"} onValueChange={updatePipelineStatus}>

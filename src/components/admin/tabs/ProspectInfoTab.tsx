@@ -1,12 +1,10 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, Sparkles, Share2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
-import SalesCallCard from "@/components/prospect/SalesCallCard";
 
 function InfoRow({ label, value }: { label: string; value: any }) {
   if (value === null || value === undefined || value === "") return null;
@@ -30,14 +28,15 @@ type Props = {
   noteAuthor: string;
   setNoteAuthor: (v: string) => void;
   onSaveNote: () => void;
-  onCallUpdate: (fields: Record<string, any>) => void;
-  onSharePlan: () => void;
+  /** @deprecated kept for compatibility; no longer used */
+  onCallUpdate?: (fields: Record<string, any>) => void;
+  /** @deprecated kept for compatibility; no longer used */
+  onSharePlan?: () => void;
 };
 
 export default function ProspectInfoTab({
   client, prospect, proposal, marketLabel,
   notes, newNote, setNewNote, noteAuthor, setNoteAuthor, onSaveNote,
-  onCallUpdate, onSharePlan,
 }: Props) {
   const answers = prospect?.briefing_answers || {};
   return (
@@ -116,17 +115,6 @@ export default function ProspectInfoTab({
               <ProposalView data={proposal} editable={false} />
             </div>
           )}
-
-          {prospect && (
-            <SalesCallCard
-              prospectId={prospect.id}
-              callStatus={prospect.call_status as any}
-              callScheduledAt={prospect.call_scheduled_at}
-              callNotes={prospect.call_notes}
-              followUpDate={prospect.follow_up_date}
-              onUpdate={onCallUpdate}
-            />
-          )}
         </>
       ) : (
         <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
@@ -161,26 +149,6 @@ export default function ProspectInfoTab({
                 <p className="text-muted-foreground">{n.note}</p>
               </div>
             ))}
-          </div>
-        )}
-      </div>
-
-      <div className="bg-card rounded-lg border border-border p-6 space-y-3">
-        <h3 className="font-semibold text-foreground">Plan del proyecto</h3>
-        {!client.project_plan ? (
-          <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground mb-2">No hay plan generado aún.</p>
-            <Button variant="outline" size="sm" disabled><Sparkles className="w-4 h-4 mr-1" /> Generar plan del proyecto</Button>
-          </div>
-        ) : client.project_plan_shared ? (
-          <div className="space-y-2">
-            <Badge className="badge-accepted text-xs">✅ Plan compartido</Badge>
-            <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap">{JSON.stringify(client.project_plan, null, 2)}</pre>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <pre className="text-xs bg-secondary/30 p-3 rounded-md whitespace-pre-wrap">{JSON.stringify(client.project_plan, null, 2)}</pre>
-            <Button size="sm" onClick={onSharePlan}><Share2 className="w-4 h-4 mr-1" /> Compartir con cliente</Button>
           </div>
         )}
       </div>
