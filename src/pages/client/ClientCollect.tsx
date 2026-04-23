@@ -87,6 +87,13 @@ export default function ClientCollect() {
       .eq("id", request.id);
 
     setRequest({ ...request, requested_items: newItems, status: newStatus });
+
+    // Sync uploaded files into kickoff materials so the AI / admin can use them.
+    if (clientId) {
+      supabase.functions.invoke("sync-client-uploads-to-materials", {
+        body: { client_id: clientId },
+      }).catch((e) => console.error("sync-client-uploads-to-materials failed:", e));
+    }
   };
 
   const handleFileUpload = async (index: number, file: File) => {
