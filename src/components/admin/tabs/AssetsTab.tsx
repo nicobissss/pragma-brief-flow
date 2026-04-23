@@ -19,7 +19,7 @@ const ASSET_LABELS: Record<string, string> = {
 
 const statusIcon = (s: string) => s === "approved" ? "✅" : s === "pending_review" ? "⏳" : s === "change_requested" ? "💬" : "—";
 
-export default function AssetsTab({ client, assets, setAssets, campaigns, setCampaigns, onApproveStrategicNote }: Props) {
+export default function AssetsTab({ client, assets, setAssets, campaigns, setCampaigns, onApproveStrategicNote, promptsTabContent }: Props) {
   const getAssetStatus = (type: string) => {
     const matching = assets.filter((a) => a.asset_type === type);
     if (matching.length === 0) return "none";
