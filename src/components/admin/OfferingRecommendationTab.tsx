@@ -486,7 +486,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl font-semibold text-foreground">{name}</h2>
                 <Badge variant="outline" className={STATUS_BADGE[activeOffering.status] || ""}>
-                  {activeOffering.status}
+                  {STATUS_LABEL[activeOffering.status] || activeOffering.status}
                 </Badge>
                 {activeOffering.was_recommended && (
                   <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
@@ -498,13 +498,37 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                 Pricing interno: <span className="font-medium text-foreground">{tpl ? formatPricing(tpl) : "—"}</span>
                 {tpl?.setup_hours_estimate ? ` · ~${tpl.setup_hours_estimate}h setup` : ""}
               </p>
+              {activeOffering.status === "selected_internal" && (
+                <p className="text-xs text-purple-700 bg-purple-500/10 border border-purple-500/30 rounded-md px-2 py-1 inline-block">
+                  👁 Solo visible para ti — el cliente aún no la ve
+                </p>
+              )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Cambiar oferta
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={openEditActive}>
+                <Pencil className="w-4 h-4 mr-1" /> Editar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Cambiar
+              </Button>
+            </div>
           </div>
 
-          {tpl && <OfferingDetails offering={tpl as any} audience="admin" />}
+          {tpl && (
+            <OfferingDetails
+              offering={{
+                ...(tpl as any),
+                deliverables: (activeOffering as any).custom_deliverables?.filter((d: any) => !d._excluded) || tpl.deliverables,
+              }}
+              audience="admin"
+            />
+          )}
+
+          {(activeOffering as any).custom_deliverables && (
+            <p className="text-xs text-muted-foreground italic">
+              ✏️ Deliverables personalizados (vs plantilla original)
+            </p>
+          )}
 
           {totalTasks > 0 && (
             <div>
@@ -519,6 +543,12 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
           )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            {activeOffering.status === "selected_internal" && (
+              <Button onClick={sendToClient} disabled={sendingToClient}>
+                {sendingToClient ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+                Enviar al cliente
+              </Button>
+            )}
             {activeOffering.status === "proposed" && (
               <Button onClick={() => updateOfferingStatus("accepted", { accepted_at: new Date().toISOString() })}>
                 <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar como aceptada
@@ -536,6 +566,96 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
             )}
           </div>
         </div>
+
+        {/* Edit dialog for active offering */}
+        <Dialog open={editingActive} onOpenChange={setEditingActive}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="w-5 h-5" /> Editar oferta
+              </DialogTitle>
+              <DialogDescription>
+                Personaliza nombre, deliverables y notas. Usa la IA para variaciones rápidas.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Nombre comercial</label>
+                <input
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Deliverables (desmarca para excluir)</label>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto border border-border rounded-md p-2 bg-secondary/20">
+                  {editDeliverables.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic px-2 py-1">Sin deliverables</p>
+                  )}
+                  {editDeliverables.map((d: any, i: number) => {
+                    const label = typeof d === "string"
+                      ? d
+                      : `${d.count ? d.count + "× " : ""}${d.name || d.label || d.type || "Item"}${d.description ? " — " + d.description : ""}`;
+                    return (
+                      <label key={i} className="flex items-start gap-2 text-sm cursor-pointer hover:bg-secondary/40 rounded px-2 py-1">
+                        <input
+                          type="checkbox"
+                          checked={!d._excluded}
+                          onChange={() => toggleEditDeliverable(i)}
+                          className="mt-0.5"
+                        />
+                        <span className={d._excluded ? "line-through text-muted-foreground" : "text-foreground"}>
+                          {label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Notas internas</label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Contexto solo para el equipo Pragma…"
+                />
+              </div>
+
+              <div className="border-t border-border pt-4 space-y-2">
+                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Modificar con IA
+                </label>
+                <Textarea
+                  value={editAiInstructions}
+                  onChange={(e) => setEditAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Ej: añade 1 SMS de confirmación · quita el blog · enfoca en pacientes nuevos…"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEditAI}
+                  disabled={editAiLoading || !editAiInstructions.trim()}
+                  className="w-full"
+                >
+                  {editAiLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+                  Aplicar con IA
+                </Button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingActive(false)}>Cancelar</Button>
+              <Button onClick={saveEditActive} disabled={editSaving}>
+                {editSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
