@@ -1,37 +1,99 @@
 
 
-## Mostra preview visivo reale di LP ed Email (non solo testo)
+## Semplificazione completa del briefer admin
 
-Oggi quando apri un asset (LP, email, social, blog) vedi solo il testo strutturato a sezioni (hero, banner, body…). Vuoi vedere il **rendering visivo** — la landing come apparirebbe nel browser, l'email come arriverebbe in inbox.
+Refactor mirato per ridurre il rumore visivo, eliminare sezioni morte, e collegare meglio i flussi automatici. Nessuna modifica alle proposte commerciali — la tab Proposal del prospect resta com'è.
 
-Il componente `src/components/client/AssetPreview.tsx` esiste già e fa esattamente questo (iframe per LP con URL, mockup email con header/CTA, immagini zoomabili, embed PDF), ma **non è collegato alla vista admin** dove stai guardando ora. L'admin vede solo `CommentableSection` con paragrafi di testo.
+---
 
-### Cosa cambia
+### 1. Dashboard `/admin` — solo l'essenziale
 
-**1. Aggiungere toggle "Vista previa / Texto" nella vista asset admin**
-- In `src/pages/admin/AdminClientDetail.tsx` (o nel componente che renderizza l'asset espanso, da identificare in fase di implementazione cercando dove viene mostrato il contenuto dell'asset cliccato), aggiungere due tab in cima all'asset aperto:
-  - **Vista previa** (default) → renderizza `<AssetPreview />`
-  - **Texto / Secciones** → l'attuale vista a paragrafi commentabili
-- Stessa logica anche dove l'admin apre asset dalla campagna in `CampaignManager.tsx`.
+**Rimuovere:**
+- Sezione "Lo que toca hoy" attuale ridondante con stats
+- Pipeline Kanban a 5 colonne (rimane in DB, sparisce dalla home)
 
-**2. Migliorare `AssetPreview` per quando manca un'immagine reale**
+**Mantenere/potenziare:**
+- Summary stats in alto (total prospects, conversion rate, etc.)
+- **Nuovo blocco principale "Active Clients — Next Actions"**: lista compatta dei clienti attivi, ognuno con la sua next action derivata da `deriveNextAction()` + un CTA diretto alla tab giusta. Ordinata per urgenza (proposte aging > 5gg in cima).
 
-Ora `LandingPagePreview` mostra "No preview available" se non ci sono `url`, `fileUrl` o `html`. Per gli asset generati dall'AI di solito abbiamo solo JSON strutturato (hero, banner, body, cta…). Aggiungeremo un **renderer HTML automatico** che costruisce una landing visiva a partire dal JSON:
+File: `src/pages/admin/AdminDashboard.tsx`
 
-- **Landing page**: hero con titolo grande + sottotitolo + CTA pill, banner colorati per le sezioni, blocchi testo formattati, footer. Stile Pragma (cream + soft blue).
-- **Email**: già c'è il mockup realistico con header colorato, subject, preview text, body, CTA — verificheremo che gestisca anche i campi che l'AI genera (es. `sections[]`, `header_image`, `signature`).
-- **Social post**: card stile Instagram/Facebook con avatar finto del brand, immagine quadrata, caption, hashtag.
-- **Blog**: layout articolo con hero image, titolo, meta (data/autore), body formattato in prose.
+---
 
-**3. Mockup device frame opzionale**
-Wrap della preview in un frame "browser" (per LP) o "telefono" (per social/email mobile) per dare immediatamente il senso di "ecco come si vede davvero". Toggle desktop/mobile sopra la preview LP.
+### 2. Cliente → Tab "Prospect Info" — consolidare in una sola card "Notas internas"
 
-### File toccati
+**Rimuovere:**
+- `SalesCallCard` (sales call form/notes) — non usato dall'AI, non visibile al cliente
+- "Plan del proyecto" — duplica il plan d'azione dell'oferta
 
-**Frontend solo (nessuna migrazione, nessuna edge function):**
-- `src/components/client/AssetPreview.tsx` — estendere `LandingPagePreview` con renderer HTML da JSON strutturato; aggiungere device frame wrapper; migliorare `EmailFlowPreview` per gestire `sections[]`; arricchire `SocialPostPreview` e `BlogPreview`.
-- `src/pages/admin/AdminClientDetail.tsx` (o componente asset detail che individueremo) — aggiungere tab `Vista previa | Texto` sopra il contenuto dell'asset.
-- `src/components/admin/CampaignManager.tsx` — stesso toggle quando si espande un asset dalla campagna.
+**Mantenere:**
+- Read-only del briefing originale del prospect (con accordion già esistente)
+- **Una sola card "Notas internas"** = textarea libero salvato in `client_notes` (tabella già esistente). Manteniamo lo storico delle note.
 
-Nessun cambio di dato: usiamo il `content` JSON che l'AI già produce.
+File: `src/components/admin/tabs/ProspectInfoTab.tsx`
+
+---
+
+### 3. Cliente → Tab "Kickoff" — sync materials cliente con controllo selettivo
+
+**Nuova logica:**
+Quando il cliente carica un file in `/client/collect` (tabella `client_asset_requests`), il file deve apparire automaticamente nella sezione "Client Materials" del kickoff dell'admin, **MA con un flag `use_for_ai`** che l'admin può toggleare on/off.
+
+**Implementazione:**
+- Estendere `kickoff_briefs.client_materials` (jsonb) con un nuovo schema:
+  ```json
+  { "items": [{ "url": "...", "label": "logo", "source": "client_upload" | "admin", "use_for_ai": true }] }
+  ```
+- Nuova edge function `sync-client-uploads-to-materials`: quando `client_asset_requests.status` diventa `submitted`, copia i file caricati nei materials del kickoff con `use_for_ai: true` di default e `source: "client_upload"`.
+- UI in `ClientMaterials.tsx`: ogni item mostra origine (📤 cliente / 🛠️ admin) + checkbox "Usar para IA".
+- In fase di generazione asset (`generate-asset-internal`, `select-campaign-materials`), filtrare solo gli items con `use_for_ai: true`.
+
+**Migration richiesta:** trigger su `client_asset_requests` o chiamata edge dopo upload.
+
+**Confermare al volo le altre cose della tab Kickoff (nessun cambio necessario):**
+- Domande suggerite ✅ già automatiche
+- Voice reference + client_rules + preferred_tone ✅ già estratti dal transcript via `analyze-kickoff-transcript`
+- Discovery / Intelligencia de mercado ✅ resta dov'è
+
+Files:
+- `src/components/kickoff/ClientMaterials.tsx`
+- `src/pages/client/ClientCollect.tsx` (trigger sync dopo upload)
+- `supabase/functions/sync-client-uploads-to-materials/index.ts` (nuovo)
+- `supabase/functions/generate-asset-internal/index.ts` (filtro `use_for_ai`)
+- `supabase/functions/select-campaign-materials/index.ts` (filtro `use_for_ai`)
+
+---
+
+### 4. Stato del cliente — solo `activo` / `archivado`
+
+- Il valore `paused` esistente in `clients.status` viene migrato a `active`.
+- Dropdown UI semplificato a 2 voci.
+- Filtri admin aggiornati di conseguenza.
+
+**Migration:** `UPDATE clients SET status = 'active' WHERE status = 'paused'`. L'enum `client_status` può rimanere com'è (non rompiamo nulla rimuovendo solo dall'UI).
+
+File: `src/pages/admin/AdminClientDetail.tsx`, `src/pages/admin/AdminClients.tsx`.
+
+---
+
+### Cosa NON cambia (confermato in chat)
+
+- Tab Proposal del prospect resta com'è (la usi per proposte a freddo)
+- Discovery / Intelligencia de mercado resta dentro Kickoff
+- Pipeline Kanban resta in DB (può tornare utile in futuro), solo nascosta dalla home
+- Stato kickoff `archivado` mantenuto per archiviare clienti dormienti
+
+---
+
+### Dettagli tecnici riassunti
+
+| Area | File principali | DB |
+|---|---|---|
+| Dashboard | `AdminDashboard.tsx` | nessuna |
+| Notas consolidata | `ProspectInfoTab.tsx`, rimuovere `SalesCallCard.tsx` da quella tab | usa `client_notes` esistente |
+| Sync materials | `ClientCollect.tsx`, `ClientMaterials.tsx`, nuova edge `sync-client-uploads-to-materials` | nuovo schema in `kickoff_briefs.client_materials.items[]` |
+| Filtro AI materials | `generate-asset-internal`, `select-campaign-materials` | nessuna |
+| Status cliente | `AdminClientDetail.tsx`, `AdminClients.tsx` | UPDATE dati `paused` → `active` |
+
+Nessuna nuova tabella. Nessun breaking change a livello dati.
 
