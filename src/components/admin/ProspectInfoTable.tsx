@@ -54,9 +54,17 @@ type Props = {
   prospect: any;
   marketLabel: string;
   onUpdated?: (p: any) => void;
+  readOnly?: boolean;
+  title?: string;
+  description?: string;
 };
 
-export default function ProspectInfoTable({ prospect, marketLabel, onUpdated }: Props) {
+export default function ProspectInfoTable({
+  prospect, marketLabel, onUpdated,
+  readOnly = false,
+  title = "Información del prospect",
+  description = "Resumen completo del briefing inicial. Haz clic en cualquier fila para editar.",
+}: Props) {
   const [local, setLocal] = useState<any>(prospect);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
