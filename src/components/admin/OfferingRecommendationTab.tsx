@@ -247,7 +247,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, changing]);
 
-  const handlePropose = async (offering: Recommendation | Offering) => {
+  const handlePropose = async (offering: Recommendation | Offering, initialStatus: "selected_internal" | "proposed" = "selected_internal") => {
     setProposing(offering.id);
     try {
       const score = "score" in offering ? offering.score : null;
@@ -259,20 +259,25 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       const notesTrimmed = proposeNotes.trim();
       const parsedPrice = includePrice && proposePrice ? Number(proposePrice) : null;
 
+      const insertPayload: any = {
+        client_id: clientId,
+        offering_template_id: offering.id,
+        status: initialStatus,
+        was_recommended: wasRecommended,
+        recommendation_score: score,
+        recommendation_reasons: reasons as any,
+        proposed_at: new Date().toISOString(),
+        custom_name: useCustomName ? customNameTrimmed : null,
+        custom_price_eur: parsedPrice && !isNaN(parsedPrice) ? Math.round(parsedPrice) : null,
+        notes: notesTrimmed || null,
+      };
+      if (customDeliverables && customDeliverables.length > 0) {
+        insertPayload.custom_deliverables = customDeliverables;
+      }
+
       const { data: created, error } = await supabase
         .from("client_offerings")
-        .insert({
-          client_id: clientId,
-          offering_template_id: offering.id,
-          status: "proposed",
-          was_recommended: wasRecommended,
-          recommendation_score: score,
-          recommendation_reasons: reasons as any,
-          proposed_at: new Date().toISOString(),
-          custom_name: useCustomName ? customNameTrimmed : null,
-          custom_price_eur: parsedPrice && !isNaN(parsedPrice) ? Math.round(parsedPrice) : null,
-          notes: notesTrimmed || null,
-        } as any)
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -284,18 +289,57 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       });
       if (rpcErr) {
         console.warn("Task generation failed:", rpcErr);
-        toast.warning("Oferta propuesta, pero falló la generación de tareas");
+        toast.warning("Oferta creada, pero falló la generación de tareas");
       } else {
-        toast.success("Oferta propuesta y plan de acción generado");
+        toast.success(initialStatus === "selected_internal"
+          ? "Oferta seleccionada para uso interno (cliente no la ve aún)"
+          : "Oferta propuesta al cliente");
       }
 
       setConfirmOffering(null);
+      setCustomDeliverables(null);
+      setAiRationale(null);
+      setAiInstructions("");
       setChanging(false);
       await load();
     } catch (e: any) {
       toast.error(e.message || "Error al proponer oferta");
     } finally {
       setProposing(null);
+    }
+  };
+
+  const handleCustomizeWithAI = async (offering: Recommendation | Offering) => {
+    if (!aiInstructions.trim()) {
+      toast.error("Escribe instrucciones para la IA");
+      return;
+    }
+    setAiCustomizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customize-offering", {
+        body: {
+          offering_template_id: offering.id,
+          current_overrides: {
+            name: proposeName,
+            notes: proposeNotes,
+            deliverables: customDeliverables,
+          },
+          instructions: aiInstructions,
+          client_id: clientId,
+        },
+      });
+      if (error) throw error;
+      if (!data?.suggestion) throw new Error("Sin sugerencia de la IA");
+      const s = data.suggestion;
+      if (s.name) setProposeName(s.name);
+      if (s.notes !== undefined) setProposeNotes(s.notes || "");
+      if (Array.isArray(s.deliverables)) setCustomDeliverables(s.deliverables);
+      setAiRationale(s.rationale || null);
+      toast.success("IA actualizó la oferta");
+    } catch (e: any) {
+      toast.error(e.message || "Error al consultar IA");
+    } finally {
+      setAiCustomizing(false);
     }
   };
 
@@ -306,6 +350,9 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       setProposeNotes("");
       setIncludePrice(false);
       setProposePrice("");
+      setCustomDeliverables(null);
+      setAiInstructions("");
+      setAiRationale(null);
     }
   }, [confirmOffering]);
 
