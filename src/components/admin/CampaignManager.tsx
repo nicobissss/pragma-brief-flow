@@ -1899,6 +1899,31 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                   <Input placeholder="When does this campaign run?" value={timeline} onChange={(e) => setTimeline(e.target.value)} className="mt-1" />
                 </div>
               </div>
+
+              {briefReasoning["__new__"] && (
+                <details className="mt-3 rounded-md border border-border bg-secondary/30 p-3 text-xs">
+                  <summary className="cursor-pointer font-medium text-foreground">¿Por qué estas sugerencias?</summary>
+                  <div className="mt-2 space-y-2 text-muted-foreground">
+                    {Object.entries(briefReasoning["__new__"] as Record<string, string>).map(([k, v]) => (
+                      <div key={k}><strong className="text-foreground capitalize">{k.replace(/_/g, " ")}:</strong> {v}</div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              <div className="mt-3 space-y-2">
+                <label className="text-xs text-muted-foreground">Pídele un cambio a la IA (opcional)</label>
+                <Textarea
+                  placeholder='Ej: "más enfocado en pacientes recurrentes, no nuevos"'
+                  value={briefFeedback}
+                  onChange={(e) => setBriefFeedback(e.target.value)}
+                  className="min-h-[50px] text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={() => generateBrief({ feedback: briefFeedback })} disabled={generating || !briefFeedback.trim()} className="w-full">
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                  Regenerar con feedback
+                </Button>
+              </div>
             </div>
             <Button onClick={saveCampaign} disabled={creating || !name.trim()} className="w-full">
               {creating && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
