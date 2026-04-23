@@ -148,6 +148,8 @@ function AssetCard({
   const Icon = ASSET_TYPE_ICONS[asset.asset_type] || FileText;
   const isImage = asset.file_url?.match(/\.(png|jpg|jpeg|webp|gif)$/i);
   const [regenerating, setRegenerating] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const hasContent = asset.content && Object.keys(asset.content).length > 0;
   const statusBadgeClass =
     asset.status === "approved"
       ? "bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30"
