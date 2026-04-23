@@ -114,6 +114,20 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
   const [proposeNotes, setProposeNotes] = useState("");
   const [includePrice, setIncludePrice] = useState(false);
   const [proposePrice, setProposePrice] = useState<string>("");
+  // AI customization
+  const [aiInstructions, setAiInstructions] = useState("");
+  const [aiCustomizing, setAiCustomizing] = useState(false);
+  const [customDeliverables, setCustomDeliverables] = useState<any[] | null>(null);
+  const [aiRationale, setAiRationale] = useState<string | null>(null);
+  // Edit dialog for active offering
+  const [editingActive, setEditingActive] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editDeliverables, setEditDeliverables] = useState<any[]>([]);
+  const [editAiInstructions, setEditAiInstructions] = useState("");
+  const [editAiLoading, setEditAiLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [sendingToClient, setSendingToClient] = useState(false);
 
   const load = async () => {
     setLoading(true);
