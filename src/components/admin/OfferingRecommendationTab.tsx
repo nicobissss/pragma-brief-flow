@@ -964,7 +964,7 @@ function RecommendationCard({
       <div className="flex gap-2 pt-2 border-t border-border">
         <Button onClick={onPropose} disabled={proposing} className="flex-1">
           {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
-          Proponer al cliente
+          Seleccionar oferta
         </Button>
       </div>
     </div>
