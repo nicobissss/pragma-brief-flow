@@ -597,34 +597,6 @@ ${context}`
           <ActionPlanTab clientId={client.id} />
         </TabsContent>
 
-        <TabsContent value="prompts" className="mt-6">
-          <PromptsTab
-            client={client}
-            kickoff={kickoff}
-            setKickoff={setKickoff}
-            campaignBrief={campaignBrief}
-            setCampaignBrief={setCampaignBrief}
-            briefSaved={briefSaved}
-            setBriefSaved={setBriefSaved}
-            generatingBrief={generatingBrief}
-            onAutoGenerateBrief={autoGenerateBrief}
-            generating={generating}
-            generatedPrompts={generatedPrompts}
-            onGeneratePrompts={handleGeneratePrompts}
-            analyzingTranscript={analyzingTranscript}
-            onAnalyzeTranscript={handleAnalyzeTranscript}
-            toolGenerations={toolGenerations}
-            setToolGenerations={setToolGenerations}
-            onSendToSlotty={handleSendToSlotty}
-            onMarkSent={handleMarkSent}
-            onApproveAllGens={handleApproveAllGens}
-            contextScore={contextScore}
-            completenessPct={completenessPct}
-            materials={materials}
-            promptsRef={promptsRef}
-          />
-        </TabsContent>
-
         <TabsContent value="assets" className="mt-6">
           <AssetsTab
             client={client}
@@ -633,6 +605,33 @@ ${context}`
             campaigns={campaigns}
             setCampaigns={setCampaigns}
             onApproveStrategicNote={handleApproveStrategicNote}
+            promptsTabContent={
+              <PromptsTab
+                client={client}
+                kickoff={kickoff}
+                setKickoff={setKickoff}
+                campaignBrief={campaignBrief}
+                setCampaignBrief={setCampaignBrief}
+                briefSaved={briefSaved}
+                setBriefSaved={setBriefSaved}
+                generatingBrief={generatingBrief}
+                onAutoGenerateBrief={autoGenerateBrief}
+                generating={generating}
+                generatedPrompts={generatedPrompts}
+                onGeneratePrompts={handleGeneratePrompts}
+                analyzingTranscript={analyzingTranscript}
+                onAnalyzeTranscript={handleAnalyzeTranscript}
+                toolGenerations={toolGenerations}
+                setToolGenerations={setToolGenerations}
+                onSendToSlotty={handleSendToSlotty}
+                onMarkSent={handleMarkSent}
+                onApproveAllGens={handleApproveAllGens}
+                contextScore={contextScore}
+                completenessPct={completenessPct}
+                materials={materials}
+                promptsRef={promptsRef}
+              />
+            }
           />
         </TabsContent>
       </Tabs>
