@@ -1109,6 +1109,7 @@ export type Database = {
           id: string
           pragma_approved: boolean | null
           preferred_tone: string | null
+          structured_info: Json
           suggested_questions: Json | null
           suggested_services: Json | null
           suggested_services_approved: boolean | null
@@ -1130,6 +1131,7 @@ export type Database = {
           id?: string
           pragma_approved?: boolean | null
           preferred_tone?: string | null
+          structured_info?: Json
           suggested_questions?: Json | null
           suggested_services?: Json | null
           suggested_services_approved?: boolean | null
@@ -1151,6 +1153,7 @@ export type Database = {
           id?: string
           pragma_approved?: boolean | null
           preferred_tone?: string | null
+          structured_info?: Json
           suggested_questions?: Json | null
           suggested_services?: Json | null
           suggested_services_approved?: boolean | null

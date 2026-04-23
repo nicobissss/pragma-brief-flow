@@ -540,8 +540,6 @@ ${context}`
             hasOffering={hasOffering}
             contextScorePct={completenessPct}
             assets={assets}
-            prospect={prospect}
-            marketLabel={marketLabel}
             onNavigateTab={setActiveTab}
           />
         </TabsContent>
@@ -552,12 +550,14 @@ ${context}`
             prospect={prospect}
             proposal={proposal}
             marketLabel={marketLabel}
+            kickoff={kickoff}
             notes={notes}
             newNote={newNote}
             setNewNote={setNewNote}
             noteAuthor={noteAuthor}
             setNoteAuthor={setNoteAuthor}
             onSaveNote={handleSaveNote}
+            onProspectUpdated={(p) => setProspect(p)}
             onCallUpdate={handleCallUpdate}
             onSharePlan={handleSharePlan}
           />
