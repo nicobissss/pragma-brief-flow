@@ -365,8 +365,56 @@ export type Database = {
           },
         ]
       }
+      campaign_materials: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          material_label: string | null
+          material_ref: string
+          material_type: string
+          material_url: string | null
+          selected: boolean
+          updated_at: string
+          usage_hint: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          material_label?: string | null
+          material_ref: string
+          material_type: string
+          material_url?: string | null
+          selected?: boolean
+          updated_at?: string
+          usage_hint?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          material_label?: string | null
+          material_ref?: string
+          material_type?: string
+          material_url?: string | null
+          selected?: boolean
+          updated_at?: string
+          usage_hint?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_materials_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
+          brief_updated_at: string | null
           client_id: string
           created_at: string
           description: string | null
@@ -381,6 +429,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brief_updated_at?: string | null
           client_id: string
           created_at?: string
           description?: string | null
@@ -395,6 +444,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brief_updated_at?: string | null
           client_id?: string
           created_at?: string
           description?: string | null
