@@ -337,6 +337,7 @@ async function loadContext(supabase: any, clientId: string, campaignId: string |
     pragma_rules,
     knowledge_base: kbRes.data || [],
     target_campaign: campRes.data,
+    selected_materials: matsRes.data || [],
   };
 }
 
