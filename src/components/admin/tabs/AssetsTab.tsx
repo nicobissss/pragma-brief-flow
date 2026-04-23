@@ -71,6 +71,7 @@ export default function AssetsTab({ client, assets, setAssets, campaigns, setCam
         clientId={client.id}
         campaigns={campaigns}
         assets={assets.map((a: any) => ({ ...a, campaign_id: a.campaign_id || null }))}
+        promptsTabContent={promptsTabContent}
         onCampaignCreated={(c) => setCampaigns((prev: any[]) => [c, ...prev])}
         onCampaignUpdated={(c) => setCampaigns((prev: any[]) => prev.map((p: any) => p.id === c.id ? c : p))}
         onAssetsChanged={async () => {
