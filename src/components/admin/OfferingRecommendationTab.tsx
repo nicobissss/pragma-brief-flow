@@ -10,8 +10,10 @@ import {
 import { toast } from "sonner";
 import {
   CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
+  Pencil, Send, Wand2,
 } from "lucide-react";
 import { OfferingDetails } from "@/components/shared/OfferingDetails";
+import { Textarea } from "@/components/ui/textarea";
 
 type Offering = {
   id: string;
@@ -69,12 +71,23 @@ const TIER_LABELS: Record<number, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
+  selected_internal: "bg-purple-500/10 text-purple-700 border-purple-500/30",
   proposed: "bg-amber-500/10 text-amber-700 border-amber-500/30",
   accepted: "bg-blue-500/10 text-blue-700 border-blue-500/30",
   active: "bg-green-500/10 text-green-700 border-green-500/30",
   completed: "bg-primary/10 text-primary border-primary/30",
   paused: "bg-muted text-muted-foreground border-border",
   cancelled: "bg-destructive/10 text-destructive border-destructive/30",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  selected_internal: "Selección interna",
+  proposed: "Propuesta al cliente",
+  accepted: "Aceptada",
+  active: "Activa",
+  completed: "Completada",
+  paused: "Pausada",
+  cancelled: "Cancelada",
 };
 
 function formatPricing(o: Pick<Offering, "monthly_fee_eur" | "setup_fee_eur" | "one_shot_fee_eur">) {
@@ -101,6 +114,20 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
   const [proposeNotes, setProposeNotes] = useState("");
   const [includePrice, setIncludePrice] = useState(false);
   const [proposePrice, setProposePrice] = useState<string>("");
+  // AI customization
+  const [aiInstructions, setAiInstructions] = useState("");
+  const [aiCustomizing, setAiCustomizing] = useState(false);
+  const [customDeliverables, setCustomDeliverables] = useState<any[] | null>(null);
+  const [aiRationale, setAiRationale] = useState<string | null>(null);
+  // Edit dialog for active offering
+  const [editingActive, setEditingActive] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editDeliverables, setEditDeliverables] = useState<any[]>([]);
+  const [editAiInstructions, setEditAiInstructions] = useState("");
+  const [editAiLoading, setEditAiLoading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [sendingToClient, setSendingToClient] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -220,7 +247,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, changing]);
 
-  const handlePropose = async (offering: Recommendation | Offering) => {
+  const handlePropose = async (offering: Recommendation | Offering, initialStatus: "selected_internal" | "proposed" = "selected_internal") => {
     setProposing(offering.id);
     try {
       const score = "score" in offering ? offering.score : null;
@@ -232,20 +259,25 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       const notesTrimmed = proposeNotes.trim();
       const parsedPrice = includePrice && proposePrice ? Number(proposePrice) : null;
 
+      const insertPayload: any = {
+        client_id: clientId,
+        offering_template_id: offering.id,
+        status: initialStatus,
+        was_recommended: wasRecommended,
+        recommendation_score: score,
+        recommendation_reasons: reasons as any,
+        proposed_at: new Date().toISOString(),
+        custom_name: useCustomName ? customNameTrimmed : null,
+        custom_price_eur: parsedPrice && !isNaN(parsedPrice) ? Math.round(parsedPrice) : null,
+        notes: notesTrimmed || null,
+      };
+      if (customDeliverables && customDeliverables.length > 0) {
+        insertPayload.custom_deliverables = customDeliverables;
+      }
+
       const { data: created, error } = await supabase
         .from("client_offerings")
-        .insert({
-          client_id: clientId,
-          offering_template_id: offering.id,
-          status: "proposed",
-          was_recommended: wasRecommended,
-          recommendation_score: score,
-          recommendation_reasons: reasons as any,
-          proposed_at: new Date().toISOString(),
-          custom_name: useCustomName ? customNameTrimmed : null,
-          custom_price_eur: parsedPrice && !isNaN(parsedPrice) ? Math.round(parsedPrice) : null,
-          notes: notesTrimmed || null,
-        } as any)
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -257,18 +289,57 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       });
       if (rpcErr) {
         console.warn("Task generation failed:", rpcErr);
-        toast.warning("Oferta propuesta, pero falló la generación de tareas");
+        toast.warning("Oferta creada, pero falló la generación de tareas");
       } else {
-        toast.success("Oferta propuesta y plan de acción generado");
+        toast.success(initialStatus === "selected_internal"
+          ? "Oferta seleccionada para uso interno (cliente no la ve aún)"
+          : "Oferta propuesta al cliente");
       }
 
       setConfirmOffering(null);
+      setCustomDeliverables(null);
+      setAiRationale(null);
+      setAiInstructions("");
       setChanging(false);
       await load();
     } catch (e: any) {
       toast.error(e.message || "Error al proponer oferta");
     } finally {
       setProposing(null);
+    }
+  };
+
+  const handleCustomizeWithAI = async (offering: Recommendation | Offering) => {
+    if (!aiInstructions.trim()) {
+      toast.error("Escribe instrucciones para la IA");
+      return;
+    }
+    setAiCustomizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customize-offering", {
+        body: {
+          offering_template_id: offering.id,
+          current_overrides: {
+            name: proposeName,
+            notes: proposeNotes,
+            deliverables: customDeliverables,
+          },
+          instructions: aiInstructions,
+          client_id: clientId,
+        },
+      });
+      if (error) throw error;
+      if (!data?.suggestion) throw new Error("Sin sugerencia de la IA");
+      const s = data.suggestion;
+      if (s.name) setProposeName(s.name);
+      if (s.notes !== undefined) setProposeNotes(s.notes || "");
+      if (Array.isArray(s.deliverables)) setCustomDeliverables(s.deliverables);
+      setAiRationale(s.rationale || null);
+      toast.success("IA actualizó la oferta");
+    } catch (e: any) {
+      toast.error(e.message || "Error al consultar IA");
+    } finally {
+      setAiCustomizing(false);
     }
   };
 
@@ -279,6 +350,9 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
       setProposeNotes("");
       setIncludePrice(false);
       setProposePrice("");
+      setCustomDeliverables(null);
+      setAiInstructions("");
+      setAiRationale(null);
     }
   }, [confirmOffering]);
 
@@ -294,6 +368,96 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     }
     toast.success("Estado actualizado");
     await load();
+  };
+
+  const openEditActive = () => {
+    if (!activeOffering) return;
+    const tpl = activeOffering.template;
+    setEditName(activeOffering.custom_name || tpl?.name || "");
+    setEditNotes(activeOffering.notes || "");
+    const baseDeliv = (activeOffering as any).custom_deliverables || tpl?.deliverables || [];
+    setEditDeliverables(Array.isArray(baseDeliv) ? baseDeliv : []);
+    setEditAiInstructions("");
+    setEditingActive(true);
+  };
+
+  const handleEditAI = async () => {
+    if (!activeOffering || !editAiInstructions.trim()) {
+      toast.error("Escribe instrucciones para la IA");
+      return;
+    }
+    setEditAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customize-offering", {
+        body: {
+          offering_template_id: activeOffering.offering_template_id,
+          current_overrides: {
+            name: editName,
+            notes: editNotes,
+            deliverables: editDeliverables,
+          },
+          instructions: editAiInstructions,
+          client_id: clientId,
+        },
+      });
+      if (error) throw error;
+      const s = data?.suggestion;
+      if (!s) throw new Error("Sin sugerencia de la IA");
+      if (s.name) setEditName(s.name);
+      if (s.notes !== undefined) setEditNotes(s.notes || "");
+      if (Array.isArray(s.deliverables)) setEditDeliverables(s.deliverables);
+      toast.success("IA actualizó la propuesta");
+      setEditAiInstructions("");
+    } catch (e: any) {
+      toast.error(e.message || "Error IA");
+    } finally {
+      setEditAiLoading(false);
+    }
+  };
+
+  const saveEditActive = async () => {
+    if (!activeOffering) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from("client_offerings")
+        .update({
+          custom_name: editName.trim() || null,
+          notes: editNotes.trim() || null,
+          custom_deliverables: editDeliverables as any,
+        } as any)
+        .eq("id", activeOffering.id);
+      if (error) throw error;
+      toast.success("Cambios guardados");
+      setEditingActive(false);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error guardando");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const sendToClient = async () => {
+    if (!activeOffering) return;
+    setSendingToClient(true);
+    try {
+      const { error } = await supabase
+        .from("client_offerings")
+        .update({ status: "proposed", proposed_at: new Date().toISOString() } as any)
+        .eq("id", activeOffering.id);
+      if (error) throw error;
+      toast.success("Oferta enviada al cliente");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSendingToClient(false);
+    }
+  };
+
+  const toggleEditDeliverable = (index: number) => {
+    setEditDeliverables((prev) => prev.map((d, i) => i === index ? { ...d, _excluded: !d._excluded } : d));
   };
 
   if (loading) {
@@ -322,7 +486,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-2xl font-semibold text-foreground">{name}</h2>
                 <Badge variant="outline" className={STATUS_BADGE[activeOffering.status] || ""}>
-                  {activeOffering.status}
+                  {STATUS_LABEL[activeOffering.status] || activeOffering.status}
                 </Badge>
                 {activeOffering.was_recommended && (
                   <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
@@ -334,13 +498,37 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                 Pricing interno: <span className="font-medium text-foreground">{tpl ? formatPricing(tpl) : "—"}</span>
                 {tpl?.setup_hours_estimate ? ` · ~${tpl.setup_hours_estimate}h setup` : ""}
               </p>
+              {activeOffering.status === "selected_internal" && (
+                <p className="text-xs text-purple-700 bg-purple-500/10 border border-purple-500/30 rounded-md px-2 py-1 inline-block">
+                  👁 Solo visible para ti — el cliente aún no la ve
+                </p>
+              )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
-              <RefreshCw className="w-4 h-4 mr-1" /> Cambiar oferta
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={openEditActive}>
+                <Pencil className="w-4 h-4 mr-1" /> Editar
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setChanging(true)}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Cambiar
+              </Button>
+            </div>
           </div>
 
-          {tpl && <OfferingDetails offering={tpl as any} audience="admin" />}
+          {tpl && (
+            <OfferingDetails
+              offering={{
+                ...(tpl as any),
+                deliverables: (activeOffering as any).custom_deliverables?.filter((d: any) => !d._excluded) || tpl.deliverables,
+              }}
+              audience="admin"
+            />
+          )}
+
+          {(activeOffering as any).custom_deliverables && (
+            <p className="text-xs text-muted-foreground italic">
+              ✏️ Deliverables personalizados (vs plantilla original)
+            </p>
+          )}
 
           {totalTasks > 0 && (
             <div>
@@ -355,6 +543,12 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
           )}
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            {activeOffering.status === "selected_internal" && (
+              <Button onClick={sendToClient} disabled={sendingToClient}>
+                {sendingToClient ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+                Enviar al cliente
+              </Button>
+            )}
             {activeOffering.status === "proposed" && (
               <Button onClick={() => updateOfferingStatus("accepted", { accepted_at: new Date().toISOString() })}>
                 <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar como aceptada
@@ -372,6 +566,96 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
             )}
           </div>
         </div>
+
+        {/* Edit dialog for active offering */}
+        <Dialog open={editingActive} onOpenChange={setEditingActive}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="w-5 h-5" /> Editar oferta
+              </DialogTitle>
+              <DialogDescription>
+                Personaliza nombre, deliverables y notas. Usa la IA para variaciones rápidas.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Nombre comercial</label>
+                <input
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Deliverables (desmarca para excluir)</label>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto border border-border rounded-md p-2 bg-secondary/20">
+                  {editDeliverables.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic px-2 py-1">Sin deliverables</p>
+                  )}
+                  {editDeliverables.map((d: any, i: number) => {
+                    const label = typeof d === "string"
+                      ? d
+                      : `${d.count ? d.count + "× " : ""}${d.name || d.label || d.type || "Item"}${d.description ? " — " + d.description : ""}`;
+                    return (
+                      <label key={i} className="flex items-start gap-2 text-sm cursor-pointer hover:bg-secondary/40 rounded px-2 py-1">
+                        <input
+                          type="checkbox"
+                          checked={!d._excluded}
+                          onChange={() => toggleEditDeliverable(i)}
+                          className="mt-0.5"
+                        />
+                        <span className={d._excluded ? "line-through text-muted-foreground" : "text-foreground"}>
+                          {label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Notas internas</label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Contexto solo para el equipo Pragma…"
+                />
+              </div>
+
+              <div className="border-t border-border pt-4 space-y-2">
+                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Modificar con IA
+                </label>
+                <Textarea
+                  value={editAiInstructions}
+                  onChange={(e) => setEditAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Ej: añade 1 SMS de confirmación · quita el blog · enfoca en pacientes nuevos…"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEditAI}
+                  disabled={editAiLoading || !editAiInstructions.trim()}
+                  className="w-full"
+                >
+                  {editAiLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+                  Aplicar con IA
+                </Button>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingActive(false)}>Cancelar</Button>
+              <Button onClick={saveEditActive} disabled={editSaving}>
+                {editSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -456,19 +740,19 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
         </div>
       )}
 
-      {/* Confirm dialog — editable proposal */}
+      {/* Confirm dialog — editable proposal with AI */}
       <Dialog open={!!confirmOffering} onOpenChange={(open) => !open && setConfirmOffering(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Revisar antes de proponer</DialogTitle>
+            <DialogTitle>Personalizar y proponer</DialogTitle>
             <DialogDescription>
-              Personaliza nombre, notas y (opcionalmente) un precio antes de proponer la oferta al cliente. El precio queda oculto si no lo añades.
+              Edita la oferta antes de seleccionarla. Por defecto queda como <strong>selección interna</strong> (el cliente no la ve hasta que pulses "Enviar al cliente").
             </DialogDescription>
           </DialogHeader>
           {confirmOffering && (
             <div className="space-y-4 py-2">
               <div className="bg-secondary/40 rounded-lg p-3 text-xs text-muted-foreground">
-                <p>Plantilla: <span className="font-medium text-foreground">{confirmOffering.name}</span></p>
+                <p>Plantilla base: <span className="font-medium text-foreground">{confirmOffering.name}</span></p>
                 {confirmOffering.value_proposition && (
                   <p className="mt-1">{confirmOffering.value_proposition}</p>
                 )}
@@ -484,12 +768,28 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                 />
               </div>
 
+              {customDeliverables && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Deliverables (modificados por IA)</label>
+                  <div className="space-y-1 max-h-40 overflow-y-auto border border-border rounded-md p-2 bg-secondary/20">
+                    {customDeliverables.map((d: any, i: number) => {
+                      const label = typeof d === "string"
+                        ? d
+                        : `${d.count ? d.count + "× " : ""}${d.name || d.label || d.type || "Item"}${d.description ? " — " + d.description : ""}`;
+                      return (
+                        <p key={i} className="text-sm text-foreground px-1.5 py-0.5">• {label}</p>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Notas internas (opcional)</label>
-                <textarea
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm min-h-[70px]"
+                <Textarea
                   value={proposeNotes}
                   onChange={(e) => setProposeNotes(e.target.value)}
+                  rows={2}
                   placeholder="Contexto solo para el equipo Pragma…"
                 />
               </div>
@@ -523,16 +823,55 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                   </p>
                 )}
               </div>
+
+              <div className="border-t border-border pt-4 space-y-2">
+                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Modificar con IA (opcional)
+                </label>
+                <Textarea
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  rows={2}
+                  placeholder="Ej: añade 1 SMS · enfoca en pacientes nuevos · cambia tono a más urgente…"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleCustomizeWithAI(confirmOffering)}
+                  disabled={aiCustomizing || !aiInstructions.trim()}
+                  className="w-full"
+                >
+                  {aiCustomizing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}
+                  Aplicar con IA
+                </Button>
+                {aiRationale && (
+                  <p className="text-[11px] text-muted-foreground bg-primary/5 border border-primary/20 rounded p-2">
+                    🤖 {aiRationale}
+                  </p>
+                )}
+              </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOffering(null)}>Cancelar</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setConfirmOffering(null)} className="sm:order-1">
+              Cancelar
+            </Button>
             <Button
-              onClick={() => confirmOffering && handlePropose(confirmOffering)}
+              variant="outline"
+              onClick={() => confirmOffering && handlePropose(confirmOffering, "selected_internal")}
               disabled={!!proposing || !proposeName.trim()}
+              className="sm:order-2"
             >
-              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
-              Confirmar y proponer
+              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              Solo seleccionar (interno)
+            </Button>
+            <Button
+              onClick={() => confirmOffering && handlePropose(confirmOffering, "proposed")}
+              disabled={!!proposing || !proposeName.trim()}
+              className="sm:order-3"
+            >
+              {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              Seleccionar y enviar al cliente
             </Button>
           </DialogFooter>
         </DialogContent>
