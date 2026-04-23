@@ -41,16 +41,7 @@ type Prospect = {
   follow_up_date: string | null;
 };
 
-function InfoRow({ label, value }: { label: string; value: any }) {
-  if (value === null || value === undefined || value === "") return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
-  return (
-    <div className="flex justify-between py-2 border-b border-border last:border-0">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="text-foreground text-sm font-medium text-right max-w-[60%]">{display}</span>
-    </div>
-  );
-}
+
 
 export default function AdminProspectDetail() {
   const { id } = useParams<{ id: string }>();
