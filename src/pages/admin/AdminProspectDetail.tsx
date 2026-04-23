@@ -279,6 +279,12 @@ export default function AdminProspectDetail() {
             marketLabel={marketLabel}
             onUpdated={(p) => setProspect(p as Prospect)}
           />
+
+          <ProspectInternalNotes
+            prospectId={prospect.id}
+            briefingAnswers={prospect.briefing_answers || {}}
+            onUpdated={(answers) => setProspect({ ...prospect, briefing_answers: answers })}
+          />
         </TabsContent>
 
         <TabsContent value="proposal" className="mt-6 space-y-6">
