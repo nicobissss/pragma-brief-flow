@@ -1577,7 +1577,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                     ) : (
                       <div className="space-y-2">
                         {cAssets.map((asset) => (
-                          <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} />
+                          <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} onChanged={onAssetsChanged} />
                         ))}
                       </div>
                     )}
