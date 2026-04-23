@@ -1712,6 +1712,7 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
                   campaigns={campaigns}
                   clientId={clientId}
                   onAssignCampaign={assignAssetToCampaign}
+                  onChanged={onAssetsChanged}
                 />
               ))}
             </div>
