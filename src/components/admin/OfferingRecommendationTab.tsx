@@ -370,6 +370,96 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
     await load();
   };
 
+  const openEditActive = () => {
+    if (!activeOffering) return;
+    const tpl = activeOffering.template;
+    setEditName(activeOffering.custom_name || tpl?.name || "");
+    setEditNotes(activeOffering.notes || "");
+    const baseDeliv = (activeOffering as any).custom_deliverables || tpl?.deliverables || [];
+    setEditDeliverables(Array.isArray(baseDeliv) ? baseDeliv : []);
+    setEditAiInstructions("");
+    setEditingActive(true);
+  };
+
+  const handleEditAI = async () => {
+    if (!activeOffering || !editAiInstructions.trim()) {
+      toast.error("Escribe instrucciones para la IA");
+      return;
+    }
+    setEditAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customize-offering", {
+        body: {
+          offering_template_id: activeOffering.offering_template_id,
+          current_overrides: {
+            name: editName,
+            notes: editNotes,
+            deliverables: editDeliverables,
+          },
+          instructions: editAiInstructions,
+          client_id: clientId,
+        },
+      });
+      if (error) throw error;
+      const s = data?.suggestion;
+      if (!s) throw new Error("Sin sugerencia de la IA");
+      if (s.name) setEditName(s.name);
+      if (s.notes !== undefined) setEditNotes(s.notes || "");
+      if (Array.isArray(s.deliverables)) setEditDeliverables(s.deliverables);
+      toast.success("IA actualizó la propuesta");
+      setEditAiInstructions("");
+    } catch (e: any) {
+      toast.error(e.message || "Error IA");
+    } finally {
+      setEditAiLoading(false);
+    }
+  };
+
+  const saveEditActive = async () => {
+    if (!activeOffering) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from("client_offerings")
+        .update({
+          custom_name: editName.trim() || null,
+          notes: editNotes.trim() || null,
+          custom_deliverables: editDeliverables as any,
+        } as any)
+        .eq("id", activeOffering.id);
+      if (error) throw error;
+      toast.success("Cambios guardados");
+      setEditingActive(false);
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error guardando");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const sendToClient = async () => {
+    if (!activeOffering) return;
+    setSendingToClient(true);
+    try {
+      const { error } = await supabase
+        .from("client_offerings")
+        .update({ status: "proposed", proposed_at: new Date().toISOString() } as any)
+        .eq("id", activeOffering.id);
+      if (error) throw error;
+      toast.success("Oferta enviada al cliente");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSendingToClient(false);
+    }
+  };
+
+  const toggleEditDeliverable = (index: number) => {
+    setEditDeliverables((prev) => prev.map((d, i) => i === index ? { ...d, _excluded: !d._excluded } : d));
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
