@@ -158,6 +158,34 @@ export default function OverviewTab({ client, kickoff, hasOffering, contextScore
         </div>
       )}
 
+      {/* Briefing inicial del prospect (read-only, separado del kickoff) */}
+      {prospect && (
+        <Collapsible>
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors group">
+              <div className="text-left">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Briefing inicial del prospect</h3>
+                <p className="text-xs text-muted-foreground mt-1 normal-case tracking-normal">
+                  Información proporcionada por el cliente antes del kickoff. Solo lectura.
+                </p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-5 pb-5">
+                <ProspectInfoTable
+                  prospect={prospect}
+                  marketLabel={marketLabel || ""}
+                  readOnly
+                  title="Datos del briefing"
+                  description="Para editarlos, abre la ficha del prospect original."
+                />
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
       {/* Recent Activity */}
       <div className="bg-card rounded-2xl border border-border p-6">
         <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">Actividad reciente</h3>
