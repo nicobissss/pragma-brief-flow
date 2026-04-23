@@ -355,6 +355,19 @@ async function loadContext(supabase: any, clientId: string, campaignId: string |
 
 // ---------- AI call ----------
 
+function getErrorMessage(status: number, fallback?: string) {
+  if (status === 402) return "Crediti Lovable AI esauriti — aggiungi crediti in Settings → Workspace → Usage.";
+  if (status === 429) return "Troppe richieste alla IA — aspetta qualche secondo e riprova.";
+  return fallback || `Lovable AI error: ${status}`;
+}
+
+function errorResponse(payload: { error: string; code?: number; fallback?: boolean; results?: any[]; ok?: boolean; triggered?: number; total?: number; message?: string }) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 async function callAI(systemPrompt: string, userPrompt: string, tool: any): Promise<any> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
@@ -376,9 +389,10 @@ async function callAI(systemPrompt: string, userPrompt: string, tool: any): Prom
 
   if (!res.ok) {
     const txt = await res.text();
-    if (res.status === 429) throw new Error("Rate limit Lovable AI — riprova fra un minuto.");
-    if (res.status === 402) throw new Error("Crediti Lovable AI esauriti — aggiungi crediti in Settings → Workspace → Usage.");
-    throw new Error(`Lovable AI ${res.status}: ${txt.slice(0, 300)}`);
+    const err: any = new Error(getErrorMessage(res.status, txt.slice(0, 300)));
+    err.status = res.status;
+    err.raw = txt;
+    throw err;
   }
 
   const data = await res.json();
@@ -426,7 +440,6 @@ Genera ahora el asset siguiendo el schema de la function call.`;
 
   const content = await callAI(systemPrompt, userPrompt, tool);
 
-  // Save asset
   if (opts.existingAssetId) {
     const { error } = await opts.supabase
       .from("assets")
@@ -489,7 +502,6 @@ Deno.serve(async (req) => {
     const contextBlock = buildContextBlock(context);
     const campaignName = context.target_campaign?.name || "Asset";
 
-    // Regen single existing asset
     if (asset_id) {
       const { data: existing } = await supabase
         .from("assets")
@@ -502,20 +514,29 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const r = await generateOne({
-        supabase, clientId: client_id, campaignId: existing.campaign_id, assetType: existing.asset_type as AssetType,
-        assetName: existing.asset_name, notes: notes || null, context, contextBlock, langInstr, lang,
-        existingAssetId: existing.id, existingVersion: existing.version, previousContent: existing.content,
-      });
-      return new Response(JSON.stringify({ ok: true, regenerated: true, ...r }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+      try {
+        const r = await generateOne({
+          supabase, clientId: client_id, campaignId: existing.campaign_id, assetType: existing.asset_type as AssetType,
+          assetName: existing.asset_name, notes: notes || null, context, contextBlock, langInstr, lang,
+          existingAssetId: existing.id, existingVersion: existing.version, previousContent: existing.content,
+        });
+        return new Response(JSON.stringify({ ok: true, regenerated: true, ...r }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err: any) {
+        console.error("generate-asset-internal regeneration error:", err);
+        return errorResponse({
+          ok: false,
+          fallback: true,
+          code: err?.status,
+          error: err?.status ? getErrorMessage(err.status, String(err.message || err)) : String(err.message || err),
+        });
+      }
     }
 
-    // Determine which types to generate
     const types: AssetType[] = asset_type ? [asset_type as AssetType] : ALL_TYPES;
 
-    // Generate in parallel
     const results = await Promise.allSettled(
       types.map((t) =>
         generateOne({
@@ -529,27 +550,44 @@ Deno.serve(async (req) => {
     const summary = results.map((r, i) => ({
       asset_type: types[i],
       ok: r.status === "fulfilled",
-      ...(r.status === "fulfilled" ? r.value : { error: String((r as any).reason?.message || (r as any).reason) }),
+      code: r.status === "rejected" ? (r as any).reason?.status : undefined,
+      ...(r.status === "fulfilled"
+        ? r.value
+        : { error: String((r as any).reason?.message || (r as any).reason) }),
     }));
 
     const anyOk = summary.some((s) => s.ok);
+    if (!anyOk) {
+      const firstCode = summary.find((s) => !s.ok)?.code;
+      return errorResponse({
+        ok: false,
+        fallback: true,
+        code: firstCode,
+        triggered: 0,
+        total: summary.length,
+        results: summary,
+        error: firstCode ? getErrorMessage(firstCode, "Generazione fallita per tutti gli asset.") : "Generazione fallita per tutti gli asset.",
+        message: "Generazione fallita per tutti gli asset.",
+      });
+    }
+
     return new Response(
       JSON.stringify({
-        ok: anyOk,
+        ok: true,
         triggered: summary.filter((s) => s.ok).length,
         total: summary.length,
         results: summary,
-        message: anyOk
-          ? `${summary.filter((s) => s.ok).length}/${summary.length} asset generati con Lovable AI (${MODEL}).`
-          : "Generazione fallita per tutti gli asset.",
+        message: `${summary.filter((s) => s.ok).length}/${summary.length} asset generati con Lovable AI (${MODEL}).`,
       }),
-      { status: anyOk ? 200 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: any) {
     console.error("generate-asset-internal error:", err);
-    return new Response(JSON.stringify({ error: String(err.message || err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return errorResponse({
+      ok: false,
+      fallback: true,
+      code: err?.status,
+      error: err?.status ? getErrorMessage(err.status, String(err.message || err)) : String(err.message || err),
     });
   }
 });
