@@ -1,99 +1,68 @@
 
 
-## Semplificazione completa del briefer admin
+# Pulizia `/admin/data` e `/admin/settings`
 
-Refactor mirato per ridurre il rumore visivo, eliminare sezioni morte, e collegare meglio i flussi automatici. Nessuna modifica alle proposte commerciali — la tab Proposal del prospect resta com'è.
+Procedo con il piano già discusso (Opzione B — sistemi separati, rimuovo le sezioni morte/confondenti).
 
----
+## 1. `/admin/data` → Email Monitoring + Diagnostica
 
-### 1. Dashboard `/admin` — solo l'essenziale
+**File:** `src/pages/admin/AdminDataDashboard.tsx` (riscritto)
 
-**Rimuovere:**
-- Sezione "Lo que toca hoy" attuale ridondante con stats
-- Pipeline Kanban a 5 colonne (rimane in DB, sparisce dalla home)
+Tab da rimuovere: **Prompts**, **Events**, **Briefing**, **Kickoff**.
 
-**Mantenere/potenziare:**
-- Summary stats in alto (total prospects, conversion rate, etc.)
-- **Nuovo blocco principale "Active Clients — Next Actions"**: lista compatta dei clienti attivi, ognuno con la sua next action derivata da `deriveNextAction()` + un CTA diretto alla tab giusta. Ordinata per urgenza (proposte aging > 5gg in cima).
+Tab unico principale: **Email log** — riscritto da zero usando `email_send_log` con deduplica per `message_id`:
+- Stat cards in alto: Total, Enviadas, Fallidas, Suprimidas (deduplicate)
+- Filtri: range temporale (24h / 7g / 30g), template (dropdown da `template_name` distinct), status (Todos / Sent / Failed / Suppressed)
+- Tabella: Template · Destinatario · Estado (badge colorato) · Fecha · Error (se fallita)
+- Una sola riga per `message_id` (DISTINCT ON con latest `created_at`)
+- Paginazione a 50 righe
 
-File: `src/pages/admin/AdminDashboard.tsx`
+Bonus diagnostica (sezione collassabile in fondo):
+- Pulsante **"Generar review mensual"** con gestione errori reale: se la edge function fallisce, mostro l'errore in toast invece di restare in silenzio. Il risultato viene mostrato in un dialog markdown.
+- Pulsante **"Ver últimos prompts generados"** dietro un toggle "Modo debug" (resta accessibile per troubleshooting ma non in primo piano).
 
----
+Tutto in **spagnolo**.
 
-### 2. Cliente → Tab "Prospect Info" — consolidare in una sola card "Notas internas"
+## 2. `/admin/settings` → Knowledge Base ridotta
 
-**Rimuovere:**
-- `SalesCallCard` (sales call form/notes) — non usato dall'AI, non visibile al cliente
-- "Plan del proyecto" — duplica il plan d'azione dell'oferta
+**File:** `src/pages/admin/AdminSettings.tsx`
 
-**Mantenere:**
-- Read-only del briefing originale del prospect (con accordion già esistente)
-- **Una sola card "Notas internas"** = textarea libero salvato in `client_notes` (tabella già esistente). Manteniamo lo storico delle note.
+Rimosse dalla `CATEGORIES`:
+- ❌ `pricing` (i prezzi reali sono in Offerings Catalog)
+- ❌ `suite_tools` (i tool reali sono in Flows & Reglas → Tools disponibles)
 
-File: `src/components/admin/tabs/ProspectInfoTab.tsx`
+Rimossa la sezione **Documentos** (upload PDF/TXT/MD): nessuna edge function attiva la legge.
 
----
+Restano in KB:
+- ✅ `flows_processes` — Flows & Procesos (linee guida narrative)
+- ✅ `pitch_guidelines` — Pitch Guidelines (tono kickoff + proposte)
 
-### 3. Cliente → Tab "Kickoff" — sync materials cliente con controllo selettivo
+Le tabelle DB (`documents`, `knowledge_base` con quei record) restano intoccate: solo nascoste dall'UI per sicurezza dati.
 
-**Nuova logica:**
-Quando il cliente carica un file in `/client/collect` (tabella `client_asset_requests`), il file deve apparire automaticamente nella sezione "Client Materials" del kickoff dell'admin, **MA con un flag `use_for_ai`** che l'admin può toggleare on/off.
+## 3. `/admin/settings` → Integraciones pulita
 
-**Implementazione:**
-- Estendere `kickoff_briefs.client_materials` (jsonb) con un nuovo schema:
-  ```json
-  { "items": [{ "url": "...", "label": "logo", "source": "client_upload" | "admin", "use_for_ai": true }] }
-  ```
-- Nuova edge function `sync-client-uploads-to-materials`: quando `client_asset_requests.status` diventa `submitted`, copia i file caricati nei materials del kickoff con `use_for_ai: true` di default e `source: "client_upload"`.
-- UI in `ClientMaterials.tsx`: ogni item mostra origine (📤 cliente / 🛠️ admin) + checkbox "Usar para IA".
-- In fase di generazione asset (`generate-asset-internal`, `select-campaign-materials`), filtrare solo gli items con `use_for_ai: true`.
+**File:** `src/components/admin/IntegrationsTab.tsx`
 
-**Migration richiesta:** trigger su `client_asset_requests` o chiamata edge dopo upload.
+Rimossa la sezione **Email Templates** (tabella `email_templates` legacy non più letta da nessuna funzione — le email vere stanno in `_shared/transactional-email-templates/*.tsx`).
 
-**Confermare al volo le altre cose della tab Kickoff (nessun cambio necessario):**
-- Domande suggerite ✅ già automatiche
-- Voice reference + client_rules + preferred_tone ✅ già estratti dal transcript via `analyze-kickoff-transcript`
-- Discovery / Intelligencia de mercado ✅ resta dov'è
+Restano:
+- ✅ Make webhook config
+- ✅ Webhook log
+- ✅ Slotty integration
 
-Files:
-- `src/components/kickoff/ClientMaterials.tsx`
-- `src/pages/client/ClientCollect.tsx` (trigger sync dopo upload)
-- `supabase/functions/sync-client-uploads-to-materials/index.ts` (nuovo)
-- `supabase/functions/generate-asset-internal/index.ts` (filtro `use_for_ai`)
-- `supabase/functions/select-campaign-materials/index.ts` (filtro `use_for_ai`)
+## Dettagli tecnici riassunti
 
----
-
-### 4. Stato del cliente — solo `activo` / `archivado`
-
-- Il valore `paused` esistente in `clients.status` viene migrato a `active`.
-- Dropdown UI semplificato a 2 voci.
-- Filtri admin aggiornati di conseguenza.
-
-**Migration:** `UPDATE clients SET status = 'active' WHERE status = 'paused'`. L'enum `client_status` può rimanere com'è (non rompiamo nulla rimuovendo solo dall'UI).
-
-File: `src/pages/admin/AdminClientDetail.tsx`, `src/pages/admin/AdminClients.tsx`.
-
----
-
-### Cosa NON cambia (confermato in chat)
-
-- Tab Proposal del prospect resta com'è (la usi per proposte a freddo)
-- Discovery / Intelligencia de mercado resta dentro Kickoff
-- Pipeline Kanban resta in DB (può tornare utile in futuro), solo nascosta dalla home
-- Stato kickoff `archivado` mantenuto per archiviare clienti dormienti
-
----
-
-### Dettagli tecnici riassunti
-
-| Area | File principali | DB |
+| Area | File | DB |
 |---|---|---|
-| Dashboard | `AdminDashboard.tsx` | nessuna |
-| Notas consolidata | `ProspectInfoTab.tsx`, rimuovere `SalesCallCard.tsx` da quella tab | usa `client_notes` esistente |
-| Sync materials | `ClientCollect.tsx`, `ClientMaterials.tsx`, nuova edge `sync-client-uploads-to-materials` | nuovo schema in `kickoff_briefs.client_materials.items[]` |
-| Filtro AI materials | `generate-asset-internal`, `select-campaign-materials` | nessuna |
-| Status cliente | `AdminClientDetail.tsx`, `AdminClients.tsx` | UPDATE dati `paused` → `active` |
+| Dashboard data | `src/pages/admin/AdminDataDashboard.tsx` (riscritto) | nessuna |
+| KB pulita | `src/pages/admin/AdminSettings.tsx` | nessuna |
+| Integrazioni pulite | `src/components/admin/IntegrationsTab.tsx` | nessuna |
 
-Nessuna nuova tabella. Nessun breaking change a livello dati.
+Nessuna migration. Nessuna tabella eliminata. Nessuna edge function modificata (la `generate-monthly-review` esiste già — sistemo solo la chiamata client-side).
+
+## Cosa NON faccio
+
+- Non collego Offerings Catalog alla KB (resta indipendente, come concordato).
+- Non tocco Flows & Reglas (Tools + Reglas globales restano).
+- Non elimino tabelle DB morte (solo le nascondo dall'UI).
 
