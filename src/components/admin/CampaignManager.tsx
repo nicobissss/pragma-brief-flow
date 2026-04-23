@@ -133,6 +133,166 @@ function AssetTypeSummary({ assets }: { assets: AssetRow[] }) {
   );
 }
 
+// ─── Generated Content Viewer ───────────────────────────
+function AssetContentView({ assetType, content, fileUrl }: { assetType: string; content: any; fileUrl: string | null }) {
+  if (!content || Object.keys(content).length === 0) {
+    return <p className="text-sm text-muted-foreground italic">No generated content yet.</p>;
+  }
+
+  // Landing page
+  if (assetType === "landing_page") {
+    return (
+      <div className="space-y-4 text-sm">
+        {content.hero && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Hero</h3>
+            {content.hero.headline && <p className="text-lg font-bold text-foreground">{content.hero.headline}</p>}
+            {content.hero.subheadline && <p className="text-muted-foreground mt-1">{content.hero.subheadline}</p>}
+            {content.hero.cta && <Badge className="mt-2">{content.hero.cta}</Badge>}
+          </section>
+        )}
+        {content.problem && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Problem</h3>
+            <p className="text-foreground whitespace-pre-wrap">{typeof content.problem === "string" ? content.problem : JSON.stringify(content.problem, null, 2)}</p>
+          </section>
+        )}
+        {content.solution && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Solution</h3>
+            <p className="text-foreground whitespace-pre-wrap">{typeof content.solution === "string" ? content.solution : JSON.stringify(content.solution, null, 2)}</p>
+          </section>
+        )}
+        {content.benefits && Array.isArray(content.benefits) && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Benefits</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              {content.benefits.map((b: any, i: number) => (
+                <li key={i} className="text-foreground">{typeof b === "string" ? b : (b.title || b.text || JSON.stringify(b))}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {content.social_proof && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">Social Proof</h3>
+            <pre className="whitespace-pre-wrap text-foreground text-xs">{typeof content.social_proof === "string" ? content.social_proof : JSON.stringify(content.social_proof, null, 2)}</pre>
+          </section>
+        )}
+        {content.faq && Array.isArray(content.faq) && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-2">FAQ</h3>
+            <div className="space-y-2">
+              {content.faq.map((f: any, i: number) => (
+                <div key={i}>
+                  <p className="font-medium text-foreground">{f.question || f.q}</p>
+                  <p className="text-muted-foreground">{f.answer || f.a}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {content.cta && (
+          <section className="p-4 rounded-lg bg-primary/10 border border-primary/30">
+            <h3 className="font-semibold text-foreground mb-2">Final CTA</h3>
+            <p className="text-foreground whitespace-pre-wrap">{typeof content.cta === "string" ? content.cta : JSON.stringify(content.cta, null, 2)}</p>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // Email flow
+  if (assetType === "email_flow") {
+    const emails = Array.isArray(content.emails) ? content.emails : (content.subject ? [content] : []);
+    return (
+      <div className="space-y-4 text-sm">
+        {emails.map((email: any, i: number) => (
+          <section key={i} className="rounded-lg border border-border overflow-hidden">
+            <div className="p-3 bg-secondary/40 border-b border-border">
+              <p className="text-xs text-muted-foreground">Email {i + 1}</p>
+              {email.subject && <p className="font-semibold text-foreground">{email.subject}</p>}
+              {email.preview_text && <p className="text-xs text-muted-foreground italic">{email.preview_text}</p>}
+            </div>
+            <div className="p-4 bg-background">
+              {email.body && <div className="text-foreground whitespace-pre-wrap">{email.body}</div>}
+              {email.cta && <Badge className="mt-3">{email.cta}</Badge>}
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  // Social post
+  if (assetType === "social_post") {
+    return (
+      <div className="space-y-3 text-sm">
+        {content.hook && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-1">Hook</h3>
+            <p className="text-foreground whitespace-pre-wrap">{content.hook}</p>
+          </section>
+        )}
+        {content.caption && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-1">Caption</h3>
+            <p className="text-foreground whitespace-pre-wrap">{content.caption}</p>
+          </section>
+        )}
+        {content.hashtags && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-1">Hashtags</h3>
+            <p className="text-primary">{Array.isArray(content.hashtags) ? content.hashtags.join(" ") : content.hashtags}</p>
+          </section>
+        )}
+        {content.visual_brief && (
+          <section className="p-4 rounded-lg bg-secondary/30 border border-border">
+            <h3 className="font-semibold text-foreground mb-1">Visual brief</h3>
+            <p className="text-foreground whitespace-pre-wrap">{typeof content.visual_brief === "string" ? content.visual_brief : JSON.stringify(content.visual_brief, null, 2)}</p>
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // Blog article
+  if (assetType === "blog_article") {
+    return (
+      <article className="prose prose-sm max-w-none text-foreground space-y-3">
+        {content.h1 && <h1 className="text-2xl font-bold">{content.h1}</h1>}
+        {content.intro && <p className="text-muted-foreground italic">{content.intro}</p>}
+        {Array.isArray(content.sections) && content.sections.map((s: any, i: number) => (
+          <section key={i}>
+            {s.heading && <h2 className="text-lg font-semibold mt-4">{s.heading}</h2>}
+            {s.body && <p className="whitespace-pre-wrap">{s.body}</p>}
+          </section>
+        ))}
+        {content.conclusion && (
+          <section>
+            <h2 className="text-lg font-semibold mt-4">Conclusion</h2>
+            <p className="whitespace-pre-wrap">{content.conclusion}</p>
+          </section>
+        )}
+      </article>
+    );
+  }
+
+  // Fallback: raw JSON
+  return (
+    <div className="space-y-2">
+      {fileUrl && (
+        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+          <ExternalLink className="w-3.5 h-3.5" /> Open file
+        </a>
+      )}
+      <pre className="text-xs bg-secondary/30 p-3 rounded-md border border-border overflow-x-auto whitespace-pre-wrap">
+        {JSON.stringify(content, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
 // ─── Campaign Card (Asset inside) ───────────────────────
 function AssetCard({
   asset,
@@ -148,6 +308,8 @@ function AssetCard({
   const Icon = ASSET_TYPE_ICONS[asset.asset_type] || FileText;
   const isImage = asset.file_url?.match(/\.(png|jpg|jpeg|webp|gif)$/i);
   const [regenerating, setRegenerating] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const hasContent = asset.content && Object.keys(asset.content).length > 0;
   const statusBadgeClass =
     asset.status === "approved"
       ? "bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30"
@@ -215,22 +377,47 @@ function AssetCard({
           >
             {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
           </Button>
-          {asset.file_url && (
+          {hasContent && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="View generated content"
+              onClick={() => setViewOpen(true)}
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {asset.file_url && !hasContent && (
             <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open file">
                 <Eye className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
           {asset.content?.url && (
             <a href={asset.content.url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open URL">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
         </div>
       </div>
+
+      {/* Generated content viewer */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className="w-4 h-4" />
+              {asset.asset_name}
+              <Badge variant="outline" className="text-[10px]">v{asset.version || 1}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
+        </DialogContent>
+      </Dialog>
 
       {/* Client feedback */}
       {asset.status === "change_requested" && asset.client_comment && (
