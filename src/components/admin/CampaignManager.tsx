@@ -15,7 +15,7 @@ import {
   Plus, Loader2, Sparkles, Target, Users, MessageSquare, Calendar,
   Pencil, ChevronDown, ChevronUp, Upload, FileText, Mail, Image, PenTool,
   X, Eye, ExternalLink, Wrench, Bell, AlertTriangle, Wand2,
-  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check,
+  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check, RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -1876,7 +1876,7 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-foreground">Campaign Brief</p>
-                <Button size="sm" variant="outline" onClick={generateBrief} disabled={generating || !name.trim()}>
+                <Button size="sm" variant="outline" onClick={() => generateBrief()} disabled={generating || !name.trim()}>
                   {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
                   Generate with AI
                 </Button>
@@ -1898,6 +1898,31 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                   <label className="text-xs text-muted-foreground">Timeline</label>
                   <Input placeholder="When does this campaign run?" value={timeline} onChange={(e) => setTimeline(e.target.value)} className="mt-1" />
                 </div>
+              </div>
+
+              {briefReasoning["__new__"] && (
+                <details className="mt-3 rounded-md border border-border bg-secondary/30 p-3 text-xs">
+                  <summary className="cursor-pointer font-medium text-foreground">¿Por qué estas sugerencias?</summary>
+                  <div className="mt-2 space-y-2 text-muted-foreground">
+                    {Object.entries(briefReasoning["__new__"] as Record<string, string>).map(([k, v]) => (
+                      <div key={k}><strong className="text-foreground capitalize">{k.replace(/_/g, " ")}:</strong> {v}</div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              <div className="mt-3 space-y-2">
+                <label className="text-xs text-muted-foreground">Pídele un cambio a la IA (opcional)</label>
+                <Textarea
+                  placeholder='Ej: "más enfocado en pacientes recurrentes, no nuevos"'
+                  value={briefFeedback}
+                  onChange={(e) => setBriefFeedback(e.target.value)}
+                  className="min-h-[50px] text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={() => generateBrief({ feedback: briefFeedback })} disabled={generating || !briefFeedback.trim()} className="w-full">
+                  {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                  Regenerar con feedback
+                </Button>
               </div>
             </div>
             <Button onClick={saveCampaign} disabled={creating || !name.trim()} className="w-full">
