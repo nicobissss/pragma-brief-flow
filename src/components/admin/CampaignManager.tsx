@@ -248,6 +248,77 @@ function downloadMarkdown(asset: { asset_name: string; asset_type: string; conte
   URL.revokeObjectURL(url);
 }
 
+// ─── AI Feedback Box (per asset) ────────────────────────
+function AiFeedbackBox({
+  asset,
+  regenerating,
+  onRegenerate,
+  onSavedPrompt,
+}: {
+  asset: any;
+  regenerating: boolean;
+  onRegenerate: () => Promise<void> | void;
+  onSavedPrompt?: () => void;
+}) {
+  const [prompt, setPrompt] = useState<string>(asset.correction_prompt || "");
+  const [saving, setSaving] = useState(false);
+
+  const savePrompt = async () => {
+    setSaving(true);
+    try {
+      const { error } = await (supabase.from("assets") as any)
+        .update({ correction_prompt: prompt || null })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success("Indicazioni salvate.");
+      onSavedPrompt?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore nel salvataggio");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAndRegenerate = async () => {
+    await savePrompt();
+    await onRegenerate();
+  };
+
+  return (
+    <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-primary" />
+        <h4 className="text-sm font-semibold">Indicazioni per l'AI</h4>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Scrivi cosa vuoi cambiare in questo asset (tono, sezioni, CTA, lunghezza...). L'AI userà queste istruzioni per generare la versione successiva.
+      </p>
+      {asset.client_comment && (
+        <div className="rounded-md bg-background border border-border p-2 text-xs">
+          <span className="font-medium text-muted-foreground">Commento cliente: </span>
+          <span>{asset.client_comment}</span>
+        </div>
+      )}
+      <Textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Es: rendi l'hero più diretto, accorcia il body della seconda email, sostituisci la CTA con 'Prenota ora'..."
+        className="min-h-[100px] bg-background"
+      />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={savePrompt} disabled={saving || regenerating}>
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          Salva indicazioni
+        </Button>
+        <Button size="sm" onClick={saveAndRegenerate} disabled={saving || regenerating}>
+          {regenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+          Genera nuova versione
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Generated Content Viewer ───────────────────────────
 function AssetContentView({ assetType, content, fileUrl }: { assetType: string; content: any; fileUrl: string | null }) {
   if (!content || Object.keys(content).length === 0) {
@@ -785,6 +856,14 @@ function AssetCard({
               <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
             </TabsContent>
           </Tabs>
+
+          {/* Feedback all'AI — sempre visibile */}
+          <AiFeedbackBox
+            asset={asset}
+            regenerating={regenerating}
+            onRegenerate={regenerateWithForge}
+            onSavedPrompt={onChanged}
+          />
         </DialogContent>
       </Dialog>
 
