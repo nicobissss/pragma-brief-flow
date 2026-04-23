@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
+import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
 
 // ─── Types ──────────────────────────────────────────────
 type Campaign = {
@@ -768,7 +769,22 @@ function AssetCard({
               {copied ? "Copiato" : "Copia testo"}
             </Button>
           </div>
-          <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
+          <Tabs defaultValue="preview" className="w-full">
+            <TabsList className="grid grid-cols-2 w-fit mx-auto mb-4">
+              <TabsTrigger value="preview">
+                <Eye className="w-3.5 h-3.5 mr-1.5" /> Vista previa
+              </TabsTrigger>
+              <TabsTrigger value="text">
+                <FileText className="w-3.5 h-3.5 mr-1.5" /> Texto / Secciones
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="preview">
+              <AssetVisualPreview assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
+            </TabsContent>
+            <TabsContent value="text">
+              <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
