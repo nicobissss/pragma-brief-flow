@@ -5,37 +5,56 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
+import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
+import KickoffStructuredInfo from "@/components/admin/KickoffStructuredInfo";
 
 type Props = {
   client: any;
   prospect: any | null;
   proposal: ProposalData | null;
   marketLabel: string;
+  kickoff: any | null;
   notes: any[];
   newNote: string;
   setNewNote: (v: string) => void;
   noteAuthor: string;
   setNoteAuthor: (v: string) => void;
   onSaveNote: () => void;
+  onProspectUpdated?: (p: any) => void;
   /** @deprecated */ onCallUpdate?: (fields: Record<string, any>) => void;
   /** @deprecated */ onSharePlan?: () => void;
 };
 
 export default function ProspectInfoTab({
-  prospect, proposal,
+  client, prospect, proposal, marketLabel, kickoff,
   notes, newNote, setNewNote, noteAuthor, setNoteAuthor, onSaveNote,
+  onProspectUpdated,
 }: Props) {
   return (
     <div className="space-y-6">
-      <div className="bg-card rounded-lg border border-border p-5">
-        <h3 className="font-semibold text-foreground">Información del briefing inicial</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Los datos proporcionados por el cliente al inscribirse están en la pestaña <strong>Overview</strong>,
-          en la sección "Briefing inicial del prospect". Aquí abajo solo gestionas las <strong>notas internas</strong>
-          y puedes consultar la propuesta original.
-        </p>
-      </div>
+      {/* 1. Briefing inicial — info que el cliente nos dio al inscribirse (editable) */}
+      {prospect ? (
+        <ProspectInfoTable
+          prospect={prospect}
+          marketLabel={marketLabel}
+          onUpdated={onProspectUpdated}
+          title="Briefing inicial del prospect"
+          description="Información proporcionada por el cliente al inscribirse. Haz clic en cualquier fila para editar."
+        />
+      ) : (
+        <div className="bg-card rounded-lg border border-border p-6 text-sm text-muted-foreground">
+          No hay datos de prospect vinculados a este cliente.
+        </div>
+      )}
 
+      {/* 2. Información del kickoff — datos descubiertos en call (editable) */}
+      <KickoffStructuredInfo
+        clientId={client.id}
+        kickoffId={kickoff?.id ?? null}
+        initial={kickoff?.structured_info ?? {}}
+      />
+
+      {/* 3. Propuesta original (collapsible, sólo lectura) */}
       {prospect && proposal && (
         <Collapsible>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -52,6 +71,7 @@ export default function ProspectInfoTab({
         </Collapsible>
       )}
 
+      {/* 4. Notas internas */}
       <div className="bg-card rounded-lg border border-border p-6 space-y-4">
         <div>
           <h3 className="font-semibold text-foreground">Notas internas</h3>
