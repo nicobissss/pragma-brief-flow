@@ -25,6 +25,16 @@ type MaterialFile = {
   description: string;
 };
 
+export type ClientUploadItem = {
+  url?: string;
+  label: string;
+  type_hint?: string;
+  text_response?: string;
+  source: "client_upload" | "admin";
+  use_for_ai?: boolean;
+  synced_at?: string;
+};
+
 export type ClientMaterialsData = {
   logo_url?: string;
   primary_color?: string;
@@ -38,6 +48,8 @@ export type ClientMaterialsData = {
   email_files?: { url: string; name: string }[];
   email_text?: string;
   social_posts?: { url: string; caption: string }[];
+  /** Files synced from /client/collect (read-only here, but admin can toggle use_for_ai) */
+  client_uploads?: ClientUploadItem[];
 };
 
 interface Props {
