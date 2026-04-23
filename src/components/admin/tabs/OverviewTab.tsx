@@ -21,7 +21,7 @@ type Props = {
   onNavigateTab: (tab: string) => void;
 };
 
-export default function OverviewTab({ client, kickoff, hasOffering, contextScorePct, assets, onNavigateTab }: Props) {
+export default function OverviewTab({ client, kickoff, hasOffering, contextScorePct, assets, prospect, marketLabel, onNavigateTab }: Props) {
   const [offering, setOffering] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [platforms, setPlatforms] = useState<any[]>([]);
