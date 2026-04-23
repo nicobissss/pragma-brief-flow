@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,38 +6,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-type Note = { id: string; note: string; author: string | null; created_at: string | null };
+type Note = { id: string; note: string; author: string; created_at: string };
 
-export default function ProspectInternalNotes({ prospectId }: { prospectId: string }) {
-  const [notes, setNotes] = useState<Note[]>([]);
+export default function ProspectInternalNotes({
+  prospectId,
+  briefingAnswers,
+  onUpdated,
+}: {
+  prospectId: string;
+  briefingAnswers: Record<string, any>;
+  onUpdated: (newAnswers: Record<string, any>) => void;
+}) {
+  const notes: Note[] = Array.isArray(briefingAnswers?._internal_notes)
+    ? briefingAnswers._internal_notes
+    : [];
   const [newNote, setNewNote] = useState("");
   const [author, setAuthor] = useState("Nicolò");
   const [saving, setSaving] = useState(false);
 
-  const load = async () => {
-    const { data } = await supabase
-      .from("client_notes")
-      .select("*")
-      .eq("client_id", prospectId)
-      .order("created_at", { ascending: false });
-    setNotes((data as Note[]) || []);
-  };
-
-  useEffect(() => { load(); }, [prospectId]);
-
   const save = async () => {
     if (!newNote.trim()) return;
     setSaving(true);
-    const { error } = await supabase.from("client_notes").insert({
-      client_id: prospectId,
+    const note: Note = {
+      id: crypto.randomUUID(),
       note: newNote.trim(),
       author,
-    });
+      created_at: new Date().toISOString(),
+    };
+    const updated = { ...briefingAnswers, _internal_notes: [note, ...notes] };
+    const { error } = await supabase
+      .from("prospects")
+      .update({ briefing_answers: updated })
+      .eq("id", prospectId);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
+    onUpdated(updated);
     setNewNote("");
     toast.success("Nota guardada");
-    load();
+  };
+
+  const remove = async (id: string) => {
+    const updated = { ...briefingAnswers, _internal_notes: notes.filter((n) => n.id !== id) };
+    const { error } = await supabase
+      .from("prospects")
+      .update({ briefing_answers: updated })
+      .eq("id", prospectId);
+    if (error) { toast.error(error.message); return; }
+    onUpdated(updated);
   };
 
   return (
@@ -62,12 +77,16 @@ export default function ProspectInternalNotes({ prospectId }: { prospectId: stri
       {notes.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {notes.map((n) => (
-            <div key={n.id} className="p-3 rounded-md bg-secondary/30 text-sm">
+            <div key={n.id} className="p-3 rounded-md bg-secondary/30 text-sm group">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-medium text-foreground">{n.author || "—"}</span>
-                {n.created_at && (
-                  <span className="text-xs text-muted-foreground">{format(new Date(n.created_at), "dd MMM yyyy HH:mm")}</span>
-                )}
+                <span className="text-xs text-muted-foreground">{format(new Date(n.created_at), "dd MMM yyyy HH:mm")}</span>
+                <button
+                  onClick={() => remove(n.id)}
+                  className="ml-auto text-xs text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+                >
+                  Eliminar
+                </button>
               </div>
               <p className="text-muted-foreground whitespace-pre-wrap">{n.note}</p>
             </div>
