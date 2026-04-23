@@ -1818,6 +1818,88 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                         })()}
                       </div>
                     </TabsContent>
+
+                    {/* MATERIALES */}
+                    <TabsContent value="materiales" className="m-0 p-4 space-y-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Materiales del cliente</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Selecciona qué materiales (logo, fotos, textos, ejemplos) quieres que la IA use para generar los assets de esta campaña. Puedes añadir una nota de uso para cada uno.
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => autoSelectMaterials(campaign.id)}
+                          disabled={autoSelectingMaterials === campaign.id || allClientMaterials.length === 0}
+                        >
+                          {autoSelectingMaterials === campaign.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5 mr-1" />
+                          )}
+                          Selección automática IA
+                        </Button>
+                      </div>
+
+                      {loadingMaterials === campaign.id && (
+                        <p className="text-xs text-muted-foreground italic">Cargando materiales…</p>
+                      )}
+
+                      {allClientMaterials.length === 0 && (
+                        <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                          El cliente todavía no ha subido materiales. Pídeselos desde la pestaña "Materiales" del cliente.
+                        </div>
+                      )}
+
+                      {allClientMaterials.length > 0 && (
+                        <div className="grid gap-2">
+                          {allClientMaterials.map((mat) => {
+                            const saved = (campaignMaterials[campaign.id] || []).find((m) => m.material_ref === mat.ref);
+                            const selected = saved?.selected ?? false;
+                            const hint = saved?.usage_hint ?? "";
+                            return (
+                              <div
+                                key={mat.ref}
+                                className={`p-3 rounded-md border transition ${selected ? "border-primary/40 bg-primary/5" : "border-border bg-secondary/10"}`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <Checkbox
+                                    checked={selected}
+                                    onCheckedChange={(v) => upsertCampaignMaterial(campaign.id, mat, { selected: !!v })}
+                                    className="mt-0.5"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant="outline" className="text-[10px] shrink-0">{mat.type}</Badge>
+                                      <span className="text-sm font-medium text-foreground truncate">{mat.label}</span>
+                                      {mat.url && (
+                                        <a href={mat.url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary shrink-0">
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                      )}
+                                    </div>
+                                    {selected && (
+                                      <Textarea
+                                        defaultValue={hint}
+                                        placeholder="Cómo usarlo (ej: 'esta foto va en el hero de la landing')…"
+                                        className="mt-2 min-h-[50px] text-xs"
+                                        onBlur={(e) => {
+                                          if (e.target.value !== hint) {
+                                            upsertCampaignMaterial(campaign.id, mat, { selected: true, usage_hint: e.target.value });
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </TabsContent>
                   </Tabs>
                 </div>
               )}
