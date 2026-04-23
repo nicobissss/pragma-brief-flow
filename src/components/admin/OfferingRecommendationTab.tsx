@@ -733,7 +733,7 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
                 onClick={() => setConfirmOffering(o)}
                 disabled={proposing === o.id}
               >
-                Proponer
+                Seleccionar oferta
               </Button>
             </div>
           ))}
