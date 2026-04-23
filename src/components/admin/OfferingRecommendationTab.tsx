@@ -10,8 +10,10 @@ import {
 import { toast } from "sonner";
 import {
   CheckCircle2, AlertTriangle, Sparkles, ArrowRight, ChevronDown, ChevronUp, Trophy, Loader2, Play, RefreshCw,
+  Pencil, Send, Wand2, Eye, EyeOff,
 } from "lucide-react";
 import { OfferingDetails } from "@/components/shared/OfferingDetails";
+import { Textarea } from "@/components/ui/textarea";
 
 type Offering = {
   id: string;
