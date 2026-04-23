@@ -1,20 +1,57 @@
+import { useState, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pencil, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
-function InfoRow({ label, value }: { label: string; value: any }) {
-  if (value === null || value === undefined || value === "") return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
-  return (
-    <div className="flex justify-between py-2 border-b border-border last:border-0">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <span className="text-foreground text-sm font-medium text-right max-w-[60%]">{display}</span>
-    </div>
-  );
+type Field = {
+  key: string;
+  label: string;
+  source: "prospect" | "client" | "answers";
+  type?: "text" | "textarea";
+  format?: (v: any, all: any) => string;
+};
+
+const FIELDS: Field[] = [
+  // Datos básicos
+  { key: "name", label: "Nombre completo", source: "prospect" },
+  { key: "company_name", label: "Empresa", source: "prospect" },
+  { key: "email", label: "Email", source: "prospect" },
+  { key: "phone", label: "Teléfono", source: "prospect" },
+  { key: "vertical", label: "Vertical", source: "prospect" },
+  { key: "sub_niche", label: "Sub-nicho", source: "prospect" },
+  // Situación + objetivos (todo junto)
+  { key: "years_in_operation", label: "Años de operación", source: "answers" },
+  { key: "monthly_new_clients", label: "Clientes nuevos/mes", source: "answers" },
+  { key: "average_ticket", label: "Ticket medio", source: "answers",
+    format: (v, all) => v ? `${v} ${all.ticket_currency || "EUR"}` : "" },
+  { key: "main_goal", label: "Objetivo principal", source: "answers", type: "textarea" },
+  { key: "biggest_challenge", label: "Mayor desafío", source: "answers", type: "textarea" },
+  { key: "differentiator", label: "Diferenciador", source: "answers", type: "textarea" },
+  { key: "client_sources", label: "Fuentes de clientes", source: "answers" },
+  { key: "runs_paid_ads", label: "Hace anuncios pagos", source: "answers" },
+  { key: "ad_platforms", label: "Plataformas de ads", source: "answers" },
+  { key: "monthly_budget", label: "Presupuesto mensual", source: "answers" },
+  { key: "has_email_list", label: "Tiene lista de email", source: "answers" },
+  { key: "email_list_size", label: "Tamaño de la lista", source: "answers" },
+  { key: "has_website", label: "Tiene web", source: "answers" },
+  { key: "website_url", label: "URL del sitio", source: "answers" },
+  { key: "uses_crm", label: "Usa CRM", source: "answers" },
+  { key: "crm_name", label: "Sistema CRM", source: "answers" },
+  { key: "additional_info", label: "Información adicional", source: "answers", type: "textarea" },
+];
+
+function formatValue(v: any) {
+  if (v === null || v === undefined || v === "") return "—";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "boolean") return v ? "Sí" : "No";
+  return String(v);
 }
 
 type Props = {
@@ -28,40 +65,81 @@ type Props = {
   noteAuthor: string;
   setNoteAuthor: (v: string) => void;
   onSaveNote: () => void;
-  /** @deprecated kept for compatibility; no longer used */
-  onCallUpdate?: (fields: Record<string, any>) => void;
-  /** @deprecated kept for compatibility; no longer used */
-  onSharePlan?: () => void;
+  /** @deprecated */ onCallUpdate?: (fields: Record<string, any>) => void;
+  /** @deprecated */ onSharePlan?: () => void;
 };
 
 export default function ProspectInfoTab({
   client, prospect, proposal, marketLabel,
   notes, newNote, setNewNote, noteAuthor, setNoteAuthor, onSaveNote,
 }: Props) {
-  const answers = prospect?.briefing_answers || {};
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [localProspect, setLocalProspect] = useState<any>(prospect);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setLocalProspect(prospect); }, [prospect]);
+
+  const answers = localProspect?.briefing_answers || {};
+
+  const getValue = (f: Field) => {
+    if (!localProspect) return "";
+    const raw = f.source === "answers" ? answers[f.key] : localProspect[f.key];
+    return f.format ? f.format(raw, answers) : raw;
+  };
+
+  const startEdit = (f: Field) => {
+    if (!localProspect) return;
+    const raw = f.source === "answers" ? answers[f.key] : localProspect[f.key];
+    setEditValue(raw == null ? "" : String(raw));
+    setEditingKey(f.key);
+  };
+
+  const cancelEdit = () => { setEditingKey(null); setEditValue(""); };
+
+  const saveEdit = async (f: Field) => {
+    if (!localProspect) return;
+    setSaving(true);
+    try {
+      let payload: any = {};
+      if (f.source === "answers") {
+        payload = { briefing_answers: { ...answers, [f.key]: editValue } };
+      } else {
+        payload = { [f.key]: editValue };
+      }
+      const { error } = await supabase.from("prospects").update(payload).eq("id", localProspect.id);
+      if (error) throw error;
+      setLocalProspect({
+        ...localProspect,
+        ...(f.source === "answers"
+          ? { briefing_answers: { ...answers, [f.key]: editValue } }
+          : { [f.key]: editValue }),
+      });
+      toast({ title: "Guardado", description: f.label });
+      setEditingKey(null);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {prospect ? (
+      {localProspect ? (
         <>
           <Collapsible>
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Ver pre-cualificación</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pre-cualificación</h3>
                 <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="px-5 pb-5 space-y-2">
-                  {([
-                    ["País", client.market === "es" ? "España" : client.market === "it" ? "Italia" : "Argentina"],
-                    ["Sector", client.vertical],
-                    ["Especialización", client.sub_niche],
-                    ["Ticket medio", answers.average_ticket ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}` : null],
-                  ] as [string, string | null][]).filter(([, v]) => v).map(([label, value]) => (
-                    <div key={label} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="font-medium">{value}</span>
-                    </div>
-                  ))}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">País</span>
+                    <span className="font-medium">{marketLabel}</span>
+                  </div>
                   {answers.description && (
                     <div className="pt-2 border-t border-border text-sm space-y-1">
                       <span className="text-muted-foreground text-xs uppercase tracking-wide">Descripción</span>
@@ -73,58 +151,80 @@ export default function ProspectInfoTab({
             </div>
           </Collapsible>
 
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">About the Business</h3>
-            <InfoRow label="Full name" value={prospect.name} />
-            <InfoRow label="Company" value={prospect.company_name} />
-            <InfoRow label="Email" value={prospect.email} />
-            <InfoRow label="Phone" value={prospect.phone} />
-            <InfoRow label="Market" value={marketLabel} />
-            <InfoRow label="Vertical" value={prospect.vertical} />
-            <InfoRow label="Sub-niche" value={prospect.sub_niche} />
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Current Situation</h3>
-            <InfoRow label="Years in operation" value={answers.years_in_operation} />
-            <InfoRow label="Monthly new clients" value={answers.monthly_new_clients} />
-            <InfoRow label="Client sources" value={answers.client_sources} />
-            <InfoRow label="Runs paid ads" value={answers.runs_paid_ads} />
-            <InfoRow label="Ad platforms" value={answers.ad_platforms} />
-            <InfoRow label="Monthly budget" value={answers.monthly_budget} />
-            <InfoRow label="Has email list" value={answers.has_email_list} />
-            <InfoRow label="Email list size" value={answers.email_list_size} />
-            <InfoRow label="Has website" value={answers.has_website} />
-            <InfoRow label="Website URL" value={answers.website_url} />
-            <InfoRow label="Uses CRM" value={answers.uses_crm} />
-            <InfoRow label="CRM system" value={answers.crm_name} />
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h3 className="font-semibold text-foreground mb-4">Goals</h3>
-            <InfoRow label="Main goal" value={answers.main_goal} />
-            <InfoRow label="Average ticket" value={answers.average_ticket ? `${answers.average_ticket} ${answers.ticket_currency || "EUR"}` : undefined} />
-            <InfoRow label="Biggest challenge" value={answers.biggest_challenge} />
-            <InfoRow label="Differentiator" value={answers.differentiator} />
-            <InfoRow label="Additional info" value={answers.additional_info} />
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <div className="p-5 border-b border-border">
+              <h3 className="font-semibold text-foreground">Información del prospect</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Resumen completo del briefing inicial. Haz clic en cualquier fila para editar.
+              </p>
+            </div>
+            <div className="divide-y divide-border">
+              {FIELDS.map((f) => {
+                const isEditing = editingKey === f.key;
+                return (
+                  <div key={f.key} className="px-5 py-3 hover:bg-secondary/20 transition-colors">
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">{f.label}</label>
+                        {f.type === "textarea" ? (
+                          <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} className="min-h-[80px]" autoFocus />
+                        ) : (
+                          <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} autoFocus />
+                        )}
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={saving}>
+                            <X className="w-3.5 h-3.5 mr-1" /> Cancelar
+                          </Button>
+                          <Button size="sm" onClick={() => saveEdit(f)} disabled={saving}>
+                            <Check className="w-3.5 h-3.5 mr-1" /> Guardar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEdit(f)}
+                        className="w-full flex justify-between items-start gap-4 text-left group"
+                      >
+                        <span className="text-sm text-muted-foreground shrink-0">{f.label}</span>
+                        <span className="text-sm font-medium text-right text-foreground flex items-center gap-2 max-w-[60%]">
+                          <span className="break-words">{formatValue(getValue(f))}</span>
+                          <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {proposal && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-foreground text-lg">Generated Proposal</h3>
-              <ProposalView data={proposal} editable={false} />
-            </div>
+            <Collapsible>
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-5 hover:bg-secondary/30 transition-colors">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Propuesta generada</h3>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-5 pb-5">
+                    <ProposalView data={proposal} editable={false} />
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
           )}
         </>
       ) : (
         <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
-          No prospect data linked to this client.
+          No hay datos de prospect vinculados a este cliente.
         </div>
       )}
 
       <div className="bg-card rounded-lg border border-border p-6 space-y-4">
-        <h3 className="font-semibold text-foreground">Notas internas</h3>
-        <p className="text-xs text-muted-foreground">Solo visibles para el equipo PRAGMA — nunca para el cliente.</p>
+        <div>
+          <h3 className="font-semibold text-foreground">Notas internas</h3>
+          <p className="text-xs text-muted-foreground">Solo visibles para el equipo PRAGMA — nunca para el cliente.</p>
+        </div>
         <div className="flex gap-2">
           <Textarea placeholder="Escribe una nota..." value={newNote} onChange={(e) => setNewNote(e.target.value)} className="min-h-[60px] flex-1" />
           <div className="flex flex-col gap-2">
@@ -146,7 +246,7 @@ export default function ProspectInfoTab({
                   <span className="font-medium text-foreground">{n.author || "—"}</span>
                   <span className="text-xs text-muted-foreground">{format(new Date(n.created_at!), "dd MMM yyyy HH:mm")}</span>
                 </div>
-                <p className="text-muted-foreground">{n.note}</p>
+                <p className="text-muted-foreground whitespace-pre-wrap">{n.note}</p>
               </div>
             ))}
           </div>
