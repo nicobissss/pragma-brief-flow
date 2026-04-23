@@ -1723,15 +1723,15 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                           <Button
                             size="sm"
                             variant="default"
-                            onClick={() => triggerForgeForCampaign(campaign)}
-                            disabled={forgeBusyCampaignId === campaign.id}
+                            onClick={() => triggerGenerationForCampaign(campaign)}
+                            disabled={aiBusyCampaignId === campaign.id}
                           >
-                            {forgeBusyCampaignId === campaign.id ? (
+                            {aiBusyCampaignId === campaign.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
                             ) : (
                               <Wand2 className="w-3.5 h-3.5 mr-1" />
                             )}
-                            Genera asset con Forge
+                            Generar assets con IA
                           </Button>
                         </div>
                       </div>
