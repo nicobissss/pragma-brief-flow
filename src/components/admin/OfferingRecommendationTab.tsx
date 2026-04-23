@@ -951,11 +951,11 @@ function RecommendationCard({
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-amber-700">
             <AlertTriangle className="w-4 h-4" />
-            Plataformas faltantes
+            Plataformas necesarias que el cliente aún no tiene
           </div>
           {rec.missingPlatforms.map((p, i) => (
             <p key={i} className="text-xs text-foreground pl-6">
-              Falta categoría <strong>{p}</strong> → sugerir plan inicial gratuito o setup asistido
+              Falta una herramienta de <strong>{p}</strong> → habrá que sugerir un plan inicial gratuito o un setup asistido durante el onboarding.
             </p>
           ))}
         </div>
