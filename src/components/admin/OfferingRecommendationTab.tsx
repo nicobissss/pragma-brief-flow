@@ -71,12 +71,23 @@ const TIER_LABELS: Record<number, string> = {
 };
 
 const STATUS_BADGE: Record<string, string> = {
+  selected_internal: "bg-purple-500/10 text-purple-700 border-purple-500/30",
   proposed: "bg-amber-500/10 text-amber-700 border-amber-500/30",
   accepted: "bg-blue-500/10 text-blue-700 border-blue-500/30",
   active: "bg-green-500/10 text-green-700 border-green-500/30",
   completed: "bg-primary/10 text-primary border-primary/30",
   paused: "bg-muted text-muted-foreground border-border",
   cancelled: "bg-destructive/10 text-destructive border-destructive/30",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  selected_internal: "Selección interna",
+  proposed: "Propuesta al cliente",
+  accepted: "Aceptada",
+  active: "Activa",
+  completed: "Completada",
+  paused: "Pausada",
+  cancelled: "Cancelada",
 };
 
 function formatPricing(o: Pick<Offering, "monthly_fee_eur" | "setup_fee_eur" | "one_shot_fee_eur">) {
