@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
+import ProspectInternalNotes from "@/components/admin/ProspectInternalNotes";
 
 type Prospect = {
   id: string;
