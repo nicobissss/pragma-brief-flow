@@ -10,6 +10,7 @@ type Props = {
   campaigns: any[];
   setCampaigns: (c: any[] | ((prev: any[]) => any[])) => void;
   onApproveStrategicNote: (id: string) => void;
+  promptsTabContent?: React.ReactNode;
 };
 
 const ASSET_LABELS: Record<string, string> = {
