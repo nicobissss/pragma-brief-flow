@@ -502,17 +502,28 @@ function AssetCard({
   campaigns,
   clientId,
   onAssignCampaign,
+  onChanged,
 }: {
   asset: AssetRow;
   campaigns: Campaign[];
   clientId: string;
   onAssignCampaign?: (assetId: string, campaignId: string) => void;
+  onChanged?: () => void;
 }) {
   const Icon = ASSET_TYPE_ICONS[asset.asset_type] || FileText;
   const isImage = asset.file_url?.match(/\.(png|jpg|jpeg|webp|gif)$/i);
   const [regenerating, setRegenerating] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState(asset.asset_name);
+  const [savingName, setSavingName] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const hasContent = asset.content && Object.keys(asset.content).length > 0;
+  const isArchived = asset.production_status === "archived";
+  const isSelected = asset.production_status === "selected_for_client";
+
   const statusBadgeClass =
     asset.status === "approved"
       ? "bg-[hsl(var(--status-approved))]/15 text-[hsl(var(--status-approved))] border-[hsl(var(--status-approved))]/30"
@@ -536,7 +547,8 @@ function AssetCard({
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Nuova versione generata — controlla la lista qui sotto.");
+      toast.success("Nuova versione generata.");
+      onChanged?.();
     } catch (e: any) {
       toast.error(e.message || "Generazione fallita");
     } finally {
@@ -544,8 +556,91 @@ function AssetCard({
     }
   };
 
+  const handleRename = async () => {
+    const newName = renameValue.trim();
+    if (!newName || newName === asset.asset_name) { setRenameOpen(false); return; }
+    setSavingName(true);
+    try {
+      const { error } = await (supabase.from("assets") as any)
+        .update({ asset_name: newName })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success("Nome aggiornato.");
+      setRenameOpen(false);
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore rinomina");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const toggleArchive = async () => {
+    try {
+      const newStatus = isArchived ? "not_started" : "archived";
+      const { error } = await (supabase.from("assets") as any)
+        .update({ production_status: newStatus })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success(isArchived ? "Asset ripristinato." : "Asset archiviato.");
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore");
+    }
+  };
+
+  const toggleSelectedForClient = async () => {
+    try {
+      const newStatus = isSelected ? "not_started" : "selected_for_client";
+      const { error } = await (supabase.from("assets") as any)
+        .update({ production_status: newStatus })
+        .eq("id", asset.id);
+      if (error) throw error;
+      toast.success(isSelected ? "Rimosso dalla selezione cliente." : "Selezionato per il cliente.");
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore");
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("assets").delete().eq("id", asset.id);
+      if (error) throw error;
+      toast.success("Asset eliminato.");
+      setDeleteOpen(false);
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "Errore eliminazione");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!hasContent) { toast.error("Nessun contenuto da scaricare."); return; }
+    downloadMarkdown(asset);
+    toast.success("Markdown scaricato.");
+  };
+
+  const handleCopy = async () => {
+    if (!hasContent) return;
+    try {
+      await navigator.clipboard.writeText(assetToMarkdown(asset));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Copia fallita");
+    }
+  };
+
   return (
-    <div className="rounded-lg border border-border bg-secondary/10 overflow-hidden">
+    <div className={`rounded-lg border overflow-hidden transition ${
+      isArchived ? "border-dashed border-border bg-muted/20 opacity-60" :
+      isSelected ? "border-primary/40 bg-primary/5" :
+      "border-border bg-secondary/10"
+    }`}>
       <div className="p-3 flex items-center gap-3">
         {/* Thumbnail */}
         {isImage && asset.file_url ? (
@@ -557,8 +652,10 @@ function AssetCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            {isSelected && <Star className="w-3.5 h-3.5 text-primary fill-primary shrink-0" />}
             <span className="text-sm font-medium text-foreground truncate">{asset.asset_name}</span>
             <Badge variant="outline" className="text-[10px] shrink-0">v{asset.version || 1}</Badge>
+            {isArchived && <Badge variant="outline" className="text-[10px] shrink-0">Archiviato</Badge>}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <Badge variant="outline" className={`text-[10px] ${statusBadgeClass}`}>
@@ -566,26 +663,16 @@ function AssetCard({
             </Badge>
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            Uploaded {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
+            Caricato {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="Rigenera con Forge"
-            onClick={regenerateWithForge}
-            disabled={regenerating}
-          >
-            {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-          </Button>
           {hasContent && (
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              title="View generated content"
+              title="Apri contenuto"
               onClick={() => setViewOpen(true)}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -593,18 +680,70 @@ function AssetCard({
           )}
           {asset.file_url && !hasContent && (
             <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open file">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Apri file">
                 <Eye className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
           {asset.content?.url && (
             <a href={asset.content.url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open URL">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Apri URL">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Rigenera"
+            onClick={regenerateWithForge}
+            disabled={regenerating}
+          >
+            {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Azioni">
+                <MoreVertical className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {hasContent && (
+                <>
+                  <DropdownMenuItem onClick={handleDownload}>
+                    <Download className="w-3.5 h-3.5 mr-2" /> Scarica .md
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleCopy}>
+                    {copied ? <Check className="w-3.5 h-3.5 mr-2" /> : <Copy className="w-3.5 h-3.5 mr-2" />}
+                    {copied ? "Copiato!" : "Copia testo"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onClick={() => { setRenameValue(asset.asset_name); setRenameOpen(true); }}>
+                <Pencil className="w-3.5 h-3.5 mr-2" /> Rinomina
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleSelectedForClient}>
+                <Star className={`w-3.5 h-3.5 mr-2 ${isSelected ? "fill-primary text-primary" : ""}`} />
+                {isSelected ? "Rimuovi selezione" : "Seleziona per cliente"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleArchive}>
+                {isArchived ? (
+                  <><ArchiveRestore className="w-3.5 h-3.5 mr-2" /> Ripristina</>
+                ) : (
+                  <><Archive className="w-3.5 h-3.5 mr-2" /> Archivia</>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setDeleteOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" /> Elimina
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -618,9 +757,66 @@ function AssetCard({
               <Badge variant="outline" className="text-[10px]">v{asset.version || 1}</Badge>
             </DialogTitle>
           </DialogHeader>
+          <div className="flex items-center gap-2 pb-3 border-b border-border">
+            <Button size="sm" variant="outline" onClick={handleDownload} disabled={!hasContent}>
+              <Download className="w-3.5 h-3.5 mr-1.5" /> Scarica .md
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleCopy} disabled={!hasContent}>
+              {copied ? <Check className="w-3.5 h-3.5 mr-1.5" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
+              {copied ? "Copiato" : "Copia testo"}
+            </Button>
+          </div>
           <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
         </DialogContent>
       </Dialog>
+
+      {/* Rename dialog */}
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rinomina asset</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Es: Email 1 — Welcome"
+              onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRenameOpen(false)}>Annulla</Button>
+              <Button onClick={handleRename} disabled={savingName || !renameValue.trim()}>
+                {savingName && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                Salva
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare questo asset?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{asset.asset_name}" verrà eliminato definitivamente. Questa azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Client feedback */}
       {asset.status === "change_requested" && asset.client_comment && (
