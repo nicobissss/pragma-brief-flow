@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
+import ProspectInternalNotes from "@/components/admin/ProspectInternalNotes";
 
 type Prospect = {
   id: string;
@@ -277,6 +278,12 @@ export default function AdminProspectDetail() {
             prospect={prospect}
             marketLabel={marketLabel}
             onUpdated={(p) => setProspect(p as Prospect)}
+          />
+
+          <ProspectInternalNotes
+            prospectId={prospect.id}
+            briefingAnswers={prospect.briefing_answers || {}}
+            onUpdated={(answers) => setProspect({ ...prospect, briefing_answers: answers })}
           />
         </TabsContent>
 
