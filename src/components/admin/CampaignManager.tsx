@@ -1876,7 +1876,7 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-foreground">Campaign Brief</p>
-                <Button size="sm" variant="outline" onClick={generateBrief} disabled={generating || !name.trim()}>
+                <Button size="sm" variant="outline" onClick={() => generateBrief()} disabled={generating || !name.trim()}>
                   {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
                   Generate with AI
                 </Button>
