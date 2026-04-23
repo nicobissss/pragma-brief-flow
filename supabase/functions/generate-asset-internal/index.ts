@@ -73,6 +73,18 @@ function buildContextBlock(ctx: any): string {
     if (camp.timeline) lines.push(`Timeline: ${camp.timeline}`);
   }
 
+  const mats: any[] = ctx.selected_materials || [];
+  if (mats.length) {
+    lines.push(`\n# MATERIALES DEL CLIENTE A USAR EN ESTA CAMPAÑA`);
+    mats.forEach((m: any, i: number) => {
+      const parts = [`${i + 1}. [${m.material_type}] ${m.material_label}`];
+      if (m.material_url) parts.push(`URL: ${m.material_url}`);
+      if (m.usage_hint) parts.push(`→ Uso: ${m.usage_hint}`);
+      lines.push(parts.join(" | "));
+    });
+    lines.push(`Referencia estos materiales explícitamente cuando sea relevante (ej: "usar foto X en el hero", "aplicar color primario en CTAs").`);
+  }
+
   return lines.join("\n");
 }
 
