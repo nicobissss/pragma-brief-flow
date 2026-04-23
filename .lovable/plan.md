@@ -1,79 +1,37 @@
 
 
-## Refactor Campañas: trasparenza AI, materiali cliente e fix UI generazione
+## Mostra preview visivo reale di LP ed Email (non solo testo)
 
-Quattro problemi da affrontare nella sezione **Campañas** del cliente.
+Oggi quando apri un asset (LP, email, social, blog) vedi solo il testo strutturato a sezioni (hero, banner, body…). Vuoi vedere il **rendering visivo** — la landing come apparirebbe nel browser, l'email come arriverebbe in inbox.
 
----
+Il componente `src/components/client/AssetPreview.tsx` esiste già e fa esattamente questo (iframe per LP con URL, mockup email con header/CTA, immagini zoomabili, embed PDF), ma **non è collegato alla vista admin** dove stai guardando ora. L'admin vede solo `CommentableSection` con paragrafi di testo.
 
-### 1. Brief campagna — perché l'AI ha proposto questo + chiedere modifiche
+### Cosa cambia
 
-Quando si genera con AI il Campaign Brief (Objective / Audience / Key message / Timeline), oggi arrivano i campi compilati ma senza spiegazione. Aggiungeremo:
+**1. Aggiungere toggle "Vista previa / Texto" nella vista asset admin**
+- In `src/pages/admin/AdminClientDetail.tsx` (o nel componente che renderizza l'asset espanso, da identificare in fase di implementazione cercando dove viene mostrato il contenuto dell'asset cliccato), aggiungere due tab in cima all'asset aperto:
+  - **Vista previa** (default) → renderizza `<AssetPreview />`
+  - **Texto / Secciones** → l'attuale vista a paragrafi commentabili
+- Stessa logica anche dove l'admin apre asset dalla campagna in `CampaignManager.tsx`.
 
-- **`reasoning`**: l'AI restituisce anche un breve "perché" per ogni campo, basato su offerta selezionata, kickoff, vertical, voce di marca.
-- Box espandibile **"¿Por qué estos sugerencias?"** sotto il brief che mostra il ragionamento.
-- Campo **"Pídele un cambio a la IA"**: textarea + bottone *Regenerar con feedback* che ri-invoca `generate-campaign-brief` passando `feedback` + il brief attuale, così l'AI riformula tenendo conto della richiesta (es: "más enfocado en pacientes recurrentes, no nuevos").
+**2. Migliorare `AssetPreview` per quando manca un'immagine reale**
 
-**Tecnico:** estendere la response di `supabase/functions/generate-campaign-brief/index.ts` con `reasoning: { objective, target_audience, key_message, timeline }`. Accettare in input opzionale `feedback` e `current_brief`.
+Ora `LandingPagePreview` mostra "No preview available" se non ci sono `url`, `fileUrl` o `html`. Per gli asset generati dall'AI di solito abbiamo solo JSON strutturato (hero, banner, body, cta…). Aggiungeremo un **renderer HTML automatico** che costruisce una landing visiva a partire dal JSON:
 
----
+- **Landing page**: hero con titolo grande + sottotitolo + CTA pill, banner colorati per le sezioni, blocchi testo formattati, footer. Stile Pragma (cream + soft blue).
+- **Email**: già c'è il mockup realistico con header colorato, subject, preview text, body, CTA — verificheremo che gestisca anche i campi che l'AI genera (es. `sections[]`, `header_image`, `signature`).
+- **Social post**: card stile Instagram/Facebook con avatar finto del brand, immagine quadrata, caption, hashtag.
+- **Blog**: layout articolo con hero image, titolo, meta (data/autore), body formattato in prose.
 
-### 2. Chiarire "Prompts AI" e collegarlo al Brief
-
-Confusione attuale: l'utente non capisce a cosa servano i Prompts e se il Brief li influenza.
-
-- Header esplicativo nella sub-tab **Prompts AI**: *"Estos prompts son las instrucciones que la IA usa para generar los assets de esta campaña. Se construyen automáticamente a partir del Brief de arriba + el kickoff + la oferta seleccionada. Edítalos solo si quieres afinar manualmente."*
-- Indicatore visivo nella card "Prerequisitos": il check **"Brief campagna compilato"** diventa link che riporta alla tab Contexto.
-- Bottone **"Regenerar prompts desde el brief"** evidenziato quando il Brief è stato modificato dopo l'ultima generazione (timestamp confronto).
-- Rinominare bottone finale "Generar Prompts" → **"Preparar prompts para generación de assets"** per chiarire lo scopo.
-
----
-
-### 3. Nuova sezione "Materiales del cliente" dentro la campagna
-
-Oggi i materiali caricati dal cliente (foto, loghi, testi via `kickoff_briefs.client_materials` + `client_asset_requests`) non sono visibili dentro la campagna.
-
-Aggiungere **quarta sub-tab "Materiales"** dentro ogni campagna espansa, con:
-
-- Galleria dei materiali caricati (foto, loghi, doc, link al sito).
-- Per ogni materiale: checkbox **"Usar en esta campaña"** (salvato in nuova tabella `campaign_materials` → `campaign_id`, `material_ref`, `material_type`, `selected`, `usage_hint`).
-- Campo libero per dire all'AI dove/come usarlo (es: "questa foto va nell'hero della landing").
-- Bottone **"Selección automática IA"**: chiama nuova edge function `select-campaign-materials` che, dato il brief + i materiali disponibili, suggerisce quali usare e dove.
-- I materiali selezionati passano automaticamente a `generate-asset-internal` come parte del context (campo `selected_materials` nel prompt).
-
-**Tecnico:**
-- Migrazione: `create table campaign_materials`.
-- Estendere `loadContext` in `generate-asset-internal/index.ts` per leggere `campaign_materials` e iniettarli nel `contextBlock`.
-- Nuova edge function `select-campaign-materials`.
-
----
-
-### 4. Fix UX generazione asset (e rimozione branding "Forge")
-
-Diagnosi: la generazione **funziona** (16 asset creati negli ultimi 5 min in DB per la campagna corrente), ma:
-- La lista asset nella tab non si aggiorna senza ricarica manuale.
-- Il bottone dice "Genera asset con Forge" ma ora è AI interna (Lovable AI Gateway).
-
-Cambi:
-- Rinominare bottone → **"Generar assets con IA"** (icona `Wand2`).
-- Rimuovere ogni riferimento a "Forge" dalla UI (`CampaignManager.tsx`, toast messages, AssetsTab).
-- Dopo `generate-asset-internal` con successo: forzare reload assets con feedback chiaro (`Generados X assets — recargando...`) e auto-espandere la tab Assets.
-- Toast con conteggio reale: *"4 assets generados en esta campaña. Revísalos abajo."*
-- Aggiungere **realtime subscription** sulla tabella `assets` filtrata per `campaign_id`, così quando l'edge function inserisce, la lista si aggiorna live senza refresh.
-- Spinner inline sulla card della campagna mentre genera + skeleton card per ogni asset_type in arrivo.
-
----
+**3. Mockup device frame opzionale**
+Wrap della preview in un frame "browser" (per LP) o "telefono" (per social/email mobile) per dare immediatamente il senso di "ecco come si vede davvero". Toggle desktop/mobile sopra la preview LP.
 
 ### File toccati
 
-**Frontend:**
-- `src/components/admin/CampaignManager.tsx` — sub-tab Materiales, realtime, rename Forge, reasoning UI brief.
-- `src/components/admin/tabs/PromptsTab.tsx` — header esplicativo, link al brief, rename bottone.
-- `src/components/admin/tabs/AssetsTab.tsx` — rimuovere stringhe "Forge".
+**Frontend solo (nessuna migrazione, nessuna edge function):**
+- `src/components/client/AssetPreview.tsx` — estendere `LandingPagePreview` con renderer HTML da JSON strutturato; aggiungere device frame wrapper; migliorare `EmailFlowPreview` per gestire `sections[]`; arricchire `SocialPostPreview` e `BlogPreview`.
+- `src/pages/admin/AdminClientDetail.tsx` (o componente asset detail che individueremo) — aggiungere tab `Vista previa | Texto` sopra il contenuto dell'asset.
+- `src/components/admin/CampaignManager.tsx` — stesso toggle quando si espande un asset dalla campagna.
 
-**Backend:**
-- `supabase/functions/generate-campaign-brief/index.ts` — output `reasoning`, input `feedback`/`current_brief`.
-- `supabase/functions/generate-asset-internal/index.ts` — leggere `campaign_materials`.
-- Nuova edge function: `supabase/functions/select-campaign-materials/index.ts`.
-- Migrazione: `campaign_materials` (campaign_id, material_ref, type, usage_hint, selected, created_at) con RLS admin-only + select per client owner.
+Nessun cambio di dato: usiamo il `content` JSON che l'AI già produce.
 
