@@ -1,0 +1,2 @@
+ALTER TABLE public.client_offerings DROP CONSTRAINT valid_status;
+ALTER TABLE public.client_offerings ADD CONSTRAINT valid_status CHECK (status = ANY (ARRAY['selected_internal'::text, 'proposed'::text, 'accepted'::text, 'active'::text, 'on_hold'::text, 'completed'::text, 'cancelled'::text]));
