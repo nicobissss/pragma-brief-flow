@@ -20,10 +20,17 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error("claude-proxy error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
+    const status = e?.status === 402 || e?.status === 429 ? e.status : 500;
+    const message =
+      e?.status === 402
+        ? "Sin créditos de IA. Recarga en Settings → Workspace → Usage."
+        : e?.status === 429
+        ? "Demasiadas solicitudes a la IA. Espera unos segundos e inténtalo de nuevo."
+        : e?.message || "Error desconocido";
+    return new Response(JSON.stringify({ error: message, code: e?.status }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
