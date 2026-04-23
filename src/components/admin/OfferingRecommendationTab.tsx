@@ -667,9 +667,9 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1">
-            <p className="text-sm font-medium text-foreground">Cambio de oferta</p>
+            <p className="text-sm font-medium text-foreground">Cambiar oferta seleccionada</p>
             <p className="text-xs text-muted-foreground">
-              Si propones una nueva oferta, la anterior quedará en historial. Los tasks ya creados se mantendrán.
+              Si seleccionas otra oferta, la actual quedará archivada en el historial. Los tasks ya creados se mantendrán intactos.
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setChanging(false)}>
