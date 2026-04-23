@@ -667,9 +667,9 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1">
-            <p className="text-sm font-medium text-foreground">Cambio de oferta</p>
+            <p className="text-sm font-medium text-foreground">Cambiar oferta seleccionada</p>
             <p className="text-xs text-muted-foreground">
-              Si propones una nueva oferta, la anterior quedará en historial. Los tasks ya creados se mantendrán.
+              Si seleccionas otra oferta, la actual quedará archivada en el historial. Los tasks ya creados se mantendrán intactos.
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => setChanging(false)}>
@@ -951,11 +951,11 @@ function RecommendationCard({
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-1">
           <div className="flex items-center gap-2 text-sm font-medium text-amber-700">
             <AlertTriangle className="w-4 h-4" />
-            Plataformas faltantes
+            Plataformas necesarias que el cliente aún no tiene
           </div>
           {rec.missingPlatforms.map((p, i) => (
             <p key={i} className="text-xs text-foreground pl-6">
-              Falta categoría <strong>{p}</strong> → sugerir plan inicial gratuito o setup asistido
+              Falta una herramienta de <strong>{p}</strong> → habrá que sugerir un plan inicial gratuito o un setup asistido durante el onboarding.
             </p>
           ))}
         </div>
@@ -964,7 +964,7 @@ function RecommendationCard({
       <div className="flex gap-2 pt-2 border-t border-border">
         <Button onClick={onPropose} disabled={proposing} className="flex-1">
           {proposing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-1" />}
-          Proponer al cliente
+          Seleccionar oferta
         </Button>
       </div>
     </div>
