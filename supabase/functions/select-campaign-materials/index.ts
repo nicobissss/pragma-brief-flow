@@ -31,6 +31,18 @@ function flattenMaterials(cm: any): Array<{ ref: string; type: string; label: st
   (cm.social_posts || []).forEach((s: any, i: number) => {
     out.push({ ref: `social_${i}`, type: "social_post", label: s.caption?.slice(0, 80) || `Post social ${i + 1}`, url: s.url });
   });
+  // Files uploaded by the client in /client/collect, synced via sync-client-uploads-to-materials.
+  // Only include items the admin marked as use_for_ai !== false.
+  (cm.client_uploads || []).forEach((u: any, i: number) => {
+    if (u && u.use_for_ai !== false) {
+      out.push({
+        ref: `client_upload_${i}`,
+        type: u.type_hint === "Text" ? "text" : "client_upload",
+        label: u.label || `Archivo cliente ${i + 1}`,
+        url: u.url || undefined,
+      });
+    }
+  });
 
   return out;
 }

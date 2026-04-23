@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Upload, X, Loader2, CheckCircle2, Palette, Camera,
-  Globe, FileText, Mail, Share2, Search,
+  Globe, FileText, Mail, Share2, Search, Inbox,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const BRAND_TAGS = [
   "Professional", "Warm", "Bold", "Minimalist", "Scientific",
@@ -23,6 +24,16 @@ type MaterialFile = {
   file: File;
   preview?: string;
   description: string;
+};
+
+export type ClientUploadItem = {
+  url?: string;
+  label: string;
+  type_hint?: string;
+  text_response?: string;
+  source: "client_upload" | "admin";
+  use_for_ai?: boolean;
+  synced_at?: string;
 };
 
 export type ClientMaterialsData = {
@@ -38,6 +49,8 @@ export type ClientMaterialsData = {
   email_files?: { url: string; name: string }[];
   email_text?: string;
   social_posts?: { url: string; caption: string }[];
+  /** Files synced from /client/collect (read-only here, but admin can toggle use_for_ai) */
+  client_uploads?: ClientUploadItem[];
 };
 
 interface Props {
@@ -426,7 +439,56 @@ export default function ClientMaterials({ clientId, kickoffId, materials, onMate
                   {sf.preview && <img src={sf.preview} alt="" className="w-10 h-10 object-cover rounded" />}
                   <Input placeholder="Caption for this post" value={sf.description} onChange={(e) => setSocialFiles((prev) => { const n = [...prev]; n[i] = { ...n[i], description: e.target.value }; return n; })} className="flex-1 h-8 text-sm" />
                   <Button variant="ghost" size="icon" onClick={() => setSocialFiles((p) => p.filter((_, j) => j !== i))}><X className="w-4 h-4" /></Button>
+
+
+        {/* 7. Files uploaded by the client (synced from /client/collect) */}
+        {(materials.client_uploads?.length ?? 0) > 0 && (
+          <div className="border border-border rounded-lg p-4 bg-secondary/20">
+            <SectionHeader
+              icon={<Inbox className="w-4 h-4 text-muted-foreground" />}
+              title={`Archivos enviados por el cliente (${materials.client_uploads!.length})`}
+              provided
+            />
+            <p className="text-xs text-muted-foreground mb-3">
+              📤 Sincronizados desde el portal del cliente. Marca cuáles debe usar la IA al generar contenido.
+            </p>
+            <div className="space-y-2">
+              {materials.client_uploads!.map((u, i) => (
+                <div key={i} className="flex items-start gap-3 p-2 bg-card rounded border border-border">
+                  <Checkbox
+                    id={`upload-ai-${i}`}
+                    checked={u.use_for_ai !== false}
+                    onCheckedChange={(checked) => {
+                      const next = [...(materials.client_uploads || [])];
+                      next[i] = { ...next[i], use_for_ai: !!checked };
+                      update({ client_uploads: next });
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-foreground truncate">{u.label}</span>
+                      <Badge variant="outline" className="text-[10px]">📤 cliente</Badge>
+                      {u.type_hint && <Badge variant="secondary" className="text-[10px]">{u.type_hint}</Badge>}
+                    </div>
+                    {u.url && (
+                      <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">
+                        Ver archivo
+                      </a>
+                    )}
+                    {u.text_response && (
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap line-clamp-3">{u.text_response}</p>
+                    )}
+                    <label htmlFor={`upload-ai-${i}`} className="text-[11px] text-muted-foreground cursor-pointer block mt-1">
+                      Usar para IA
+                    </label>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
               ))}
               <Button size="sm" onClick={uploadAllSocial} disabled={uploadingSocial}>
                 {uploadingSocial && <Loader2 className="w-4 h-4 animate-spin mr-1" />} Upload {socialFiles.length} post(s)

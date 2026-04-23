@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, formatDistanceToNow, isToday, isBefore, startOfDay, differenceInDays, startOfWeek } from "date-fns";
 import {
   Users, Building2, FileWarning, CalendarClock, Eye,
-  FileText, Phone, UserCheck, UserX, Archive, MessageSquare, CheckCircle2, Clock, AlertTriangle
+  FileText, Phone, UserCheck, UserX, Archive, MessageSquare, CheckCircle2, Clock, AlertTriangle, ArrowRight,
 } from "lucide-react";
+import { deriveNextAction } from "@/hooks/useNextAction";
 
 type KPIData = {
   totalProspects: number;
@@ -24,25 +23,17 @@ type KPIData = {
   agingProposals: number;
 };
 
-type ProspectCard = {
+type ClientWithContext = {
   id: string;
   name: string;
   company_name: string;
   vertical: string;
   created_at: string;
-  call_status: string;
-  call_date: string | null;
-  status: string;
-};
-
-type ClientRow = {
-  id: string;
-  name: string;
-  company_name: string;
-  vertical: string;
-  pipeline_status: string | null;
-  created_at: string;
-  assets: { id: string; asset_type: string; status: string; created_at: string; asset_title: string | null; asset_name: string; client_id: string }[];
+  kickoff_done: boolean;
+  has_kickoff_transcript: boolean;
+  offering: { status: string | null; proposed_at: string | null } | null;
+  open_task_count: number;
+  next_task_title: string | null;
 };
 
 type FollowUp = {
@@ -63,32 +54,6 @@ type ActivityItem = {
   created_at: string;
 };
 
-const PIPELINE_STATUSES = ["new", "proposal_ready", "call_scheduled", "accepted", "rejected"] as const;
-const PIPELINE_LABELS: Record<string, string> = {
-  new: "New",
-  proposal_ready: "Proposal Ready",
-  call_scheduled: "Call Scheduled",
-  accepted: "Accepted",
-  rejected: "Rejected",
-};
-
-// NOTE: pipeline_status valori in DB sono in spagnolo (sincronizzati dai trigger sync_pipeline_*)
-const CLIENT_PIPELINE = ["kickoff", "materiales", "producción", "revisión", "completado"] as const;
-const CLIENT_PIPELINE_LABELS: Record<string, string> = {
-  kickoff: "Kickoff",
-  materiales: "Materiales",
-  "producción": "Producción",
-  "revisión": "Revisión",
-  completado: "Completado",
-};
-// Migration helpers per stati legacy in inglese
-const PIPELINE_LEGACY_MAP: Record<string, string> = {
-  materials: "materiales",
-  production: "producción",
-  review: "revisión",
-  completed: "completado",
-};
-
 const VERTICAL_COLORS: Record<string, string> = {
   "Salud & Estética": "bg-[hsl(216,72%,22%)]",
   "E-Learning": "bg-[hsl(153,54%,16%)]",
@@ -100,14 +65,6 @@ const CALL_ICONS: Record<string, string> = {
   done_positive: "✅",
   done_negative: "❌",
   no_show: "👻",
-};
-
-const ASSET_TYPES = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
-const ASSET_LABELS: Record<string, string> = {
-  landing_page: "LP",
-  email_flow: "Email",
-  social_post: "Social",
-  blog_article: "Blog",
 };
 
 function getActivityIcon(action: string) {
@@ -122,30 +79,34 @@ function getActivityIcon(action: string) {
   return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
-type TodayAction = { text: string; link: string; type: "urgent" | "normal" };
+const VARIANT_STYLES: Record<string, string> = {
+  warning: "border-l-amber-500",
+  primary: "border-l-primary",
+  success: "border-l-[hsl(142,71%,35%)]",
+};
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [kpis, setKpis] = useState<KPIData>({ totalProspects: 0, newThisWeek: 0, activeClients: 0, verticalsCount: 0, pendingAssets: 0, waitingClientApproval: 0, followUpsDue: 0, overdueCount: 0, openProposals: 0, agingProposals: 0 });
-  const [prospects, setProspects] = useState<ProspectCard[]>([]);
-  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [clients, setClients] = useState<ClientWithContext[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [todayActions, setTodayActions] = useState<TodayAction[]>([]);
 
   useEffect(() => {
     const fetchAll = async () => {
       const today = format(new Date(), "yyyy-MM-dd");
       const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd'T'HH:mm:ss");
 
-      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes, offeringsRes] = await Promise.all([
-        supabase.from("prospects").select("id, name, company_name, vertical, created_at, call_status, call_date, status, follow_up_date"),
-        supabase.from("clients").select("id, name, company_name, vertical, pipeline_status, created_at, status").eq("status", "active"),
-        supabase.from("assets").select("id, client_id, asset_type, asset_name, asset_title, status, created_at"),
+      const [prospectsRes, clientsRes, assetsRes, followUpsRes, activityRes, offeringsRes, kickoffsRes, tasksRes] = await Promise.all([
+        supabase.from("prospects").select("id, created_at"),
+        supabase.from("clients").select("id, name, company_name, vertical, created_at, status").eq("status", "active"),
+        supabase.from("assets").select("id, status"),
         supabase.from("prospects").select("id, name, company_name, vertical, follow_up_date, call_status").not("follow_up_date", "is", null).lte("follow_up_date", today).order("follow_up_date", { ascending: true }),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
-        supabase.from("client_offerings").select("id, status, proposed_at").eq("status", "proposed"),
+        supabase.from("client_offerings").select("id, client_id, status, proposed_at"),
+        supabase.from("kickoff_briefs").select("client_id, transcript_text, pragma_approved"),
+        supabase.from("action_plan_tasks").select("id, client_offering_id, title, status, order_index"),
       ]);
 
       const allProspects = (prospectsRes.data || []) as any[];
@@ -153,50 +114,38 @@ export default function AdminDashboard() {
       const allAssets = (assetsRes.data || []) as any[];
       const allFollowUps = (followUpsRes.data || []) as FollowUp[];
       const allActivity = (activityRes.data || []) as ActivityItem[];
-      const openOfferings = (offeringsRes.data || []) as any[];
+      const allOfferings = (offeringsRes.data || []) as any[];
+      const allKickoffs = (kickoffsRes.data || []) as any[];
+      const allTasks = (tasksRes.data || []) as any[];
 
       const newThisWeek = allProspects.filter(p => p.created_at >= weekStart).length;
       const verticals = new Set(allClients.map((c: any) => c.vertical));
       const pendingAssets = allAssets.filter((a: any) => a.status === "pending_review" || a.status === "change_requested").length;
       const waitingClient = allAssets.filter((a: any) => a.status === "pending_review").length;
       const overdueCount = allFollowUps.filter(f => isBefore(new Date(f.follow_up_date), startOfDay(new Date())) && !isToday(new Date(f.follow_up_date))).length;
+      const openOfferings = allOfferings.filter(o => o.status === "proposed");
       const agingProposals = openOfferings.filter(o => o.proposed_at && differenceInDays(new Date(), new Date(o.proposed_at)) > 5).length;
 
-      // Normalize legacy EN pipeline statuses → ES
-      const clientRows: ClientRow[] = allClients.map((c: any) => ({
-        ...c,
-        pipeline_status: PIPELINE_LEGACY_MAP[c.pipeline_status || ""] || c.pipeline_status,
-        assets: allAssets.filter((a: any) => a.client_id === c.id),
-      }));
-
-      // Build today actions (UX-01)
-      const actions: TodayAction[] = [];
-      const newProspects = allProspects.filter(p => p.status === "new");
-      if (newProspects.length > 0) {
-        actions.push({
-          text: `${newProspects.length} prospect${newProspects.length > 1 ? "s" : ""} sin revisar`,
-          link: "/admin/prospects", type: "urgent"
-        });
-      }
-      if (agingProposals > 0) {
-        actions.push({
-          text: `${agingProposals} propuesta${agingProposals > 1 ? "s" : ""} sin respuesta hace +5 días`,
-          link: "/admin/clients", type: "urgent"
-        });
-      }
-      const todayCalls = allProspects.filter(p => p.call_date && isToday(new Date(p.call_date)));
-      todayCalls.forEach(p => {
-        actions.push({
-          text: `Call con ${p.name} a las ${format(new Date(p.call_date), "HH:mm")}`,
-          link: `/admin/prospect/${p.id}`, type: "normal"
-        });
-      });
-      const pendingFeedback = allAssets.filter(a => a.status === "change_requested");
-      pendingFeedback.forEach(a => {
-        actions.push({
-          text: `Feedback pendiente: ${a.asset_title || a.asset_name}`,
-          link: `/admin/client/${a.client_id}`, type: "urgent"
-        });
+      // Build per-client context for next-action derivation
+      const enriched: ClientWithContext[] = allClients.map((c: any) => {
+        const k = allKickoffs.find(k => k.client_id === c.id);
+        const offerings = allOfferings.filter(o => o.client_id === c.id);
+        const offering = offerings[0] || null;
+        const offeringId = offering?.id;
+        const tasks = offeringId ? allTasks.filter(t => t.client_offering_id === offeringId && t.status !== "done") : [];
+        tasks.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+        return {
+          id: c.id,
+          name: c.name,
+          company_name: c.company_name,
+          vertical: c.vertical,
+          created_at: c.created_at,
+          kickoff_done: !!k?.pragma_approved,
+          has_kickoff_transcript: !!k?.transcript_text,
+          offering: offering ? { status: offering.status, proposed_at: offering.proposed_at } : null,
+          open_task_count: tasks.length,
+          next_task_title: tasks[0]?.title || null,
+        };
       });
 
       setKpis({
@@ -211,11 +160,9 @@ export default function AdminDashboard() {
         openProposals: openOfferings.length,
         agingProposals,
       });
-      setProspects(allProspects);
-      setClients(clientRows);
+      setClients(enriched);
       setFollowUps(allFollowUps);
       setActivity(allActivity);
-      setTodayActions(actions);
       setLoading(false);
     };
     fetchAll();
@@ -231,53 +178,35 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const pipelineGroups = PIPELINE_STATUSES.reduce((acc, status) => {
-    acc[status] = prospects.filter(p => p.status === status);
-    return acc;
-  }, {} as Record<string, ProspectCard[]>);
-
-  const clientPipelineGroups = CLIENT_PIPELINE.reduce((acc, status) => {
-    acc[status] = clients.filter(c => (c.pipeline_status || "kickoff") === status);
-    return acc;
-  }, {} as Record<string, ClientRow[]>);
-
   const isOverdue = (dateStr: string) => isBefore(new Date(dateStr), startOfDay(new Date())) && !isToday(new Date(dateStr));
+
+  // Derive next-action for each client and order by urgency
+  const clientsWithActions = clients.map(c => {
+    const action = deriveNextAction({
+      audience: "admin",
+      briefDone: c.kickoff_done,
+      offering: c.offering,
+      openTaskCount: c.open_task_count,
+      nextTaskTitle: c.next_task_title,
+      hasKickoffTranscript: c.has_kickoff_transcript,
+    });
+    return { client: c, action };
+  });
+
+  // Sort: warning first (with highest aging), then primary, then success
+  const variantWeight: Record<string, number> = { warning: 0, primary: 1, success: 2 };
+  clientsWithActions.sort((a, b) => {
+    const w = variantWeight[a.action.variant] - variantWeight[b.action.variant];
+    if (w !== 0) return w;
+    const ag = (b.action.proposalAgingDays || 0) - (a.action.proposalAgingDays || 0);
+    if (ag !== 0) return ag;
+    return a.client.name.localeCompare(b.client.name);
+  });
 
   return (
     <div className="p-6 lg:p-8">
       <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
       <p className="text-muted-foreground text-sm mb-6">PRAGMA operations overview</p>
-
-      {/* UX-01: Today's Work */}
-      <div className="bg-card rounded-lg border border-border p-4 mb-6 shadow-sm">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Lo que toca hoy</h3>
-        {todayActions.length === 0 ? (
-          <div className="flex items-center gap-2 text-sm text-[hsl(142,71%,35%)]">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="font-medium">✅ Todo al día</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {todayActions.map((action, i) => (
-              <div
-                key={i}
-                onClick={() => navigate(action.link)}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-secondary/50 border-l-4 ${
-                  action.type === "urgent" ? "border-l-destructive" : "border-l-primary"
-                }`}
-              >
-                {action.type === "urgent" ? (
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                )}
-                <span className="text-sm text-foreground">{action.text}</span>
-                <span className="ml-auto text-xs text-muted-foreground">→</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main content (70%) */}
@@ -327,137 +256,50 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Prospect Pipeline */}
+          {/* Active Clients — Next Actions */}
           <div>
-            <h2 className="text-lg font-bold text-foreground mb-4">Prospect Pipeline</h2>
-            <div className="grid grid-cols-5 gap-3">
-              {PIPELINE_STATUSES.map(status => (
-                <div key={status} className="flex flex-col">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{PIPELINE_LABELS[status]}</span>
-                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{pipelineGroups[status].length}</Badge>
-                  </div>
-                  <ScrollArea className="max-h-[400px] pr-1">
-                    <div className="space-y-2">
-                      {pipelineGroups[status].length === 0 ? (
-                        <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">Empty</div>
-                      ) : (
-                        pipelineGroups[status].map(p => (
-                          <div key={p.id} onClick={() => navigate(`/admin/prospect/${p.id}`)} className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow">
-                            <p className="text-sm font-semibold text-foreground leading-tight">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{p.company_name}</p>
-                            <div className="flex items-center gap-1.5 mt-2">
-                              <Badge className={`${VERTICAL_COLORS[p.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px] px-1.5 py-0`}>{p.vertical}</Badge>
-                              {p.call_status !== "not_scheduled" && <span className="text-xs">{CALL_ICONS[p.call_status]}</span>}
-                            </div>
-                            <p className="text-[10px] text-muted-foreground mt-1.5">{formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}</p>
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="text-lg font-bold text-foreground">Active Clients — Next Actions</h2>
+              <button onClick={() => navigate("/admin/clients")} className="text-xs text-muted-foreground hover:text-foreground">Ver todos →</button>
+            </div>
+            {clientsWithActions.length === 0 ? (
+              <div className="bg-card border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
+                No hay clientes activos todavía.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {clientsWithActions.map(({ client, action }) => {
+                  const tabHash = action.ctaTab ? `?tab=${action.ctaTab}` : "";
+                  return (
+                    <div
+                      key={client.id}
+                      onClick={() => navigate(`/admin/client/${client.id}${tabHash}`)}
+                      className={`bg-card border border-border border-l-4 ${VARIANT_STYLES[action.variant] || "border-l-primary"} rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="font-semibold text-foreground text-sm">{client.name}</span>
+                            <span className="text-xs text-muted-foreground">· {client.company_name}</span>
+                            <Badge className={`${VERTICAL_COLORS[client.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px]`}>{client.vertical}</Badge>
+                            {action.proposalAgingDays && action.proposalAgingDays > 5 && (
+                              <Badge variant="destructive" className="text-[10px] h-4 px-1.5">{action.proposalAgingDays}d sin respuesta</Badge>
+                            )}
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* UX-02: Client Pipeline Kanban */}
-          {clients.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-4">Client Pipeline</h2>
-              <div className="grid grid-cols-5 gap-3">
-                {CLIENT_PIPELINE.map(status => (
-                  <div key={status} className="flex flex-col">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{CLIENT_PIPELINE_LABELS[status]}</span>
-                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{clientPipelineGroups[status].length}</Badge>
-                    </div>
-                    <ScrollArea className="max-h-[400px] pr-1">
-                      <div className="space-y-2">
-                        {clientPipelineGroups[status].length === 0 ? (
-                          <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">—</div>
-                        ) : (
-                          clientPipelineGroups[status].map(c => {
-                            const pendingCount = c.assets.filter(a => a.status === "pending_review" || a.status === "change_requested").length;
-                            return (
-                              <div key={c.id} onClick={() => navigate(`/admin/client/${c.id}`)} className="bg-card rounded-lg border border-border p-3 cursor-pointer hover:shadow-md transition-shadow">
-                                <p className="text-sm font-semibold text-foreground leading-tight">{c.name}</p>
-                                <p className="text-xs text-muted-foreground">{c.company_name}</p>
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  <Badge className={`${VERTICAL_COLORS[c.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px] px-1.5 py-0`}>{c.vertical}</Badge>
-                                  {pendingCount > 0 && (
-                                    <Badge variant="destructive" className="text-[10px] h-4 px-1.5">{pendingCount} pending</Badge>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-muted-foreground mt-1.5">Since {format(new Date(c.created_at), "dd MMM")}</p>
-                              </div>
-                            );
-                          })
-                        )}
+                          <p className="text-sm font-medium text-foreground">{action.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{action.description}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-primary shrink-0">
+                          <span className="hidden sm:inline">{action.ctaLabel}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </div>
                       </div>
-                    </ScrollArea>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )}
-
-          {/* Active Clients Table */}
-          {clients.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-4">Active Clients</h2>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Vertical</TableHead>
-                      <TableHead>Since</TableHead>
-                      <TableHead>Assets Status</TableHead>
-                      <TableHead>Last Activity</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clients.map(c => {
-                      const lastAssetDate = c.assets.length > 0
-                        ? c.assets.reduce((latest, a) => a.created_at > latest ? a.created_at : latest, c.assets[0].created_at)
-                        : null;
-                      return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => navigate(`/admin/client/${c.id}`)}>
-                          <TableCell>
-                            <p className="font-medium text-foreground">{c.name}</p>
-                            <p className="text-xs text-muted-foreground">{c.company_name}</p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${VERTICAL_COLORS[c.vertical] || "bg-muted"} text-primary-foreground border-0 text-[10px]`}>{c.vertical}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{format(new Date(c.created_at), "dd MMM yyyy")}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-1.5">
-                              {ASSET_TYPES.map(type => {
-                                const asset = c.assets.find(a => a.asset_type === type);
-                                const icon = asset
-                                  ? asset.status === "approved" ? "✅" : asset.status === "change_requested" ? "💬" : "⏳"
-                                  : null;
-                                return (
-                                  <span key={type} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${asset ? "bg-secondary" : "bg-muted/50 text-muted-foreground"}`}>
-                                    {ASSET_LABELS[type]} {icon || "—"}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {lastAssetDate ? formatDistanceToNow(new Date(lastAssetDate), { addSuffix: true }) : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Activity Feed (right sidebar) */}
@@ -478,6 +320,8 @@ export default function AdminDashboard() {
                         supabase.from("assets").select("client_id").eq("id", item.entity_id).single().then(({ data }) => {
                           if (data?.client_id) navigate(`/admin/client/${data.client_id}?tab=assets`);
                         });
+                      } else if (item.entity_type === "client") {
+                        navigate(`/admin/client/${item.entity_id}`);
                       }
                     }}
                   >

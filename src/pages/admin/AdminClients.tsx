@@ -43,6 +43,8 @@ export default function AdminClients() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
+  const [showArchived, setShowArchived] = useState(false);
+
   useEffect(() => {
     const fetch = async () => {
       const [clientsRes, assetsRes] = await Promise.all([
@@ -56,10 +58,12 @@ export default function AdminClients() {
     fetch();
   }, []);
 
-  const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.company_name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = clients
+    .filter(c => showArchived ? c.status === "archived" : c.status !== "archived")
+    .filter(c =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.company_name.toLowerCase().includes(search.toLowerCase())
+    );
 
   if (loading) return (
     <div className="p-8 max-w-5xl space-y-4">
@@ -72,13 +76,20 @@ export default function AdminClients() {
     <div className="p-8 max-w-5xl">
       <h1 className="text-2xl font-bold text-foreground mb-6">Clients</h1>
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <Input
           placeholder="Search by name or company..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
+        <Button
+          variant={showArchived ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowArchived(!showArchived)}
+        >
+          {showArchived ? "Ver activos" : "Ver archivados"}
+        </Button>
         {search && (
           <Button variant="ghost" size="sm" onClick={() => setSearch("")}>Limpiar filtros</Button>
         )}
