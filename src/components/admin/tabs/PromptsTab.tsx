@@ -144,8 +144,8 @@ export default function PromptsTab({
                   <Button onClick={onGeneratePrompts} disabled={generating}
                     className={!generating ? "bg-[hsl(142,71%,35%)] hover:bg-[hsl(142,71%,30%)] text-white" : ""}>
                     {generating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Generando con AI...</>
-                      : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar Prompts</>
-                      : <><Sparkles className="w-4 h-4 mr-2" />Generar Prompts</>}
+                      : generatedPrompts ? <><RefreshCw className="w-4 h-4 mr-2" />Regenerar prompts desde el brief</>
+                      : <><Sparkles className="w-4 h-4 mr-2" />Preparar prompts para generación de assets</>}
                   </Button>
                 </span>
               </TooltipTrigger>
