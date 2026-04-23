@@ -54,6 +54,7 @@ type AssetRow = {
   correction_prompt: string | null;
   created_at: string;
   campaign_id: string | null;
+  production_status?: string | null;
 };
 
 interface CampaignManagerProps {
