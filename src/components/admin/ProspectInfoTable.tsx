@@ -15,32 +15,19 @@ type Field = {
 };
 
 const FIELDS: Field[] = [
+  // Datos básicos del prospect (lo que nos da el cliente al inscribirse)
   { key: "name", label: "Nombre completo", source: "prospect" },
   { key: "company_name", label: "Empresa", source: "prospect" },
   { key: "email", label: "Email", source: "prospect" },
   { key: "phone", label: "Teléfono", source: "prospect" },
   { key: "vertical", label: "Vertical", source: "prospect" },
-  { key: "sub_niche", label: "Sub-nicho", source: "prospect" },
-  { key: "years_in_operation", label: "Años de operación", source: "answers" },
-  { key: "monthly_new_clients", label: "Clientes nuevos/mes", source: "answers" },
+  { key: "sub_niche", label: "Especialización", source: "prospect" },
+  // Pre-cualificación (briefing inicial)
   {
     key: "average_ticket", label: "Ticket medio", source: "answers",
     format: (v, all) => v ? `${v} ${all.ticket_currency || "EUR"}` : "",
   },
-  { key: "main_goal", label: "Objetivo principal", source: "answers", type: "textarea" },
-  { key: "biggest_challenge", label: "Mayor desafío", source: "answers", type: "textarea" },
-  { key: "differentiator", label: "Diferenciador", source: "answers", type: "textarea" },
-  { key: "client_sources", label: "Fuentes de clientes", source: "answers" },
-  { key: "runs_paid_ads", label: "Hace anuncios pagos", source: "answers" },
-  { key: "ad_platforms", label: "Plataformas de ads", source: "answers" },
-  { key: "monthly_budget", label: "Presupuesto mensual", source: "answers" },
-  { key: "has_email_list", label: "Tiene lista de email", source: "answers" },
-  { key: "email_list_size", label: "Tamaño de la lista", source: "answers" },
-  { key: "has_website", label: "Tiene web", source: "answers" },
-  { key: "website_url", label: "URL del sitio", source: "answers" },
-  { key: "uses_crm", label: "Usa CRM", source: "answers" },
-  { key: "crm_name", label: "Sistema CRM", source: "answers" },
-  { key: "additional_info", label: "Información adicional", source: "answers", type: "textarea" },
+  { key: "description", label: "Descripción del negocio", source: "answers", type: "textarea" },
 ];
 
 function formatValue(v: any) {
