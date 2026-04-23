@@ -2,21 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Save, Send, ExternalLink } from "lucide-react";
-
-type EmailTemplate = {
-  id: string;
-  type: string;
-  subject: string;
-  body_html: string;
-  is_active: boolean;
-  variables: any;
-  updated_at: string;
-};
+import { Loader2, Save, Send } from "lucide-react";
 
 type WebhookLogEntry = {
   id: string;
@@ -41,9 +29,6 @@ export function IntegrationsTab() {
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
 
-  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [savingTemplate, setSavingTemplate] = useState<string | null>(null);
-
   const [webhookLogs, setWebhookLogs] = useState<WebhookLogEntry[]>([]);
   const [slottyRequests, setSlottyRequests] = useState<SlottyRequest[]>([]);
 
@@ -52,9 +37,8 @@ export function IntegrationsTab() {
   }, []);
 
   const fetchAll = async () => {
-    const [settingsRes, templatesRes, logsRes, slottyRes] = await Promise.all([
+    const [settingsRes, logsRes, slottyRes] = await Promise.all([
       supabase.from("app_settings").select("key, value").in("key", ["webhook_url", "webhook_secret"]),
-      supabase.from("email_templates").select("*").order("type"),
       supabase.from("webhook_log").select("id, direction, event_type, status, created_at, error").order("created_at", { ascending: false }).limit(20),
       supabase.from("slotty_workspace_requests").select("id, client_name, status, workspace_id, created_at").order("created_at", { ascending: false }).limit(10),
     ]);
@@ -65,7 +49,6 @@ export function IntegrationsTab() {
         if (s.key === "webhook_secret") setWebhookSecret(s.value);
       }
     }
-    if (templatesRes.data) setTemplates(templatesRes.data as unknown as EmailTemplate[]);
     if (logsRes.data) setWebhookLogs(logsRes.data as unknown as WebhookLogEntry[]);
     if (slottyRes.data) setSlottyRequests(slottyRes.data as unknown as SlottyRequest[]);
   };
@@ -110,23 +93,6 @@ export function IntegrationsTab() {
     }
   };
 
-  const saveTemplate = async (tpl: EmailTemplate) => {
-    setSavingTemplate(tpl.id);
-    const { error } = await supabase.from("email_templates").update({
-      subject: tpl.subject,
-      body_html: tpl.body_html,
-      is_active: tpl.is_active,
-      updated_at: new Date().toISOString(),
-    }).eq("id", tpl.id);
-    setSavingTemplate(null);
-    if (error) toast.error(error.message);
-    else toast.success("Template guardado");
-  };
-
-  const updateTemplate = (id: string, field: string, value: any) => {
-    setTemplates(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
-  };
-
   return (
     <div className="space-y-10">
       {/* Make.com Webhook */}
@@ -151,48 +117,6 @@ export function IntegrationsTab() {
               Enviar evento de prueba
             </Button>
           </div>
-        </div>
-      </section>
-
-      {/* Email Templates */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Email Templates</h3>
-        <div className="space-y-4">
-          {templates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay templates configurados.</p>
-          ) : templates.map(tpl => (
-            <div key={tpl.id} className="bg-card rounded-2xl border border-border p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-mono text-xs">{tpl.type}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Updated {new Date(tpl.updated_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{tpl.is_active ? "Activo" : "Inactivo"}</span>
-                  <Switch checked={tpl.is_active} onCheckedChange={v => updateTemplate(tpl.id, "is_active", v)} />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Subject</label>
-                <Input value={tpl.subject} onChange={e => updateTemplate(tpl.id, "subject", e.target.value)} className="text-sm" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Body HTML</label>
-                <Textarea
-                  value={tpl.body_html}
-                  onChange={e => updateTemplate(tpl.id, "body_html", e.target.value)}
-                  rows={6}
-                  className="font-mono text-xs"
-                />
-              </div>
-              <Button size="sm" onClick={() => saveTemplate(tpl)} disabled={savingTemplate === tpl.id}>
-                {savingTemplate === tpl.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-                Guardar
-              </Button>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -266,3 +190,4 @@ export function IntegrationsTab() {
     </div>
   );
 }
+
