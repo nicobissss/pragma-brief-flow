@@ -785,6 +785,14 @@ function AssetCard({
               <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
             </TabsContent>
           </Tabs>
+
+          {/* Feedback all'AI — sempre visibile */}
+          <AiFeedbackBox
+            asset={asset}
+            regenerating={regenerating}
+            onRegenerate={regenerateWithForge}
+            onSavedPrompt={onChanged}
+          />
         </DialogContent>
       </Dialog>
 
