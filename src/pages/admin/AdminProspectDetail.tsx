@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
+import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 
 type Prospect = {
   id: string;
