@@ -61,6 +61,7 @@ interface CampaignManagerProps {
   clientId: string;
   campaigns: Campaign[];
   assets: AssetRow[];
+  promptsTabContent?: React.ReactNode;
   onCampaignCreated: (c: Campaign) => void;
   onCampaignUpdated: (c: Campaign) => void;
   onAssetsChanged?: () => void;
@@ -1292,7 +1293,7 @@ function NewVersionDrawer({
 }
 
 // ─── Main CampaignManager Component ─────────────────────
-export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated, onCampaignUpdated, onAssetsChanged }: CampaignManagerProps) {
+export function CampaignManager({ clientId, campaigns, assets, promptsTabContent, onCampaignCreated, onCampaignUpdated, onAssetsChanged }: CampaignManagerProps) {
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -1492,193 +1493,214 @@ export function CampaignManager({ clientId, campaigns, assets, onCampaignCreated
               {/* Expanded content */}
               {isExpanded && (
                 <div className="border-t border-border">
-                  {/* Campaign brief */}
-                  <div className="p-4 border-b border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign Brief</p>
-                      <div className="flex gap-2">
-                        {!editing && (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => startEdit(campaign)}>
-                              <Pencil className="w-3.5 h-3.5 mr-1" /> Edit brief
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => {
-                              setName(campaign.name);
-                              generateBrief();
-                            }} disabled={generating}>
-                              {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-                              Generate with AI
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                  <Tabs defaultValue="contexto" className="w-full">
+                    <TabsList className="w-full justify-start rounded-none border-b border-border bg-secondary/20 px-4 h-auto">
+                      <TabsTrigger value="contexto" className="data-[state=active]:bg-background">Contexto</TabsTrigger>
+                      {promptsTabContent && (
+                        <TabsTrigger value="prompts" className="data-[state=active]:bg-background">Prompts AI</TabsTrigger>
+                      )}
+                      <TabsTrigger value="assets" className="data-[state=active]:bg-background">
+                        Assets ({cAssets.length})
+                      </TabsTrigger>
+                    </TabsList>
 
-                    {editing ? (
-                      <div className="space-y-3">
-                        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name" />
-                        <Select value={status} onValueChange={setStatus}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Objective" className="min-h-[50px]" />
-                        <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Target audience" className="min-h-[50px]" />
-                        <Textarea value={keyMessage} onChange={(e) => setKeyMessage(e.target.value)} placeholder="Key message" className="min-h-[50px]" />
-                        <Input value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="Timeline" />
+                    {/* CONTEXTO */}
+                    <TabsContent value="contexto" className="m-0 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign Brief</p>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => updateCampaign(campaign)}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                          {!editing && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => startEdit(campaign)}>
+                                <Pencil className="w-3.5 h-3.5 mr-1" /> Edit brief
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setName(campaign.name);
+                                generateBrief();
+                              }} disabled={generating}>
+                                {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                                Generate with AI
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        {campaign.objective && (
-                          <div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Target className="w-3 h-3" /> Objective</p>
-                            <p className="text-sm text-foreground mt-0.5">{campaign.objective}</p>
-                          </div>
-                        )}
-                        {campaign.target_audience && (
-                          <div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Target audience</p>
-                            <p className="text-sm text-foreground mt-0.5">{campaign.target_audience}</p>
-                          </div>
-                        )}
-                        {campaign.key_message && (
-                          <div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Key message</p>
-                            <p className="text-sm text-foreground mt-0.5">{campaign.key_message}</p>
-                          </div>
-                        )}
-                        {campaign.timeline && (
-                          <div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Timeline</p>
-                            <p className="text-sm text-foreground mt-0.5">{campaign.timeline}</p>
-                          </div>
-                        )}
-                        {!campaign.objective && !campaign.target_audience && !campaign.key_message && !campaign.timeline && (
-                          <p className="text-sm text-muted-foreground italic col-span-2">No brief set. Click "Edit brief" or "Generate with AI".</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Assets */}
-                  <div className="p-4 border-b border-border">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-                      Assets ({cAssets.length})
-                    </p>
-                    {cAssets.length === 0 ? (
-                      <p className="text-sm text-muted-foreground italic">No assets yet.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {cAssets.map((asset) => (
-                          <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} onChanged={onAssetsChanged} />
-                        ))}
-                      </div>
+                      {editing ? (
+                        <div className="space-y-3">
+                          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name" />
+                          <Select value={status} onValueChange={setStatus}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Objective" className="min-h-[50px]" />
+                          <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Target audience" className="min-h-[50px]" />
+                          <Textarea value={keyMessage} onChange={(e) => setKeyMessage(e.target.value)} placeholder="Key message" className="min-h-[50px]" />
+                          <Input value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="Timeline" />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => updateCampaign(campaign)}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          {campaign.objective && (
+                            <div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><Target className="w-3 h-3" /> Objective</p>
+                              <p className="text-sm text-foreground mt-0.5">{campaign.objective}</p>
+                            </div>
+                          )}
+                          {campaign.target_audience && (
+                            <div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> Target audience</p>
+                              <p className="text-sm text-foreground mt-0.5">{campaign.target_audience}</p>
+                            </div>
+                          )}
+                          {campaign.key_message && (
+                            <div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><MessageSquare className="w-3 h-3" /> Key message</p>
+                              <p className="text-sm text-foreground mt-0.5">{campaign.key_message}</p>
+                            </div>
+                          )}
+                          {campaign.timeline && (
+                            <div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Timeline</p>
+                              <p className="text-sm text-foreground mt-0.5">{campaign.timeline}</p>
+                            </div>
+                          )}
+                          {!campaign.objective && !campaign.target_audience && !campaign.key_message && !campaign.timeline && (
+                            <p className="text-sm text-muted-foreground italic col-span-2">No brief set. Click "Edit brief" or "Generate with AI".</p>
+                          )}
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* PROMPTS */}
+                    {promptsTabContent && (
+                      <TabsContent value="prompts" className="m-0 p-4">
+                        <div className="rounded-md border border-dashed border-border bg-secondary/10 p-3 mb-4">
+                          <p className="text-xs text-muted-foreground">
+                            Los prompts AI usan el contexto de esta campaña, la oferta seleccionada y el kickoff. Edítalos antes de generar assets.
+                          </p>
+                        </div>
+                        {promptsTabContent}
+                      </TabsContent>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setAddAssetDrawer({ campaignId: campaign.id, campaignName: campaign.name })}
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add asset to this campaign
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => triggerForgeForCampaign(campaign)}
-                        disabled={forgeBusyCampaignId === campaign.id}
-                      >
-                        {forgeBusyCampaignId === campaign.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+
+                    {/* ASSETS */}
+                    <TabsContent value="assets" className="m-0">
+                      <div className="p-4 border-b border-border">
+                        {cAssets.length === 0 ? (
+                          <p className="text-sm text-muted-foreground italic">No assets yet.</p>
                         ) : (
-                          <Wand2 className="w-3.5 h-3.5 mr-1" />
-                        )}
-                        Genera asset con Forge
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Client feedback & correction prompts */}
-                  {changeRequestedAssets.length > 0 && (
-                    <div className="p-4 border-b border-border">
-                      <CorrectionPromptPanel
-                        clientId={clientId}
-                        assets={changeRequestedAssets}
-                        onUploadNewVersion={(assetId, assetType, summary) => {
-                          const asset = cAssets.find((a) => a.id === assetId);
-                          if (asset) {
-                            setNewVersionDrawer({ asset, campaignId: campaign.id, summary });
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Campaign notification status bar */}
-                  <div className="p-4">
-                    {(() => {
-                      const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
-                      const uploadedTypes = types.filter((t) => cAssets.some((a) => a.asset_type === t));
-                      const missingTypes = types.filter((t) => !cAssets.some((a) => a.asset_type === t));
-                      const hasAnyAsset = cAssets.length > 0;
-                      const lastNotified = (campaign as any).last_notified_at;
-                      const hasNewSinceNotify = lastNotified && cAssets.some(
-                        (a) => new Date(a.created_at) > new Date(lastNotified)
-                      );
-
-                      return (
-                        <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign assets status</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {types.map((t) => {
-                              const uploaded = cAssets.some((a) => a.asset_type === t);
-                              return (
-                                <span key={t} className={`text-xs ${uploaded ? "text-foreground" : "text-muted-foreground"}`}>
-                                  {ASSET_TYPE_FULL[t]} {uploaded ? "✅ uploaded" : "⚪ missing"}
-                                </span>
-                              );
-                            })}
+                          <div className="space-y-2">
+                            {cAssets.map((asset) => (
+                              <AssetCard key={asset.id} asset={asset} campaigns={campaigns} clientId={clientId} onChanged={onAssetsChanged} />
+                            ))}
                           </div>
-
-                          {missingTypes.length > 0 && hasAnyAsset && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-pending-review))]" />
-                              {missingTypes.map((t) => ASSET_TYPE_FULL[t]).join(" and ")} not uploaded yet. You can still notify client with available assets.
-                            </p>
-                          )}
-
-                          {lastNotified && !hasNewSinceNotify && (
-                            <p className="text-xs text-muted-foreground">
-                              Client notified on {format(new Date(lastNotified), "dd MMM yyyy")} at {format(new Date(lastNotified), "HH:mm")}
-                            </p>
-                          )}
-
-                          {lastNotified && hasNewSinceNotify && (
-                            <p className="text-xs text-[hsl(var(--status-pending-review))] flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> New assets added since last notification.
-                            </p>
-                          )}
-
-                          {hasAnyAsset && (
-                            <Button
-                              size="sm"
-                              onClick={() => setNotifyConfirm({ campaign, assets: cAssets })}
-                            >
-                              <Bell className="w-3.5 h-3.5 mr-1" />
-                              {lastNotified && hasNewSinceNotify ? "Notify client again" : "Notify client about this campaign"}
-                            </Button>
-                          )}
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAddAssetDrawer({ campaignId: campaign.id, campaignName: campaign.name })}
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Add asset to this campaign
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => triggerForgeForCampaign(campaign)}
+                            disabled={forgeBusyCampaignId === campaign.id}
+                          >
+                            {forgeBusyCampaignId === campaign.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                            ) : (
+                              <Wand2 className="w-3.5 h-3.5 mr-1" />
+                            )}
+                            Genera asset con Forge
+                          </Button>
                         </div>
-                      );
-                    })()}
-                  </div>
+                      </div>
+
+                      {changeRequestedAssets.length > 0 && (
+                        <div className="p-4 border-b border-border">
+                          <CorrectionPromptPanel
+                            clientId={clientId}
+                            assets={changeRequestedAssets}
+                            onUploadNewVersion={(assetId, assetType, summary) => {
+                              const asset = cAssets.find((a) => a.id === assetId);
+                              if (asset) {
+                                setNewVersionDrawer({ asset, campaignId: campaign.id, summary });
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="p-4">
+                        {(() => {
+                          const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
+                          const uploadedTypes = types.filter((t) => cAssets.some((a) => a.asset_type === t));
+                          const missingTypes = types.filter((t) => !cAssets.some((a) => a.asset_type === t));
+                          const hasAnyAsset = cAssets.length > 0;
+                          const lastNotified = (campaign as any).last_notified_at;
+                          const hasNewSinceNotify = lastNotified && cAssets.some(
+                            (a) => new Date(a.created_at) > new Date(lastNotified)
+                          );
+
+                          return (
+                            <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign assets status</p>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {types.map((t) => {
+                                  const uploaded = cAssets.some((a) => a.asset_type === t);
+                                  return (
+                                    <span key={t} className={`text-xs ${uploaded ? "text-foreground" : "text-muted-foreground"}`}>
+                                      {ASSET_TYPE_FULL[t]} {uploaded ? "✅ uploaded" : "⚪ missing"}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+
+                              {missingTypes.length > 0 && hasAnyAsset && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-pending-review))]" />
+                                  {missingTypes.map((t) => ASSET_TYPE_FULL[t]).join(" and ")} not uploaded yet. You can still notify client with available assets.
+                                </p>
+                              )}
+
+                              {lastNotified && !hasNewSinceNotify && (
+                                <p className="text-xs text-muted-foreground">
+                                  Client notified on {format(new Date(lastNotified), "dd MMM yyyy")} at {format(new Date(lastNotified), "HH:mm")}
+                                </p>
+                              )}
+
+                              {lastNotified && hasNewSinceNotify && (
+                                <p className="text-xs text-[hsl(var(--status-pending-review))] flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" /> New assets added since last notification.
+                                </p>
+                              )}
+
+                              {hasAnyAsset && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setNotifyConfirm({ campaign, assets: cAssets })}
+                                >
+                                  <Bell className="w-3.5 h-3.5 mr-1" />
+                                  {lastNotified && hasNewSinceNotify ? "Notify client again" : "Notify client about this campaign"}
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
             </div>

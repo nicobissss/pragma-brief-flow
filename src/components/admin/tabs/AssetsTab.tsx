@@ -10,6 +10,7 @@ type Props = {
   campaigns: any[];
   setCampaigns: (c: any[] | ((prev: any[]) => any[])) => void;
   onApproveStrategicNote: (id: string) => void;
+  promptsTabContent?: React.ReactNode;
 };
 
 const ASSET_LABELS: Record<string, string> = {
@@ -18,7 +19,7 @@ const ASSET_LABELS: Record<string, string> = {
 
 const statusIcon = (s: string) => s === "approved" ? "✅" : s === "pending_review" ? "⏳" : s === "change_requested" ? "💬" : "—";
 
-export default function AssetsTab({ client, assets, setAssets, campaigns, setCampaigns, onApproveStrategicNote }: Props) {
+export default function AssetsTab({ client, assets, setAssets, campaigns, setCampaigns, onApproveStrategicNote, promptsTabContent }: Props) {
   const getAssetStatus = (type: string) => {
     const matching = assets.filter((a) => a.asset_type === type);
     if (matching.length === 0) return "none";
@@ -70,6 +71,7 @@ export default function AssetsTab({ client, assets, setAssets, campaigns, setCam
         clientId={client.id}
         campaigns={campaigns}
         assets={assets.map((a: any) => ({ ...a, campaign_id: a.campaign_id || null }))}
+        promptsTabContent={promptsTabContent}
         onCampaignCreated={(c) => setCampaigns((prev: any[]) => [c, ...prev])}
         onCampaignUpdated={(c) => setCampaigns((prev: any[]) => prev.map((p: any) => p.id === c.id ? c : p))}
         onAssetsChanged={async () => {
