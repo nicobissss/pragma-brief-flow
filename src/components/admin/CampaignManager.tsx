@@ -15,7 +15,15 @@ import {
   Plus, Loader2, Sparkles, Target, Users, MessageSquare, Calendar,
   Pencil, ChevronDown, ChevronUp, Upload, FileText, Mail, Image, PenTool,
   X, Eye, ExternalLink, Wrench, Bell, AlertTriangle, Wand2,
+  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check,
 } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 
