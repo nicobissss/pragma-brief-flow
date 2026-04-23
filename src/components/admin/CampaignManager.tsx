@@ -270,10 +270,10 @@ function AiFeedbackBox({
         .update({ correction_prompt: prompt || null })
         .eq("id", asset.id);
       if (error) throw error;
-      toast.success("Indicazioni salvate.");
+      toast.success("Indicaciones guardadas.");
       onSavedPrompt?.();
     } catch (e: any) {
-      toast.error(e.message || "Errore nel salvataggio");
+      toast.error(e.message || "Error al guardar");
     } finally {
       setSaving(false);
     }
