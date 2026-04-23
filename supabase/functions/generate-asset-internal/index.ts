@@ -305,7 +305,7 @@ function getInstructions(assetType: AssetType, lang: string): string {
 // ---------- Context loader ----------
 
 async function loadContext(supabase: any, clientId: string, campaignId: string | null) {
-  const [clientRes, kickoffRes, offeringsRes, platformsRes, patternsRes, rulesRes, kbRes, campRes] = await Promise.all([
+  const [clientRes, kickoffRes, offeringsRes, platformsRes, patternsRes, rulesRes, kbRes, campRes, matsRes] = await Promise.all([
     supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
     supabase.from("kickoff_briefs").select("*").eq("client_id", clientId).maybeSingle(),
     supabase.from("client_offerings").select("*, offering_template:offering_templates(*)").eq("client_id", clientId),
@@ -314,6 +314,7 @@ async function loadContext(supabase: any, clientId: string, campaignId: string |
     supabase.from("pragma_rules").select("*").eq("is_active", true),
     supabase.from("knowledge_base").select("*"),
     campaignId ? supabase.from("campaigns").select("*").eq("id", campaignId).maybeSingle() : Promise.resolve({ data: null }),
+    campaignId ? supabase.from("campaign_materials").select("*").eq("campaign_id", campaignId).eq("selected", true) : Promise.resolve({ data: [] }),
   ]);
 
   const client = clientRes.data;
