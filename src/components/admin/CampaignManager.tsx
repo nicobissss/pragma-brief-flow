@@ -15,7 +15,7 @@ import {
   Plus, Loader2, Sparkles, Target, Users, MessageSquare, Calendar,
   Pencil, ChevronDown, ChevronUp, Upload, FileText, Mail, Image, PenTool,
   X, Eye, ExternalLink, Wrench, Bell, AlertTriangle, Wand2,
-  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check,
+  Download, Trash2, Archive, ArchiveRestore, Star, MoreVertical, Copy, Check, RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
