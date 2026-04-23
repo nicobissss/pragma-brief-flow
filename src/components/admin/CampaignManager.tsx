@@ -217,22 +217,47 @@ function AssetCard({
           >
             {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
           </Button>
-          {asset.file_url && (
+          {hasContent && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="View generated content"
+              onClick={() => setViewOpen(true)}
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {asset.file_url && !hasContent && (
             <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open file">
                 <Eye className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
           {asset.content?.url && (
             <a href={asset.content.url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="icon" className="h-7 w-7">
+              <Button variant="ghost" size="icon" className="h-7 w-7" title="Open URL">
                 <ExternalLink className="w-3.5 h-3.5" />
               </Button>
             </a>
           )}
         </div>
       </div>
+
+      {/* Generated content viewer */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className="w-4 h-4" />
+              {asset.asset_name}
+              <Badge variant="outline" className="text-[10px]">v{asset.version || 1}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <AssetContentView assetType={asset.asset_type} content={asset.content} fileUrl={asset.file_url} />
+        </DialogContent>
+      </Dialog>
 
       {/* Client feedback */}
       {asset.status === "change_requested" && asset.client_comment && (
