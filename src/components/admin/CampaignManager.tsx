@@ -1611,6 +1611,15 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                       <TabsTrigger value="assets" className="data-[state=active]:bg-background">
                         Assets ({cAssets.length})
                       </TabsTrigger>
+                      <TabsTrigger
+                        value="materiales"
+                        className="data-[state=active]:bg-background"
+                        onClick={() => {
+                          if (!campaignMaterials[campaign.id]) loadCampaignMaterials(campaign.id);
+                        }}
+                      >
+                        Materiales ({(campaignMaterials[campaign.id] || []).filter((m) => m.selected).length})
+                      </TabsTrigger>
                     </TabsList>
 
                     {/* CONTEXTO */}
