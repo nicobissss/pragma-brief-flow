@@ -541,29 +541,43 @@ export function ProposalCritiquePanel({
                         {r.how && (
                           <p className="text-muted-foreground text-xs">→ {r.how}</p>
                         )}
-                        {r.target_field && !r.applied && (
-                          <div className="flex gap-2 pt-1">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              disabled={applyingIdx === originalIdx}
-                              onClick={() => applyRecommendation(originalIdx)}
-                            >
-                              {applyingIdx === originalIdx ? (
-                                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Aplicando</>
-                              ) : (
-                                <><Wand2 className="w-3 h-3 mr-1" />Aplicar</>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditor(originalIdx, r)}
-                            >
-                              Editar y aplicar
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex gap-2 pt-1 flex-wrap">
+                          {r.target_field && !r.applied && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={applyingIdx === originalIdx}
+                                onClick={() => applyRecommendation(originalIdx)}
+                              >
+                                {applyingIdx === originalIdx ? (
+                                  <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Aplicando</>
+                                ) : (
+                                  <><Wand2 className="w-3 h-3 mr-1" />Aplicar</>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditor(originalIdx, r)}
+                              >
+                                Editar y aplicar
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={deepDivingIdx === originalIdx}
+                            onClick={() => deepDive(originalIdx)}
+                          >
+                            {deepDivingIdx === originalIdx ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Profundizando</>
+                            ) : (
+                              <><Telescope className="w-3 h-3 mr-1" />Profundizar</>
+                            )}
+                          </Button>
+                        </div>
                       </li>
                     ))}
                 </ol>
