@@ -42,7 +42,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prospect_id } = await req.json();
+    const { prospect_id, extra_instructions } = await req.json();
     if (!prospect_id) throw new Error("prospect_id is required");
 
     const supabaseAdmin = createClient(
@@ -112,7 +112,9 @@ Vertical: ${prospect.vertical}
 Sub-niche: ${prospect.sub_niche}
 
 Respuestas del briefing:
-${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
+${JSON.stringify(prospect.briefing_answers || {}, null, 2)}
+
+${extra_instructions ? `\n\n# INSTRUCCIONES ADICIONALES (CRÍTICAS DE IA A INCORPORAR)\n${extra_instructions}\n` : ""}`;
 
     const toolDef = {
       name: "create_proposal",
