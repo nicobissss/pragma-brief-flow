@@ -1,107 +1,43 @@
-# Review AI: Cosa abbiamo, cosa manca
+# Pacchetto Switch Contestuali Agenti IA
 
-## 1. Mappa di cosa già fa l'AI oggi
+Estendo il sistema di controllo agenti con override per-cliente, badge visivi nei punti d'uso, e pulsanti "esegui ora" manuali. Risultato: visibilità completa di quando un agente è attivo/inattivo + possibilità di forzarlo on-demand senza riattivare il toggle globale.
 
-**Pre-vendita / Briefer**
-- `generate-proposal` — propuesta + pricing
-- `analyze-local-competitors`, `analyze-winning-patterns`, `extract-voice-of-customer`
-- `fetch-website-context`, `extract-pdf-text`
+## Cosa cambia per te (UX)
 
-**Onboarding / Kickoff**
-- `analyze-kickoff-transcript`, `generate-kickoff-prompts`, `generate-campaign-brief`, `generate-project-plan`, `suggest-client-rule`
+**1. Override per-cliente (`/admin/client/:id` → tab nuova "IA")**
+- Pannello con i 6 agenti, ognuno con 3 stati: `Ereditato dal globale` (default) / `Forzato ON` / `Forzato OFF`.
+- Esempio: master switch globale = OFF, ma per cliente X forzo QA Agent ON → solo i suoi asset vengono valutati.
 
-**Produzione / Revisione**
-- `generate-asset-internal`, `generate-correction-prompt`, `select-campaign-materials`, `trigger-forge-generation`
+**2. Badge stato agente nei punti d'uso**
+- **Asset card** (in `/admin/client/:id` tab Assets): badge piccolo accanto ad ogni asset → "QA: ON" verde / "QA: OFF" grigio / "QA Score: 87" se già esiste un report.
+- **Pulsante "Genera proposta"** (in `AdminProspectDetail`): sotto il bottone, riga "Critique IA: OFF — sarà generata senza revisione automatica" con link al pannello agenti.
+- **Pulsante "Genera prompt"** (in `PromptsTab`): stessa logica per Briefer Enrichment.
 
-**Strategico**
-- `generate-monthly-review`
+**3. Pulsante "Esegui ora" manuale**
+- Su ogni asset card senza QA report: bottone `🔍 Esegui QA ora` che chiama `qa-asset-review` direttamente (bypassa il check globale, sempre disponibile per admin).
+- Su proposta generata: bottone `🤖 Critica con IA` (attivo solo quando Fase 2 sarà fatta — per ora mostro placeholder disabled "Disponibile in Fase 2").
 
-**Verdetto:** copertura buona sui flussi generativi. Gap su **QA pre-consegna**, **loop di apprendimento**, **proattività briefer**.
+## Cambi tecnici
 
----
+**Database (1 migration):**
+- Nuova colonna `clients.ai_agent_overrides JSONB DEFAULT '{}'` — formato `{"qa_asset_review": "on" | "off", ...}`. Chiavi assenti = ereditato.
+- Aggiorno funzione SQL: `is_ai_agent_enabled_for_client(_agent_key, _client_id)` che controlla prima override, poi globale. Il trigger `invoke_qa_on_new_asset` userà questa nuova versione.
+- Mantengo `is_ai_agent_enabled` per i casi senza cliente.
 
-## 2. Nuovi agenti proposti
+**Edge function `qa-asset-review`:**
+- Aggiungo parametro `force: boolean` nel body. Se `force=true` (chiamata manuale da admin), bypassa il check di abilitazione. Verifica comunque che chi chiama sia admin via JWT.
 
-### A. QA Agent sugli asset — PRIORITÀ ALTA
-Edge function `qa-asset-review` che gira a ogni nuovo asset con score 0-100 + flag su:
-- Brand consistency (colori, tone, voice_reference)
-- Client rules compliance
-- Brief alignment
-- Errori oggettivi (typo, CTA, dimensioni)
-- Approvazione predetta da `analyze-winning-patterns`
+**Frontend (4 file nuovi/modificati):**
+- `src/components/admin/ClientAIAgentsPanel.tsx` (nuovo) — pannello override per-cliente, montato come nuova tab "IA" in `AdminClientDetail`.
+- `src/components/admin/AIAgentBadge.tsx` (nuovo) — badge riusabile che legge stato effettivo (override + globale) via hook `useAgentStatus(agentKey, clientId?)`.
+- `src/hooks/useAIAgentStatus.ts` (nuovo) — hook con cache che chiama RPC `is_ai_agent_enabled_for_client`.
+- `src/components/admin/tabs/AssetsTab.tsx` — integra `AIAgentBadge` + bottone "Esegui QA ora" per asset.
+- `src/pages/admin/AdminProspectDetail.tsx` — riga stato agente sotto "Generate Proposal".
+- `src/components/admin/tabs/PromptsTab.tsx` — riga stato agente sotto "Genera prompt".
 
-UI in `AssetReviewPanel`: "AI QA: 87/100 — 2 warning". Score <60 → blocco automatico in `internal_review`.
-**Trigger:** automatico su INSERT in `assets`. **Toggle:** on/off globale.
+## Fuori scope (per ora)
+- Cablaggio reale di Proposal Critique / Briefer Enrichment / Feedback Loop / Asset Variations → resta Fase 2-3 del piano. Mostro solo i badge "OFF — non implementato" per chiarezza.
+- Storia/audit di chi ha cambiato gli override (può venire dopo).
 
-### B. Pre-mortem proposta — PRIORITÀ ALTA
-`critique-proposal` che produce:
-- Obiezioni anticipate + rebuttal
-- Coerenza pricing vs storico
-- Elementi mancanti vs winning patterns
-- Buchi nel customer journey
-
-Output nella sezione **Call Preparation**. **Trigger:** manuale (bottone) o automatico post `generate-proposal`. **Toggle:** on/off + auto/manuale.
-
-### C. Briefer auto-enrichment + qualification score — PRIORITÀ MEDIA
-Post-submit briefing: scrape sito + competitor + voice + 3-5 smart questions via email. AI qualification score 0-100 per prioritizzare call queue.
-**Trigger:** automatico su nuovo prospect. **Toggle:** on/off.
-
-### D. Feedback Loop settimanale — PRIORITÀ MEDIA
-`learn-from-rejections`: analizza `change_requested` settimanali per cliente, trova pattern, aggiorna `client_rules` come pendenti.
-**Trigger:** cron settimanale. **Toggle:** on/off + skip se 0 nuovi feedback nella settimana.
-
-### E. Admin conversational assistant — PRIORITÀ MEDIA
-Chat in `/admin` con tool-calling sul DB (query, drafting, summary, action).
-**Trigger:** on-demand. **Toggle:** on/off (feature flag UI).
-
-### F. Asset variation generator — PRIORITÀ BASSA
-Su asset approvato propone 2-3 varianti (formato/hook/A-B).
-**Trigger:** automatico su approvazione. **Toggle:** on/off.
-
----
-
-## 3. Sistema di controllo agenti AI (NUOVO)
-
-Per evitare consumi indesiderati (es. periodi senza clienti attivi), aggiungere un **AI Agents Control Panel** in `/admin/settings`:
-
-- Tabella `ai_agent_settings` (key, enabled, config JSONB, last_run_at, last_cost_estimate)
-- Riga per ogni agente automatico/ricorrente: `qa_asset_review`, `critique_proposal`, `briefer_enrichment`, `feedback_loop_weekly`, `admin_assistant`, `asset_variations`
-- UI: tab **"Agentes IA"** con toggle on/off per ognuno + descrizione + costo stimato + ultima esecuzione
-- **Master switch globale** "Pausa todos los agentes IA" in cima (utile per periodi morti / debug)
-- Cron job e edge function controllano `enabled` prima di girare (return early se off)
-- Default per i nuovi agenti: **OFF** (l'admin attiva quando ha clienti / vuole usare la feature)
-
-**Beneficio:** zero spese AI involontarie + visibilità costi + facile A/B (attivo solo per X settimane per misurare impatto).
-
----
-
-## 4. Priorizzazione consigliata
-
-**Fase 1 — Infrastruttura + impatto immediato:**
-1. **AI Agents Control Panel** (toggle + tabella settings) → prerequisito per tutto il resto
-2. **QA Agent sugli asset** (con toggle attivabile)
-
-**Fase 2:**
-3. Pre-mortem proposta
-4. Feedback Loop settimanale
-
-**Fase 3:**
-5. Briefer auto-enrichment
-6. Admin conversational assistant
-7. Asset variation generator
-
----
-
-## 5. Note tecniche
-
-- Tutti gli agenti via `_shared/ai.ts` su Lovable AI Gateway
-- Modelli economici di default (`gemini-2.5-flash`), Pro solo dove serve reasoning multimodale (QA visivo asset)
-- Cron via `pg_cron` + `pg_net` per `feedback_loop_weekly`
-- Tabelle dedicate per output: `asset_qa_reports`, `proposal_critiques`, `learning_reports`
-- Ogni edge function logga token_usage in `tool_generations` per monitoring costi reali
-
----
-
-## 6. Domanda
-
-Confermi che parto con **Fase 1** (Control Panel + QA Agent)? Oppure vuoi attaccare prima solo il Control Panel da solo (più piccolo, sblocca il resto)?
+## Stima costi
+Zero impatto sui costi runtime: il sistema aggiunge solo controlli aggiuntivi per disabilitare. L'unica nuova chiamata IA possibile è il bottone manuale "Esegui QA ora", esplicitamente attivato dall'admin (~€0.002 per asset).
