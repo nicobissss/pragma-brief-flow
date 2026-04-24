@@ -123,6 +123,10 @@ export default function AdminSettings() {
         <TabsContent value="integrations" className="mt-6">
           <IntegrationsTab />
         </TabsContent>
+
+        <TabsContent value="agents" className="mt-6">
+          <AIAgentsControlTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
