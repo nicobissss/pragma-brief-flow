@@ -1896,6 +1896,17 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                           <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Target audience" className="min-h-[50px]" />
                           <Textarea value={keyMessage} onChange={(e) => setKeyMessage(e.target.value)} placeholder="Key message" className="min-h-[50px]" />
                           <Input value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="Timeline" />
+                          <BriefEnrichmentPanel
+                            clientId={clientId}
+                            campaignId={campaign.id}
+                            brief={{ name, objective, target_audience: targetAudience, key_message: keyMessage, timeline, description: campaign.description }}
+                            onApply={(field, value) => {
+                              if (field === "objective") setObjective(value);
+                              else if (field === "target_audience") setTargetAudience(value);
+                              else if (field === "key_message") setKeyMessage(value);
+                              else if (field === "timeline") setTimeline(value);
+                            }}
+                          />
                           <div className="flex gap-2">
                             <Button size="sm" onClick={() => updateCampaign(campaign)}>Save</Button>
                             <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
