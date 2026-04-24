@@ -9,6 +9,7 @@ import {
   Bot,
   Calendar,
   Cog,
+  CreditCard,
   Loader2,
   PlayCircle,
   Sparkles,
