@@ -86,7 +86,29 @@ export default function AdminProspectDetail() {
       const { data, error } = await supabase.functions.invoke("generate-proposal", {
         body: { prospect_id: prospect.id },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError doesn't expose body directly. Try to fetch context.
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try {
+          if (ctx && typeof ctx.json === "function") parsed = await ctx.json();
+          else if (ctx && typeof ctx.text === "function") {
+            const t = await ctx.text();
+            try { parsed = JSON.parse(t); } catch { parsed = { error: t }; }
+          }
+        } catch {}
+        const msg = (parsed?.error as string) || (error as any).message || "";
+        if (msg.includes("Payment") || msg.includes("payment") || msg.includes("402") || msg.includes("credits")) {
+          toast.error("Sin créditos en Lovable AI", {
+            description: "Recarga el workspace para usar la IA.",
+          });
+        } else if (msg.includes("Rate") || msg.includes("429")) {
+          toast.error("Demasiadas peticiones, reintenta en unos segundos.");
+        } else {
+          toast.error(msg || "Failed to generate proposal");
+        }
+        return;
+      }
       if (data?.error) throw new Error(data.error);
       setProposal(data.proposal);
       setProposalDate(new Date().toISOString());
