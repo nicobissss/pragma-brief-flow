@@ -25,6 +25,7 @@ import SalesCallCard from "@/components/prospect/SalesCallCard";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import ProspectInternalNotes from "@/components/admin/ProspectInternalNotes";
 import { AIAgentBadge } from "@/components/admin/AIAgentBadge";
+import { ProposalCritiquePanel } from "@/components/admin/ProposalCritiquePanel";
 
 type Prospect = {
   id: string;
