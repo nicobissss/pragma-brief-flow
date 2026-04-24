@@ -337,7 +337,11 @@ export default function AdminProspectDetail() {
                   Last generated: {new Date(proposalDate).toLocaleString()}
                 </p>
               )}
-              <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
+              {proposal?.summary || proposal?.full ? (
+                <ProposalSummaryView data={proposal} />
+              ) : (
+                <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
+              )}
 
               <SalesCallCard
                 prospectId={prospect.id}
