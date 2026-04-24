@@ -64,7 +64,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const newValue = override_value !== undefined ? override_value : rec.new_value;
+    let newValue: any = override_value !== undefined ? override_value : rec.new_value;
+    // AI sometimes returns objects serialized as JSON strings; parse defensively
+    if (typeof newValue === "string") {
+      const trimmed = newValue.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          newValue = JSON.parse(trimmed);
+        } catch {
+          // keep as string
+        }
+      }
+    }
     if (newValue === undefined || newValue === null) {
       return new Response(
         JSON.stringify({ error: "no new_value provided in recommendation or override" }),
@@ -172,7 +183,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const v = newValue || {};
+      const v = (newValue && typeof newValue === "object") ? newValue : {};
       const { data: maxOrder } = await supabase
         .from("action_plan_tasks")
         .select("order_index")
@@ -207,10 +218,10 @@ Deno.serve(async (req) => {
         .order("order_index", { ascending: true });
       const target_task = (tasks || [])[idx - 1] || (tasks || [])[idx];
       if (!target_task) throw new Error("task not found at index " + idx);
-      const v = newValue || {};
+      const v = (newValue && typeof newValue === "object") ? newValue : {};
       const update: any = {};
       ["title", "description", "category", "assignee", "estimated_hours", "due_date", "status"].forEach((k) => {
-        if (k in v) update[k] = v[k];
+        if (k in v) update[k] = (v as any)[k];
       });
       const { error: upErr } = await supabase
         .from("action_plan_tasks")
