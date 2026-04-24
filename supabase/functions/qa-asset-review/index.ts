@@ -291,9 +291,39 @@ Evalúa el asset y devuelve scores + warnings. Si una regla del cliente está vi
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
+    const msg = (e as Error).message || "Unknown error";
     console.error("qa-asset-review error:", e);
+
+    // Detect AI gateway billing/rate-limit errors and return 200 with structured payload
+    // so the frontend can display a friendly message instead of crashing on a 500.
+    let errorCode: string | null = null;
+    if (msg.includes("402") || msg.toLowerCase().includes("credit") || msg.toLowerCase().includes("payment")) {
+      errorCode = "PAYMENT_REQUIRED";
+    } else if (msg.includes("429") || msg.toLowerCase().includes("rate")) {
+      errorCode = "RATE_LIMITED";
+    }
+
+    if (errorCode) {
+      // Mark agent stats as failed
+      try {
+        const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+        await supabase
+          .from("ai_agent_settings")
+          .update({
+            last_run_at: new Date().toISOString(),
+            last_run_status: errorCode === "PAYMENT_REQUIRED" ? "no_credits" : "rate_limited",
+          })
+          .eq("agent_key", "qa_asset_review");
+      } catch {}
+
+      return new Response(
+        JSON.stringify({ skipped: true, error: errorCode, message: msg }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: (e as Error).message || "Unknown error" }),
+      JSON.stringify({ error: msg }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
