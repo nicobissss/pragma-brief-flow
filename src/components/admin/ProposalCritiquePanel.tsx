@@ -134,7 +134,7 @@ export function ProposalCritiquePanel({ prospectId }: { prospectId: string }) {
             Un Sales Strategist IA revisa la propuesta antes de enviarla al cliente.
           </p>
         </div>
-        <Button onClick={runCritique} disabled={running} size="sm">
+        <Button onClick={runCritique} disabled={running || !hasProposal} size="sm">
           {running ? (
             <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analizando...</>
           ) : (
@@ -147,7 +147,15 @@ export function ProposalCritiquePanel({ prospectId }: { prospectId: string }) {
         <div className="text-center py-6 text-muted-foreground text-sm">Cargando...</div>
       )}
 
-      {!loading && !latest && (
+      {!loading && !hasProposal && (
+        <div className="text-center py-8 border border-dashed rounded-lg">
+          <p className="text-muted-foreground text-sm">
+            Aún no hay propuesta generada. Genera primero la propuesta para poder analizarla.
+          </p>
+        </div>
+      )}
+
+      {!loading && hasProposal && !latest && (
         <div className="text-center py-8 border border-dashed rounded-lg">
           <p className="text-muted-foreground text-sm">
             Aún no hay crítica. Pulsa "Analizar ahora" o genera una nueva propuesta con el agente activado.
