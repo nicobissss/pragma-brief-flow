@@ -639,6 +639,10 @@ ${context}`
             }
           />
         </TabsContent>
+
+        <TabsContent value="ia" className="mt-6">
+          <ClientAIAgentsPanel clientId={client.id} />
+        </TabsContent>
       </Tabs>
     </div>
   );
