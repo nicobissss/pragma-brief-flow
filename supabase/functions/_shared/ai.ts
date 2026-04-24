@@ -108,55 +108,94 @@ export async function callAIWithTool(opts: {
     messages.push({ role: "user", content: opts.prompt });
   }
 
-  const res = await postGateway({
-    model: opts.model || DEFAULT_MODEL,
-    messages,
-    max_tokens: opts.max_tokens || 4096,
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: opts.tool.name,
-          description: opts.tool.description,
-          parameters: opts.tool.input_schema,
-        },
+  const primaryModel = opts.model || DEFAULT_MODEL;
+  // Build fallback chain: if primary is pro, fall back to flash; always try flash-lite as last resort
+  const fallbackChain: string[] = [primaryModel];
+  if (primaryModel.includes("gemini-2.5-pro")) {
+    fallbackChain.push("google/gemini-2.5-flash");
+  } else if (primaryModel.includes("gemini-2.5-flash") && !primaryModel.includes("lite")) {
+    fallbackChain.push("google/gemini-2.5-pro");
+  }
+
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: opts.tool.name,
+        description: opts.tool.description,
+        parameters: opts.tool.input_schema,
       },
-    ],
-    tool_choice: { type: "function", function: { name: opts.tool.name } },
-  });
+    },
+  ];
 
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error("Lovable AI error:", res.status, errText);
-    const err: any = new Error(`Lovable AI error: ${res.status}`);
-    err.status = res.status;
-    throw err;
+  let lastError: any = null;
+
+  for (let attempt = 0; attempt < fallbackChain.length; attempt++) {
+    const model = fallbackChain[attempt];
+
+    // Retry the same model once on transient failure before moving to fallback
+    for (let retry = 0; retry < 2; retry++) {
+      try {
+        const res = await postGateway({
+          model,
+          messages,
+          max_tokens: opts.max_tokens || 4096,
+          tools,
+          tool_choice: { type: "function", function: { name: opts.tool.name } },
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`Lovable AI error (model=${model}):`, res.status, errText);
+          // 402/429 are not retryable across models — surface immediately
+          if (res.status === 402 || res.status === 429) {
+            const err: any = new Error(`Lovable AI error: ${res.status}`);
+            err.status = res.status;
+            throw err;
+          }
+          lastError = new Error(`Lovable AI error: ${res.status}`);
+          (lastError as any).status = res.status;
+          continue; // retry
+        }
+
+        const data = await res.json();
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (!toolCall) {
+          const finishReason = data.choices?.[0]?.finish_reason;
+          const textContent = data.choices?.[0]?.message?.content || "";
+          console.error(
+            `No tool_call (model=${model}, attempt=${retry}). finish_reason:`,
+            finishReason,
+            "content:",
+            textContent.slice(0, 200)
+          );
+          lastError = Object.assign(
+            new Error(
+              `AI did not return structured output (model=${model}, finish_reason: ${finishReason || "unknown"})`
+            ),
+            { code: "NO_TOOL_CALL", finishReason }
+          );
+          continue; // retry / fallback
+        }
+
+        let input: any = {};
+        try {
+          input = JSON.parse(toolCall.function.arguments || "{}");
+        } catch (e) {
+          console.error("Failed to parse tool arguments:", toolCall.function.arguments);
+          lastError = new Error("Invalid JSON in tool arguments");
+          continue;
+        }
+
+        return {
+          content: [{ type: "tool_use", name: toolCall.function.name, input }],
+        };
+      } catch (e: any) {
+        if (e?.status === 402 || e?.status === 429) throw e;
+        lastError = e;
+      }
+    }
   }
 
-  const data = await res.json();
-  const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) {
-    const finishReason = data.choices?.[0]?.finish_reason;
-    const textContent = data.choices?.[0]?.message?.content || "";
-    console.error("No tool_call in response. finish_reason:", finishReason, "content:", textContent);
-    const err: any = new Error(
-      `AI did not return structured output (finish_reason: ${finishReason || "unknown"}). ` +
-      `This often happens when the model is overloaded or response was filtered. Try again.`
-    );
-    err.code = "NO_TOOL_CALL";
-    err.finishReason = finishReason;
-    throw err;
-  }
-
-  let input: any = {};
-  try {
-    input = JSON.parse(toolCall.function.arguments || "{}");
-  } catch (e) {
-    console.error("Failed to parse tool arguments:", toolCall.function.arguments);
-    throw new Error("Invalid JSON in tool arguments");
-  }
-
-  return {
-    content: [{ type: "tool_use", name: toolCall.function.name, input }],
-  };
+  throw lastError || new Error("AI call failed after retries");
 }
