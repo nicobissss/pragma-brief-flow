@@ -46,6 +46,15 @@ type Props = {
 };
 
 export function ProposalView({ data, editable = false, onSave }: Props) {
+  // Defensive guard: legacy view requires `pricing` shape. If absent, render nothing
+  // (caller should route to ProposalSummaryView for the new {summary, full} shape).
+  if (!data || !(data as any).pricing) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-6 text-sm text-muted-foreground">
+        Formato de propuesta no compatible con esta vista.
+      </div>
+    );
+  }
   const [draft, setDraft] = useState<ProposalData>(structuredClone(data));
   // snapshot to restore on cancel
   const [snapshot, setSnapshot] = useState<ProposalData>(structuredClone(data));
