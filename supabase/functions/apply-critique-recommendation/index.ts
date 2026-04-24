@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const v = newValue || {};
+      const v = (newValue && typeof newValue === "object") ? newValue : {};
       const { data: maxOrder } = await supabase
         .from("action_plan_tasks")
         .select("order_index")
