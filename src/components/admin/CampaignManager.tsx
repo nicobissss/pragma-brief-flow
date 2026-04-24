@@ -28,7 +28,7 @@ import {
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
-import { AssetQABadge } from "@/components/admin/AssetQABadge";
+
 
 // ─── Types ──────────────────────────────────────────────
 type Campaign = {
@@ -350,8 +350,21 @@ function AiFeedbackBox({
       }
       if (Array.isArray(r.recommendations) && r.recommendations.length) {
         lines.push("");
-        lines.push("Recomendaciones:");
-        r.recommendations.forEach((w: any) => lines.push(`- ${typeof w === "string" ? w : w?.text || JSON.stringify(w)}`));
+        lines.push("Cambios a aplicar:");
+        const order = { high: 0, medium: 1, low: 2 } as Record<string, number>;
+        const sorted = [...r.recommendations].sort(
+          (a: any, b: any) => (order[a?.priority] ?? 3) - (order[b?.priority] ?? 3)
+        );
+        sorted.forEach((rec: any, i: number) => {
+          if (typeof rec === "string") {
+            lines.push(`${i + 1}. ${rec}`);
+            return;
+          }
+          const tag = rec.priority ? `[${String(rec.priority).toUpperCase()}] ` : "";
+          const section = rec.section ? `${rec.section} — ` : "";
+          lines.push(`${i + 1}. ${tag}${section}${rec.change || ""}`);
+          if (rec.how) lines.push(`   → ${rec.how}`);
+        });
       }
       const block = lines.join("\n");
       setPrompt((prev) => (prev?.trim() ? `${prev.trim()}\n\n${block}` : block));
@@ -824,7 +837,6 @@ function AssetCard({
             <Badge variant="outline" className={`text-[10px] ${statusBadgeClass}`}>
               {assetStatusIcon(asset.status)} {assetStatusLabel(asset.status)}
             </Badge>
-            <AssetQABadge assetId={asset.id} clientId={clientId} />
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             Caricato {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}

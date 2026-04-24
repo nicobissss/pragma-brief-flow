@@ -105,9 +105,15 @@ Deno.serve(async (req) => {
 
     const clientRules = (kickoff?.client_rules as any[]) || [];
 
-    const systemPrompt = `Eres un revisor de QA de marketing crítico pero constructivo. Evalúas si un asset está listo para enviar al cliente.
-Devuelve scores 0-100, warnings concretos y recomendaciones accionables.
-Sé estricto pero justo: un score bajo debe estar justificado por evidencia específica.`;
+    const systemPrompt = `Eres un revisor senior de marketing que prepara instrucciones de re-generación para otro modelo IA.
+Tu objetivo NO es solo dar un score: es entregar un brief de correcciones tan claro que un copy/diseñador (o IA) pueda aplicar los cambios sin dudar.
+
+Reglas de salida:
+- Para cada problema relevante, añade una entrada en "recommendations" con: section (qué parte del asset), change (qué cambiar) y how (cómo hacerlo, idealmente con texto ejemplo o longitud/CTA concretos).
+- Las recomendaciones deben ser ejecutables tal cual: nada de "mejorar el tono" sin decir hacia qué tono ni dando un ejemplo.
+- Si una regla del cliente está violada, márcala en rules_violated con evidencia textual.
+- "summary" = 1-2 frases con el veredicto. Las indicaciones detalladas viven en "recommendations".
+- Sé crítico pero justo: justifica los scores bajos con evidencia.`;
 
     const userPrompt = `# Cliente
 ${client?.name} — ${client?.vertical} / ${client?.sub_niche} (${client?.market})
@@ -139,7 +145,7 @@ Contenido:
 ${JSON.stringify(asset.content, null, 2).slice(0, 6000)}
 
 # Tu tarea
-Evalúa el asset y devuelve scores + warnings. Si una regla del cliente está violada, márcala explícitamente en rules_violated.`;
+Evalúa el asset y devuelve, además de los scores, un set de recomendaciones lo bastante precisas para servir como prompt de re-generación. Apunta a 3-7 recomendaciones priorizadas (las más impactantes primero). Si todo está bien, devuelve un array vacío y un summary positivo.`;
 
     const aiResp = await callAIWithTool({
       system: systemPrompt,
@@ -208,8 +214,17 @@ Evalúa el asset y devuelve scores + warnings. Si una regla del cliente está vi
             },
             recommendations: {
               type: "array",
-              items: { type: "string" },
-              description: "Acciones concretas para mejorar el asset.",
+              description: "Instrucciones precisas de re-generación, priorizadas (las más impactantes primero).",
+              items: {
+                type: "object",
+                properties: {
+                  section: { type: "string", description: "Parte concreta del asset (ej: 'Hero', 'CTA', 'Email 2 - subject', 'Bullet 3')." },
+                  change: { type: "string", description: "Qué cambiar (1 frase)." },
+                  how: { type: "string", description: "Cómo hacerlo: instrucción ejecutable, idealmente con ejemplo de texto, longitud o tono concreto." },
+                  priority: { type: "string", enum: ["low", "medium", "high"] },
+                },
+                required: ["section", "change", "how", "priority"],
+              },
             },
             summary: {
               type: "string",
