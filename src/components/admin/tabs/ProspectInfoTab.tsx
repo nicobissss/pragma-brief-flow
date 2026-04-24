@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
+import { ProposalSummaryView } from "@/components/proposal/ProposalSummaryView";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import KickoffStructuredInfo from "@/components/admin/KickoffStructuredInfo";
 
@@ -64,7 +65,11 @@ export default function ProspectInfoTab({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="px-5 pb-5">
-                <ProposalView data={proposal} editable={false} />
+                {(proposal as any)?.summary || (proposal as any)?.full ? (
+                  <ProposalSummaryView data={proposal as any} />
+                ) : (
+                  <ProposalView data={proposal} editable={false} />
+                )}
               </div>
             </CollapsibleContent>
           </div>

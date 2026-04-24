@@ -46,12 +46,31 @@ type Props = {
 };
 
 export function ProposalView({ data, editable = false, onSave }: Props) {
-  const [draft, setDraft] = useState<ProposalData>(structuredClone(data));
-  // snapshot to restore on cancel
-  const [snapshot, setSnapshot] = useState<ProposalData>(structuredClone(data));
+  // Defensive: legacy view requires `pricing` shape. Provide safe default to avoid
+  // hook-order issues; callers should route to ProposalSummaryView for the new shape.
+  const safeData: ProposalData = (data && (data as any).pricing)
+    ? data
+    : ({
+        recommended_flow: { title: "", steps: [] },
+        recommended_tools: [],
+        pricing: { contract_type: "", contract_type_reason: "", currency: "EUR", retainer_min: 0, retainer_max: 0 },
+        timeline: [],
+        pitch_suggestions: { key_arguments: [], objections: [], opening_line: "" },
+      } as ProposalData);
+
+  const [draft, setDraft] = useState<ProposalData>(structuredClone(safeData));
+  const [snapshot, setSnapshot] = useState<ProposalData>(structuredClone(safeData));
 
   const cur = draft.pricing.currency || "EUR";
   const fmt = (n: number) => `${cur === "USD" ? "$" : "€"}${n.toLocaleString()}`;
+
+  if (!data || !(data as any).pricing) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-6 text-sm text-muted-foreground">
+        Formato de propuesta no compatible con esta vista.
+      </div>
+    );
+  }
 
   const startEdit = useCallback(() => {
     setSnapshot(structuredClone(draft));
