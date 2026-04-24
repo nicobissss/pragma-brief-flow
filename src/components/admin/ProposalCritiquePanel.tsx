@@ -261,6 +261,52 @@ export function ProposalCritiquePanel({
     }
   };
 
+  const extendMore = async () => {
+    if (!latest) return;
+    setExtending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extend-critique", {
+        body: { report_id: latest.id, mode: "more", count: 5 },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try { if (ctx?.json) parsed = await ctx.json(); } catch {}
+        toast.error(parsed?.error || error.message || "No se pudieron generar más sugerencias");
+        return;
+      }
+      toast.success("Nuevas sugerencias añadidas");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error inesperado");
+    } finally {
+      setExtending(false);
+    }
+  };
+
+  const deepDive = async (idx: number) => {
+    if (!latest) return;
+    setDeepDivingIdx(idx);
+    try {
+      const { data, error } = await supabase.functions.invoke("extend-critique", {
+        body: { report_id: latest.id, mode: "deep_dive", recommendation_index: idx },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try { if (ctx?.json) parsed = await ctx.json(); } catch {}
+        toast.error(parsed?.error || error.message || "No se pudo profundizar");
+        return;
+      }
+      toast.success("Recomendación profundizada");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error inesperado");
+    } finally {
+      setDeepDivingIdx(null);
+    }
+  };
+
   const openEditor = (idx: number, rec: Recommendation) => {
     setEditingRec({ idx, rec });
     setEditedValue(
