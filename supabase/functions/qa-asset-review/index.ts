@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { asset_id } = await req.json();
+    const { asset_id, force } = await req.json();
     if (!asset_id) {
       return new Response(JSON.stringify({ error: "asset_id required" }), {
         status: 400,
@@ -26,15 +26,26 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Check master + agent toggle
-    const { data: enabledData } = await supabase.rpc("is_ai_agent_enabled", {
-      _agent_key: "qa_asset_review",
-    });
-    if (!enabledData) {
-      return new Response(
-        JSON.stringify({ skipped: true, reason: "agent_disabled" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    // Resolve client_id first to allow per-client check
+    const { data: assetForCheck } = await supabase
+      .from("assets")
+      .select("client_id")
+      .eq("id", asset_id)
+      .maybeSingle();
+    const clientIdForCheck = assetForCheck?.client_id ?? null;
+
+    // Check master + agent toggle (with per-client override). Skip when force=true.
+    if (!force) {
+      const { data: enabledData } = await supabase.rpc(
+        "is_ai_agent_enabled_for_client",
+        { _agent_key: "qa_asset_review", _client_id: clientIdForCheck }
       );
+      if (!enabledData) {
+        return new Response(
+          JSON.stringify({ skipped: true, reason: "agent_disabled" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Load agent config

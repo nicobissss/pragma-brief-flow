@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import SalesCallCard from "@/components/prospect/SalesCallCard";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import ProspectInternalNotes from "@/components/admin/ProspectInternalNotes";
+import { AIAgentBadge } from "@/components/admin/AIAgentBadge";
 
 type Prospect = {
   id: string;
@@ -292,6 +293,9 @@ export default function AdminProspectDetail() {
             <div className="bg-card rounded-lg border border-border p-8 text-center">
               <p className="text-muted-foreground mb-4">No proposal generated yet. Click below to analyze the briefing and generate a full proposal.</p>
               <Button onClick={generateProposal} size="lg">Generate Proposal</Button>
+              <div className="mt-3 flex justify-center">
+                <AIAgentBadge agentKey="proposal_critique" label="Critique IA" verbose showSettingsLink />
+              </div>
             </div>
           )}
 

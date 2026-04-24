@@ -16,6 +16,7 @@ import ProspectInfoTab from "@/components/admin/tabs/ProspectInfoTab";
 import KickoffTab from "@/components/admin/tabs/KickoffTab";
 import PromptsTab from "@/components/admin/tabs/PromptsTab";
 import AssetsTab from "@/components/admin/tabs/AssetsTab";
+import ClientAIAgentsPanel from "@/components/admin/ClientAIAgentsPanel";
 
 import { type ProposalData } from "@/components/proposal/ProposalView";
 import { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
@@ -531,6 +532,9 @@ ${context}`
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="ia" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[hsl(348,80%,52%)] data-[state=active]:text-foreground px-4 py-2.5">
+            IA
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -634,6 +638,10 @@ ${context}`
               />
             }
           />
+        </TabsContent>
+
+        <TabsContent value="ia" className="mt-6">
+          <ClientAIAgentsPanel clientId={client.id} />
         </TabsContent>
       </Tabs>
     </div>

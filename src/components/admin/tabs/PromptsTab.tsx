@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Loader2, Sparkles, Target, RefreshCw, CheckCircle2, ChevronDown, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { AIAgentBadge } from "@/components/admin/AIAgentBadge";
 
 function ContextLine({ label, included }: { label: string; included: boolean }) {
   return (
@@ -160,6 +161,15 @@ export default function PromptsTab({
               )}
             </Tooltip>
           </TooltipProvider>
+        </div>
+        <div className="mt-2">
+          <AIAgentBadge
+            agentKey="briefer_enrichment"
+            clientId={client?.id}
+            label="Briefer IA"
+            verbose
+            showSettingsLink
+          />
         </div>
       </div>
 

@@ -937,6 +937,7 @@ export type Database = {
       clients: {
         Row: {
           activated_tools: Json | null
+          ai_agent_overrides: Json
           city: string | null
           company_name: string
           created_at: string
@@ -957,6 +958,7 @@ export type Database = {
         }
         Insert: {
           activated_tools?: Json | null
+          ai_agent_overrides?: Json
           city?: string | null
           company_name: string
           created_at?: string
@@ -977,6 +979,7 @@ export type Database = {
         }
         Update: {
           activated_tools?: Json | null
+          ai_agent_overrides?: Json
           city?: string | null
           company_name?: string
           created_at?: string
@@ -2098,6 +2101,10 @@ export type Database = {
         Returns: boolean
       }
       is_ai_agent_enabled: { Args: { _agent_key: string }; Returns: boolean }
+      is_ai_agent_enabled_for_client: {
+        Args: { _agent_key: string; _client_id: string }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
