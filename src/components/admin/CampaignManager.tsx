@@ -263,6 +263,7 @@ function AiFeedbackBox({
 }) {
   const [prompt, setPrompt] = useState<string>(asset.correction_prompt || "");
   const [saving, setSaving] = useState(false);
+  const [requestingQa, setRequestingQa] = useState(false);
 
   const savePrompt = async () => {
     setSaving(true);
@@ -283,6 +284,81 @@ function AiFeedbackBox({
   const saveAndRegenerate = async () => {
     await savePrompt();
     await onRegenerate();
+  };
+
+  const requestAiFeedback = async () => {
+    setRequestingQa(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("qa-asset-review", {
+        body: { asset_id: asset.id, force: true },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try {
+          if (ctx && typeof ctx.json === "function") parsed = await ctx.json();
+          else if (ctx && typeof ctx.text === "function") {
+            const t = await ctx.text();
+            try { parsed = JSON.parse(t); } catch { parsed = { error: t }; }
+          }
+        } catch {}
+        const msg = (parsed?.error as string) || (error as any).message || "";
+        if (msg.includes("402") || msg.includes("payment") || msg.includes("credits")) {
+          toast.error("Sin créditos en Lovable AI", {
+            description: "Recarga el workspace para usar la IA.",
+            action: { label: "Recargar", onClick: () => window.open("https://lovable.dev/settings/workspace", "_blank") },
+          });
+        } else if (msg.includes("429") || msg.includes("Rate")) {
+          toast.error("Demasiadas peticiones, reintenta en unos segundos.");
+        } else {
+          toast.error("Error al pedir feedback", { description: msg });
+        }
+        return;
+      }
+      if (data?.error === "PAYMENT_REQUIRED") {
+        toast.error("Sin créditos en Lovable AI", {
+          description: "Recarga el workspace para usar la IA.",
+          action: { label: "Recargar", onClick: () => window.open("https://lovable.dev/settings/workspace", "_blank") },
+        });
+        return;
+      }
+      if (data?.error === "RATE_LIMITED") {
+        toast.error("Demasiadas peticiones, reintenta en unos segundos.");
+        return;
+      }
+      if (data?.skipped) {
+        toast.info(`QA omitida: ${data.reason || data.error || ""}`);
+        return;
+      }
+      const r = data?.report;
+      if (!r) {
+        toast.error("La IA no devolvió un reporte.");
+        return;
+      }
+      const lines: string[] = [];
+      lines.push(`Feedback IA (Score ${r.overall_score ?? "?"}/100${r.blocked ? " · BLOQUEADO" : ""})`);
+      if (r.summary) lines.push(r.summary);
+      if (Array.isArray(r.warnings) && r.warnings.length) {
+        lines.push("");
+        lines.push("Avisos:");
+        r.warnings.forEach((w: any) => lines.push(`- ${typeof w === "string" ? w : w?.message || JSON.stringify(w)}`));
+      }
+      if (Array.isArray(r.rules_violated) && r.rules_violated.length) {
+        lines.push("");
+        lines.push("Reglas incumplidas:");
+        r.rules_violated.forEach((w: any) => lines.push(`- ${typeof w === "string" ? w : w?.rule || JSON.stringify(w)}`));
+      }
+      if (Array.isArray(r.recommendations) && r.recommendations.length) {
+        lines.push("");
+        lines.push("Recomendaciones:");
+        r.recommendations.forEach((w: any) => lines.push(`- ${typeof w === "string" ? w : w?.text || JSON.stringify(w)}`));
+      }
+      const block = lines.join("\n");
+      setPrompt((prev) => (prev?.trim() ? `${prev.trim()}\n\n${block}` : block));
+      toast.success("Feedback IA añadido. Edítalo y pulsa 'Generar nueva versión'.");
+    } finally {
+      setRequestingQa(false);
+    }
   };
 
   return (
@@ -306,15 +382,27 @@ function AiFeedbackBox({
         placeholder="Ej: haz el hero más directo, acorta el body del segundo email, sustituye la CTA por 'Reserva ahora'..."
         className="min-h-[100px] bg-background"
       />
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={savePrompt} disabled={saving || regenerating} title="Solo guarda el texto. No regenera el asset.">
-          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-          Guardar indicaciones
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={requestAiFeedback}
+          disabled={requestingQa || saving || regenerating}
+          title="Pide a la IA QA que evalúe este asset y pega sus observaciones aquí."
+        >
+          {requestingQa ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Bot className="w-3.5 h-3.5 mr-1.5" />}
+          Pedir feedback IA
         </Button>
-        <Button size="sm" onClick={saveAndRegenerate} disabled={saving || regenerating} title="Guarda y crea una nueva versión del asset usando estas indicaciones.">
-          {regenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
-          Generar nueva versión
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={savePrompt} disabled={saving || regenerating} title="Solo guarda el texto. No regenera el asset.">
+            {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+            Guardar indicaciones
+          </Button>
+          <Button size="sm" onClick={saveAndRegenerate} disabled={saving || regenerating} title="Guarda y crea una nueva versión del asset usando estas indicaciones.">
+            {regenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+            Generar nueva versión
+          </Button>
+        </div>
       </div>
     </div>
   );
