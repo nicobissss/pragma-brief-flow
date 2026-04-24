@@ -81,16 +81,19 @@ export default function OfferingsCatalogTab() {
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Offering | null>(null);
+  const [platformMap, setPlatformMap] = useState<Record<string, { name: string; category: string }>>({});
 
   const fetchAll = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("offering_templates")
-      .select("*")
-      .order("tier")
-      .order("sort_order");
+    const [{ data, error }, { data: plats }] = await Promise.all([
+      supabase.from("offering_templates").select("*").order("tier").order("sort_order"),
+      supabase.from("supported_platforms").select("id, name, category"),
+    ]);
     if (error) toast.error(error.message);
     setOfferings((data || []) as Offering[]);
+    const map: Record<string, { name: string; category: string }> = {};
+    for (const p of (plats || []) as any[]) map[p.id] = { name: p.name, category: p.category };
+    setPlatformMap(map);
     setLoading(false);
   };
 
@@ -165,6 +168,7 @@ export default function OfferingsCatalogTab() {
                     key={o.id}
                     offering={o}
                     meta={meta}
+                    platformMap={platformMap}
                     onEdit={() => setEditing(o)}
                     onDuplicate={() => duplicate(o)}
                     onToggleActive={(v) => toggleActive(o, v)}
@@ -188,17 +192,33 @@ export default function OfferingsCatalogTab() {
 }
 
 function OfferingCard({
-  offering: o, meta, onEdit, onDuplicate, onToggleActive,
+  offering: o, meta, platformMap, onEdit, onDuplicate, onToggleActive,
 }: {
   offering: Offering;
   meta: { label: string; cls: string; ring: string };
+  platformMap: Record<string, { name: string; category: string }>;
   onEdit: () => void;
   onDuplicate: () => void;
   onToggleActive: (v: boolean) => void;
 }) {
   const deliverables = Array.isArray(o.deliverables) ? o.deliverables : [];
   const reqPlatforms = Array.isArray(o.required_platforms) ? o.required_platforms : [];
+  const recPlatforms = Array.isArray(o.recommended_platforms) ? o.recommended_platforms : [];
+  const optPlatforms = Array.isArray(o.optional_platforms) ? o.optional_platforms : [];
   const verticals = Array.isArray(o.applicable_verticals) ? o.applicable_verticals : [];
+
+  const labelOf = (id: string) => platformMap[id]?.name || id;
+  const catOf = (id: string) => platformMap[id]?.category || "—";
+
+  // Group required platforms by category for clarity ("email: MailChimp / ActiveCampaign")
+  const groupByCategory = (ids: string[]) => {
+    const out: Record<string, string[]> = {};
+    for (const id of ids) {
+      const cat = catOf(id);
+      (out[cat] ||= []).push(labelOf(id));
+    }
+    return out;
+  };
 
   return (
     <div className={`bg-card rounded-xl border-2 p-5 transition-all ${o.is_featured ? meta.ring : "border-border"} ${!o.is_active ? "opacity-60" : ""}`}>
@@ -248,7 +268,7 @@ function OfferingCard({
         <div className="mb-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Deliverables</p>
           <ul className="space-y-1">
-            {deliverables.slice(0, 5).map((d: any, i: number) => (
+            {deliverables.map((d: any, i: number) => (
               <li key={i} className="flex items-center gap-2 text-xs text-foreground">
                 <span className="text-muted-foreground">{deliverableIcon(d.type)}</span>
                 <span>{d.count ? `${d.count}× ` : ""}{d.name || d.type || "—"}</span>
@@ -259,11 +279,36 @@ function OfferingCard({
       )}
 
       {reqPlatforms.length > 0 && (
-        <div className="mb-4">
+        <div className="mb-3">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Plataformas necesarias</p>
+          <div className="space-y-1">
+            {Object.entries(groupByCategory(reqPlatforms)).map(([cat, names]) => (
+              <div key={cat} className="text-xs text-foreground">
+                <span className="text-muted-foreground capitalize">{cat}:</span>{" "}
+                <span>{names.join(" / ")}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recPlatforms.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Plataformas recomendadas</p>
           <div className="flex flex-wrap gap-1">
-            {reqPlatforms.map((p: string) => (
-              <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+            {recPlatforms.map((id: string) => (
+              <Badge key={id} variant="secondary" className="text-[10px]">{labelOf(id)}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {optPlatforms.length > 0 && (
+        <div className="mb-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Opcionales</p>
+          <div className="flex flex-wrap gap-1">
+            {optPlatforms.map((id: string) => (
+              <Badge key={id} variant="outline" className="text-[10px]">{labelOf(id)}</Badge>
             ))}
           </div>
         </div>
