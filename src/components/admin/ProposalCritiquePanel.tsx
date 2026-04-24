@@ -362,7 +362,21 @@ export function ProposalCritiquePanel({
             </div>
             <p className="text-sm text-muted-foreground mt-1">{headerSubtitle}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {latest && (
+              <Button
+                onClick={extendMore}
+                disabled={extending}
+                size="sm"
+                variant="outline"
+              >
+                {extending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />...</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" />Más sugerencias</>
+                )}
+              </Button>
+            )}
             {latest && (
               <Button
                 onClick={regenerate}
