@@ -87,6 +87,8 @@ Deno.serve(async (req) => {
     }
 
     let applied: any = null;
+    let beforeValue: any = null;
+    let afterValue: any = null;
 
     // PROPOSAL fields ------------------------------------------------------
     if (target.startsWith("proposal.")) {
