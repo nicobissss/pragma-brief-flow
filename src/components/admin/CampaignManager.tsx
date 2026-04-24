@@ -824,7 +824,6 @@ function AssetCard({
             <Badge variant="outline" className={`text-[10px] ${statusBadgeClass}`}>
               {assetStatusIcon(asset.status)} {assetStatusLabel(asset.status)}
             </Badge>
-            <AssetQABadge assetId={asset.id} clientId={clientId} />
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             Caricato {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
