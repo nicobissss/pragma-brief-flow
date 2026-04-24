@@ -47,7 +47,8 @@ Return ONLY valid JSON:
 }`;
 
     const data = await callAI({ prompt, max_tokens: 1500 });
-    const text = data.content?.find((b: any) => b.type === "text")?.text || "{}";
+    const textBlock = data.content?.find((b) => b.type === "text");
+    const text = (textBlock && textBlock.type === "text" ? textBlock.text : "") || "{}";
     const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
     const plan = JSON.parse(cleaned);
 
