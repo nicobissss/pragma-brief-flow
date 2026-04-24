@@ -28,6 +28,7 @@ import {
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
+import { BriefEnrichmentPanel } from "@/components/admin/BriefEnrichmentPanel";
 
 
 // ─── Types ──────────────────────────────────────────────
