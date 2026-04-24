@@ -1540,6 +1540,7 @@ export type Database = {
         Row: {
           brief_alignment_score: number | null
           clarity_score: number | null
+          client_offering_id: string | null
           cost_estimate_eur: number | null
           created_at: string
           id: string
@@ -1552,6 +1553,7 @@ export type Database = {
           proposal_id: string | null
           prospect_id: string
           recommendations: Json
+          scope: string
           strengths: Json
           summary: string | null
           tokens_used: number | null
@@ -1563,6 +1565,7 @@ export type Database = {
         Insert: {
           brief_alignment_score?: number | null
           clarity_score?: number | null
+          client_offering_id?: string | null
           cost_estimate_eur?: number | null
           created_at?: string
           id?: string
@@ -1575,6 +1578,7 @@ export type Database = {
           proposal_id?: string | null
           prospect_id: string
           recommendations?: Json
+          scope?: string
           strengths?: Json
           summary?: string | null
           tokens_used?: number | null
@@ -1586,6 +1590,7 @@ export type Database = {
         Update: {
           brief_alignment_score?: number | null
           clarity_score?: number | null
+          client_offering_id?: string | null
           cost_estimate_eur?: number | null
           created_at?: string
           id?: string
@@ -1598,6 +1603,7 @@ export type Database = {
           proposal_id?: string | null
           prospect_id?: string
           recommendations?: Json
+          scope?: string
           strengths?: Json
           summary?: string | null
           tokens_used?: number | null
