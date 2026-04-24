@@ -28,7 +28,7 @@ import {
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
-import { AssetQABadge } from "@/components/admin/AssetQABadge";
+
 
 // ─── Types ──────────────────────────────────────────────
 type Campaign = {
