@@ -42,7 +42,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prospect_id } = await req.json();
+    const { prospect_id, extra_instructions } = await req.json();
     if (!prospect_id) throw new Error("prospect_id is required");
 
     const supabaseAdmin = createClient(
