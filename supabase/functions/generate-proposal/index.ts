@@ -241,6 +241,21 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
 
     if (saveErr) throw saveErr;
 
+    // Auto-trigger Proposal Critique agent (fire-and-forget; respects toggle).
+    try {
+      const SUPABASE_URL_INTERNAL = Deno.env.get("SUPABASE_URL")!;
+      fetch(`${SUPABASE_URL_INTERNAL}/functions/v1/proposal-critique`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({ prospect_id, triggered_by: "auto" }),
+      }).catch((err) => console.error("proposal-critique trigger failed:", err));
+    } catch (err) {
+      console.error("proposal-critique invoke error:", err);
+    }
+
     return new Response(JSON.stringify({ success: true, proposal: { summary, full } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
