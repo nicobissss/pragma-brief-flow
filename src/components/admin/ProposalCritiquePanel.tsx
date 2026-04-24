@@ -13,6 +13,8 @@ import {
   ChevronUp,
   Wand2,
   RefreshCw,
+  Plus,
+  Telescope,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -93,6 +95,8 @@ export function ProposalCritiquePanel({
   const [editingRec, setEditingRec] = useState<{ idx: number; rec: Recommendation } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [regenerating, setRegenerating] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [deepDivingIdx, setDeepDivingIdx] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -196,8 +200,22 @@ export function ProposalCritiquePanel({
         toast.error(parsed?.error || error.message || "No se pudo aplicar");
         return;
       }
+      const beforeStr = data?.applied?.before !== undefined
+        ? typeof data.applied.before === "string"
+          ? data.applied.before.slice(0, 80)
+          : JSON.stringify(data.applied.before).slice(0, 80)
+        : null;
+      const afterStr = data?.applied?.after !== undefined
+        ? typeof data.applied.after === "string"
+          ? data.applied.after.slice(0, 80)
+          : JSON.stringify(data.applied.after).slice(0, 80)
+        : null;
       toast.success("Recomendación aplicada", {
-        description: data?.applied ? `${data.applied.entity} actualizado` : undefined,
+        description: beforeStr !== null && afterStr !== null
+          ? `${data.applied.entity}: "${beforeStr || "(vacío)"}" → "${afterStr}"`
+          : data?.applied
+          ? `${data.applied.entity} actualizado`
+          : undefined,
       });
       setEditingRec(null);
       await load();
@@ -240,6 +258,52 @@ export function ProposalCritiquePanel({
       toast.error(e.message || "Error inesperado");
     } finally {
       setRegenerating(false);
+    }
+  };
+
+  const extendMore = async () => {
+    if (!latest) return;
+    setExtending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extend-critique", {
+        body: { report_id: latest.id, mode: "more", count: 5 },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try { if (ctx?.json) parsed = await ctx.json(); } catch {}
+        toast.error(parsed?.error || error.message || "No se pudieron generar más sugerencias");
+        return;
+      }
+      toast.success("Nuevas sugerencias añadidas");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error inesperado");
+    } finally {
+      setExtending(false);
+    }
+  };
+
+  const deepDive = async (idx: number) => {
+    if (!latest) return;
+    setDeepDivingIdx(idx);
+    try {
+      const { data, error } = await supabase.functions.invoke("extend-critique", {
+        body: { report_id: latest.id, mode: "deep_dive", recommendation_index: idx },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        let parsed: any = null;
+        try { if (ctx?.json) parsed = await ctx.json(); } catch {}
+        toast.error(parsed?.error || error.message || "No se pudo profundizar");
+        return;
+      }
+      toast.success("Recomendación profundizada");
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error inesperado");
+    } finally {
+      setDeepDivingIdx(null);
     }
   };
 
@@ -298,7 +362,21 @@ export function ProposalCritiquePanel({
             </div>
             <p className="text-sm text-muted-foreground mt-1">{headerSubtitle}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {latest && (
+              <Button
+                onClick={extendMore}
+                disabled={extending}
+                size="sm"
+                variant="outline"
+              >
+                {extending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />...</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" />Más sugerencias</>
+                )}
+              </Button>
+            )}
             {latest && (
               <Button
                 onClick={regenerate}
@@ -463,29 +541,43 @@ export function ProposalCritiquePanel({
                         {r.how && (
                           <p className="text-muted-foreground text-xs">→ {r.how}</p>
                         )}
-                        {r.target_field && !r.applied && (
-                          <div className="flex gap-2 pt-1">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              disabled={applyingIdx === originalIdx}
-                              onClick={() => applyRecommendation(originalIdx)}
-                            >
-                              {applyingIdx === originalIdx ? (
-                                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Aplicando</>
-                              ) : (
-                                <><Wand2 className="w-3 h-3 mr-1" />Aplicar</>
-                              )}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditor(originalIdx, r)}
-                            >
-                              Editar y aplicar
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex gap-2 pt-1 flex-wrap">
+                          {r.target_field && !r.applied && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="default"
+                                disabled={applyingIdx === originalIdx}
+                                onClick={() => applyRecommendation(originalIdx)}
+                              >
+                                {applyingIdx === originalIdx ? (
+                                  <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Aplicando</>
+                                ) : (
+                                  <><Wand2 className="w-3 h-3 mr-1" />Aplicar</>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditor(originalIdx, r)}
+                              >
+                                Editar y aplicar
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={deepDivingIdx === originalIdx}
+                            onClick={() => deepDive(originalIdx)}
+                          >
+                            {deepDivingIdx === originalIdx ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Profundizando</>
+                            ) : (
+                              <><Telescope className="w-3 h-3 mr-1" />Profundizar</>
+                            )}
+                          </Button>
+                        </div>
                       </li>
                     ))}
                 </ol>

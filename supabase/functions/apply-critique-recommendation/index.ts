@@ -87,6 +87,8 @@ Deno.serve(async (req) => {
     }
 
     let applied: any = null;
+    let beforeValue: any = null;
+    let afterValue: any = null;
 
     // PROPOSAL fields ------------------------------------------------------
     if (target.startsWith("proposal.")) {
@@ -112,16 +114,24 @@ Deno.serve(async (req) => {
       const update: any = {};
 
       if (path === "timeline" || path === "pragma_notes" || path === "recommended_flow") {
+        beforeValue = (proposal as any)[path];
         update[path] = String(newValue);
+        afterValue = update[path];
       } else if (path === "recommended_tools" || path === "pricing") {
+        beforeValue = (proposal as any)[path];
         update[path] = newValue;
+        afterValue = newValue;
       } else if (path.startsWith("full_proposal_content.")) {
         const sectionKey = path.slice("full_proposal_content.".length);
         const fpc = (proposal.full_proposal_content as any) || {};
+        beforeValue = fpc[sectionKey] ?? null;
         fpc[sectionKey] = newValue;
         update.full_proposal_content = fpc;
+        afterValue = newValue;
       } else if (path === "full_proposal_content") {
+        beforeValue = proposal.full_proposal_content;
         update.full_proposal_content = newValue;
+        afterValue = newValue;
       } else {
         return new Response(
           JSON.stringify({ error: `unsupported proposal target: ${path}` }),
@@ -137,7 +147,7 @@ Deno.serve(async (req) => {
         .update(update)
         .eq("id", report.proposal_id);
       if (upErr) throw upErr;
-      applied = { entity: "proposal", id: report.proposal_id, fields: Object.keys(update) };
+      applied = { entity: "proposal", id: report.proposal_id, fields: Object.keys(update), before: beforeValue, after: afterValue };
     }
 
     // OFFERING fields ------------------------------------------------------
@@ -149,15 +159,26 @@ Deno.serve(async (req) => {
         });
       }
       const path = target.slice("offering.".length);
+      const { data: existingOff } = await supabase
+        .from("client_offerings")
+        .select("custom_name, custom_price_eur, notes, custom_deliverables")
+        .eq("id", report.client_offering_id)
+        .maybeSingle();
       const update: any = {};
       if (path === "custom_name" || path === "notes") {
+        beforeValue = (existingOff as any)?.[path] ?? null;
         update[path] = String(newValue);
+        afterValue = update[path];
       } else if (path === "custom_price_eur") {
         const n = typeof newValue === "number" ? newValue : parseInt(String(newValue), 10);
         if (Number.isNaN(n)) throw new Error("custom_price_eur must be a number");
+        beforeValue = existingOff?.custom_price_eur ?? null;
         update.custom_price_eur = n;
+        afterValue = n;
       } else if (path === "custom_deliverables") {
+        beforeValue = existingOff?.custom_deliverables ?? null;
         update.custom_deliverables = newValue;
+        afterValue = newValue;
       } else {
         return new Response(
           JSON.stringify({ error: `unsupported offering target: ${path}` }),
@@ -172,7 +193,7 @@ Deno.serve(async (req) => {
         .update(update)
         .eq("id", report.client_offering_id);
       if (upErr) throw upErr;
-      applied = { entity: "offering", id: report.client_offering_id, fields: Object.keys(update) };
+      applied = { entity: "offering", id: report.client_offering_id, fields: Object.keys(update), before: beforeValue, after: afterValue };
     }
 
     // TASK actions ---------------------------------------------------------
