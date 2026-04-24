@@ -200,8 +200,22 @@ export function ProposalCritiquePanel({
         toast.error(parsed?.error || error.message || "No se pudo aplicar");
         return;
       }
+      const beforeStr = data?.applied?.before !== undefined
+        ? typeof data.applied.before === "string"
+          ? data.applied.before.slice(0, 80)
+          : JSON.stringify(data.applied.before).slice(0, 80)
+        : null;
+      const afterStr = data?.applied?.after !== undefined
+        ? typeof data.applied.after === "string"
+          ? data.applied.after.slice(0, 80)
+          : JSON.stringify(data.applied.after).slice(0, 80)
+        : null;
       toast.success("Recomendación aplicada", {
-        description: data?.applied ? `${data.applied.entity} actualizado` : undefined,
+        description: beforeStr !== null && afterStr !== null
+          ? `${data.applied.entity}: "${beforeStr || "(vacío)"}" → "${afterStr}"`
+          : data?.applied
+          ? `${data.applied.entity} actualizado`
+          : undefined,
       });
       setEditingRec(null);
       await load();
