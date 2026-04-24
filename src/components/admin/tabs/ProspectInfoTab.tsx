@@ -65,7 +65,11 @@ export default function ProspectInfoTab({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="px-5 pb-5">
-                <ProposalView data={proposal} editable={false} />
+                {(proposal as any)?.summary || (proposal as any)?.full ? (
+                  <ProposalSummaryView data={proposal as any} />
+                ) : (
+                  <ProposalView data={proposal} editable={false} />
+                )}
               </div>
             </CollapsibleContent>
           </div>
