@@ -137,6 +137,14 @@ export default function OfferingsCatalogTab() {
 
   return (
     <div className="space-y-10">
+      <div className="bg-secondary/30 rounded-xl p-4">
+        <p className="text-sm text-foreground mb-1">
+          <strong>Catálogo de ofertas</strong>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Estos son los paquetes comerciales que PRAGMA vende. La IA usa este catálogo para <strong className="text-foreground">recomendar ofertas</strong> a cada cliente y para <strong className="text-foreground">generar el plan de tareas</strong>. Es independiente de las "Guías para la IA" (que solo son contexto narrativo).
+        </p>
+      </div>
       {tiers.map((tier) => {
         const list = offerings.filter((o) => o.tier === tier);
         const meta = TIER_META[tier];

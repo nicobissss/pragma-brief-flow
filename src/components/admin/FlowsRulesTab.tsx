@@ -197,30 +197,36 @@ export function FlowsRulesTab() {
 
   return (
     <div className="space-y-10">
-      {/* Test button */}
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => setTestModal(true)}>
-          <Play className="w-4 h-4 mr-2" /> Probar configuración actual
-        </Button>
+      {/* Intro + Test button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="bg-secondary/30 rounded-xl p-4 flex-1">
+          <p className="text-sm text-foreground mb-2">
+            <strong>¿Qué hay aquí?</strong> Dos listas que la IA consulta en cada generación:
+          </p>
+          <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+            <li><strong className="text-foreground">Tools disponibles</strong> — automatizaciones que la IA puede proponer en propuestas y prompts. Si desactivas uno, la IA dejará de mencionarlo.</li>
+            <li><strong className="text-foreground">Reglas globales</strong> — restricciones que la IA debe respetar siempre (tono, claims prohibidos, etc.), filtradas por vertical del cliente.</li>
+          </ul>
+        </div>
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          <Button variant="outline" onClick={() => setTestModal(true)}>
+            <Play className="w-4 h-4 mr-2" /> Probar configuración actual
+          </Button>
+          <p className="text-[10px] text-muted-foreground max-w-[200px] text-right">
+            Simula los prompts que la IA generaría con la configuración actual, sin crear un cliente.
+          </p>
+        </div>
       </div>
-
-      {/* Flows section removed: el catálogo ahora vive en offering_templates (tab Ofertas) */}
-      <section className="bg-secondary/30 border border-dashed border-border rounded-xl p-4">
-        <p className="text-sm text-muted-foreground">
-          Los flows ya no se gestionan aquí. El catálogo Tier 1/2/3 se administra desde
-          <strong className="text-foreground mx-1">Ofertas → Catálogo</strong>
-          y se aplica a cada cliente desde el tab <strong className="text-foreground">Oferta</strong> de su ficha.
-        </p>
-      </section>
 
       {/* Tools */}
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-semibold text-foreground">Tools disponibles</h3>
           <Button size="sm" onClick={() => setRuleModal({ open: true, rule: { is_active: true }, category: "tools_available" })}>
             <Plus className="w-4 h-4 mr-1" /> Añadir tool
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground mb-4">La IA elige entre estos tools cuando recomienda automatizaciones al cliente.</p>
         {tools.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay tools configurados.</p>
         ) : (
@@ -248,12 +254,13 @@ export function FlowsRulesTab() {
 
       {/* Global Rules */}
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-semibold text-foreground">Reglas globales</h3>
           <Button size="sm" onClick={() => setRuleModal({ open: true, rule: { is_active: true }, category: "global_rules" })}>
             <Plus className="w-4 h-4 mr-1" /> Añadir regla
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground mb-4">Reglas siempre activas que filtran las generaciones por vertical.</p>
         {globalRules.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay reglas configuradas.</p>
         ) : (

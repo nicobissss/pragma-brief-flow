@@ -1,68 +1,58 @@
 
+# Settings — chiarezza e rinaming
 
-# Pulizia `/admin/data` e `/admin/settings`
+Modifiche solo a 4 file. Nessuna migration, nessun cambiamento di logica IA. Tutto in spagnolo (segue la convenzione UI).
 
-Procedo con il piano già discusso (Opzione B — sistemi separati, rimuovo le sezioni morte/confondenti).
+## 1. `src/pages/admin/AdminSettings.tsx`
 
-## 1. `/admin/data` → Email Monitoring + Diagnostica
+Rinomino i tab e aggiorno il sottotitolo della pagina:
 
-**File:** `src/pages/admin/AdminDataDashboard.tsx` (riscritto)
+- "Knowledge Base" → **"Guías para la IA"**
+- "Flows & Reglas" → **"Tools & Reglas"**
+- "Offerings Catalog" → **"Catálogo de ofertas"**
+- "Integraciones" → invariato
 
-Tab da rimuovere: **Prompts**, **Events**, **Briefing**, **Kickoff**.
+Sotto-titolo aggiornato:
+> Configura las guías que la IA usa para generar contenidos, los tools disponibles, el catálogo de ofertas y las integraciones externas.
 
-Tab unico principale: **Email log** — riscritto da zero usando `email_send_log` con deduplica per `message_id`:
-- Stat cards in alto: Total, Enviadas, Fallidas, Suprimidas (deduplicate)
-- Filtri: range temporale (24h / 7g / 30g), template (dropdown da `template_name` distinct), status (Todos / Sent / Failed / Suppressed)
-- Tabella: Template · Destinatario · Estado (badge colorato) · Fecha · Error (se fallita)
-- Una sola riga per `message_id` (DISTINCT ON con latest `created_at`)
-- Paginazione a 50 righe
+Aggiungo un microtesto sotto ogni tab per spiegare a cosa serve (1 riga, `text-xs text-muted-foreground`).
 
-Bonus diagnostica (sezione collassabile in fondo):
-- Pulsante **"Generar review mensual"** con gestione errori reale: se la edge function fallisce, mostro l'errore in toast invece di restare in silenzio. Il risultato viene mostrato in un dialog markdown.
-- Pulsante **"Ver últimos prompts generados"** dietro un toggle "Modo debug" (resta accessibile per troubleshooting ma non in primo piano).
+## 2. `src/components/admin/FlowsRulesTab.tsx`
 
-Tutto in **spagnolo**.
+- **Rimuovo** il banner grigio "Los flows ya no se gestionan aquí…" (ridondante, ormai è chiaro).
+- Aggiungo un blocco introduttivo in cima che spiega in 2 righe:
+  - **Tools disponibles** = lista de automatizaciones que la IA puede proponer en contenidos y prompts. Si desactivas uno, la IA dejará de mencionarlo.
+  - **Reglas globales** = restricciones que la IA debe respetar en cada generación (ej. tono, claims prohibidos).
+- Sezione "Tools disponibles" con sottotitolo: *"La IA elige entre estos tools cuando recomienda automatizaciones al cliente."*
+- Sezione "Reglas globales" con sottotitolo: *"Reglas siempre activas que filtran las generaciones por vertical."*
+- Bottone "Probar configuración actual" → tooltip o subtitle: *"Simula los prompts que la IA generaría con la configuración actual, sin crear un cliente."*
 
-## 2. `/admin/settings` → Knowledge Base ridotta
+## 3. `src/components/admin/OfferingsCatalogTab.tsx`
 
-**File:** `src/pages/admin/AdminSettings.tsx`
+Aggiungo in cima un blocco esplicativo (`bg-secondary/30 rounded-xl p-4`):
 
-Rimosse dalla `CATEGORIES`:
-- ❌ `pricing` (i prezzi reali sono in Offerings Catalog)
-- ❌ `suite_tools` (i tool reali sono in Flows & Reglas → Tools disponibles)
+> **Catálogo de ofertas** — Estos son los paquetes comerciales que PRAGMA vende. La IA usa este catálogo para **recomendar ofertas** a cada cliente y para **generar el plan de tareas**. Es independiente de las "Guías para la IA" (que solo son contexto narrativo).
 
-Rimossa la sezione **Documentos** (upload PDF/TXT/MD): nessuna edge function attiva la legge.
+Etichette tier già chiare, non tocco le card.
 
-Restano in KB:
-- ✅ `flows_processes` — Flows & Procesos (linee guida narrative)
-- ✅ `pitch_guidelines` — Pitch Guidelines (tono kickoff + proposte)
+## 4. `src/components/admin/IntegrationsTab.tsx`
 
-Le tabelle DB (`documents`, `knowledge_base` con quei record) restano intoccate: solo nascoste dall'UI per sicurezza dati.
+Aggiungo blocco intro:
 
-## 3. `/admin/settings` → Integraciones pulita
+> **Integraciones externas** — Conexiones con servicios fuera de PRAGMA. Si no usas Make ni Slotty, puedes ignorar esta sección — el Webhook Log seguirá registrando los eventos del sistema Forge para debug.
 
-**File:** `src/components/admin/IntegrationsTab.tsx`
+Per ogni sottosezione aggiungo 1 riga descrittiva:
 
-Rimossa la sezione **Email Templates** (tabella `email_templates` legacy non più letta da nessuna funzione — le email vere stanno in `_shared/transactional-email-templates/*.tsx`).
+- **Make.com Webhook** — *"Envía eventos de PRAGMA (cliente creado, asset aprobado…) a un escenario de Make para automatizaciones externas."*
+- **Webhook Log** — *"Últimos 20 webhooks enviados o recibidos. Útil para debug."*
+- **Slotty Integration** — *"Estado de creación de workspaces Slotty (sistema de booking) para cada cliente."*
 
-Restano:
-- ✅ Make webhook config
-- ✅ Webhook log
-- ✅ Slotty integration
-
-## Dettagli tecnici riassunti
-
-| Area | File | DB |
-|---|---|---|
-| Dashboard data | `src/pages/admin/AdminDataDashboard.tsx` (riscritto) | nessuna |
-| KB pulita | `src/pages/admin/AdminSettings.tsx` | nessuna |
-| Integrazioni pulite | `src/components/admin/IntegrationsTab.tsx` | nessuna |
-
-Nessuna migration. Nessuna tabella eliminata. Nessuna edge function modificata (la `generate-monthly-review` esiste già — sistemo solo la chiamata client-side).
+Riordino: metto **Webhook Log** in fondo (è l'ultimo perché è un log, non una configurazione). Ordine finale: Make → Slotty → Webhook Log.
 
 ## Cosa NON faccio
 
-- Non collego Offerings Catalog alla KB (resta indipendente, come concordato).
-- Non tocco Flows & Reglas (Tools + Reglas globales restano).
-- Non elimino tabelle DB morte (solo le nascondo dall'UI).
+- Non rimuovo niente dalla DB (`pragma_rules`, `knowledge_base` restano com'è).
+- Non tocco le edge functions (la logica di iniezione nei prompt è già corretta).
+- Non collego KB e Offerings Catalog (restano sistemi separati, come deciso).
+- Non rimuovo Integraciones anche se non la usi attivamente — il Webhook Log serve per debug del sistema Forge.
 

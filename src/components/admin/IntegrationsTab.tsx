@@ -95,9 +95,17 @@ export function IntegrationsTab() {
 
   return (
     <div className="space-y-10">
+      <div className="bg-secondary/30 rounded-xl p-4">
+        <p className="text-sm text-foreground mb-1"><strong>Integraciones externas</strong></p>
+        <p className="text-sm text-muted-foreground">
+          Conexiones con servicios fuera de PRAGMA. Si no usas Make ni Slotty puedes ignorar esta sección — el Webhook Log seguirá registrando los eventos del sistema Forge para debug.
+        </p>
+      </div>
+
       {/* Make.com Webhook */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Make.com Webhook</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Make.com Webhook</h3>
+        <p className="text-xs text-muted-foreground mb-4">Envía eventos de PRAGMA (cliente creado, asset aprobado…) a un escenario de Make para automatizaciones externas.</p>
         <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block">URL del webhook de Make</label>
@@ -120,9 +128,38 @@ export function IntegrationsTab() {
         </div>
       </section>
 
+      {/* Slotty Integration Status */}
+      <section>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Slotty Integration</h3>
+        <p className="text-xs text-muted-foreground mb-4">Estado de creación de workspaces Slotty (sistema de booking) para cada cliente.</p>
+        {slottyRequests.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay solicitudes de workspace.</p>
+        ) : (
+          <div className="space-y-2">
+            {slottyRequests.map(req => (
+              <div key={req.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{req.client_name}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={req.status === "completed" ? "default" : req.status === "failed" ? "destructive" : "secondary"}>
+                    {req.status || "pending"}
+                  </Badge>
+                  {req.workspace_id && (
+                    <span className="text-xs font-mono text-muted-foreground">{req.workspace_id}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Webhook Log */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Webhook Log</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Webhook Log</h3>
+        <p className="text-xs text-muted-foreground mb-4">Últimos 20 webhooks enviados o recibidos. Útil para debug.</p>
         {webhookLogs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay registros.</p>
         ) : (
@@ -157,33 +194,6 @@ export function IntegrationsTab() {
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </section>
-
-      {/* Slotty Integration Status */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Slotty Integration</h3>
-        {slottyRequests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay solicitudes de workspace.</p>
-        ) : (
-          <div className="space-y-2">
-            {slottyRequests.map(req => (
-              <div key={req.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{req.client_name}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={req.status === "completed" ? "default" : req.status === "failed" ? "destructive" : "secondary"}>
-                    {req.status || "pending"}
-                  </Badge>
-                  {req.workspace_id && (
-                    <span className="text-xs font-mono text-muted-foreground">{req.workspace_id}</span>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </section>
