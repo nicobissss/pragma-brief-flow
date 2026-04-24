@@ -657,6 +657,11 @@ export default function OfferingRecommendationTab({ clientId }: { clientId: stri
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ProposalCritiquePanel
+          clientOfferingId={activeOffering.id}
+          scope="post_kickoff"
+        />
       </div>
     );
   }
