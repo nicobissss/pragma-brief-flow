@@ -101,6 +101,77 @@ export default function AssetsTab({ client, assets, setAssets, campaigns, setCam
         </div>
       </div>
 
+      {/* QA Agent panel */}
+      <div className="bg-card rounded-lg border border-border p-6 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-foreground text-sm">QA Agent</h3>
+            <AIAgentBadge agentKey="qa_asset_review" clientId={client?.id} label="QA" showSettingsLink />
+          </div>
+          {!qaStatus.loading && !qaStatus.enabled && (
+            <span className="text-xs text-muted-foreground">
+              No automático — usa "Evaluar ahora" para evaluar manualmente.
+            </span>
+          )}
+        </div>
+        {reviewableAssets.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No hay assets para evaluar.</p>
+        ) : (
+          <div className="space-y-2">
+            {reviewableAssets.slice(0, 8).map((asset) => {
+              const report = qaReports[asset.id];
+              return (
+                <div
+                  key={asset.id}
+                  className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary/20 border border-border"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{asset.asset_name}</div>
+                    {report ? (
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] ${
+                            report.blocked
+                              ? "border-destructive/50 text-destructive"
+                              : report.overall_score >= 80
+                              ? "border-emerald-300 text-emerald-700"
+                              : "border-amber-300 text-amber-700"
+                          }`}
+                        >
+                          QA: {report.overall_score}/100{report.blocked ? " · bloqueado" : ""}
+                        </Badge>
+                        {report.summary && (
+                          <span className="text-xs text-muted-foreground truncate max-w-md">
+                            {report.summary}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Sin evaluación</span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={runningQa === asset.id}
+                    onClick={() => runQaNow(asset.id)}
+                    className="text-xs h-8"
+                  >
+                    {runningQa === asset.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 mr-1" />
+                    )}
+                    {report ? "Re-evaluar" : "Evaluar ahora"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {assets.filter(a => a.strategic_note || a.strategic_note_approved !== null).length > 0 && (
         <div className="bg-card rounded-lg border border-border p-6 space-y-3">
           <h3 className="font-semibold text-foreground text-sm">Notas estratégicas</h3>
