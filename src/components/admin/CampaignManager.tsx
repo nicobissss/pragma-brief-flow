@@ -933,6 +933,16 @@ function AssetCard({
                 <Star className={`w-3.5 h-3.5 mr-2 ${isSelected ? "fill-primary text-primary" : ""}`} />
                 {isSelected ? "Rimuovi selezione" : "Seleziona per cliente"}
               </DropdownMenuItem>
+              {isApproved && hasContent && (
+                <DropdownMenuItem onClick={generateVariations} disabled={generatingVariations}>
+                  {generatingVariations ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 mr-2" />
+                  )}
+                  {generatingVariations ? "Generando variantes…" : "Generar 3 variantes A/B"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={toggleArchive}>
                 {isArchived ? (
                   <><ArchiveRestore className="w-3.5 h-3.5 mr-2" /> Ripristina</>
