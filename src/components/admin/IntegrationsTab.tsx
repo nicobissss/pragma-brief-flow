@@ -128,9 +128,38 @@ export function IntegrationsTab() {
         </div>
       </section>
 
+      {/* Slotty Integration Status */}
+      <section>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Slotty Integration</h3>
+        <p className="text-xs text-muted-foreground mb-4">Estado de creación de workspaces Slotty (sistema de booking) para cada cliente.</p>
+        {slottyRequests.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No hay solicitudes de workspace.</p>
+        ) : (
+          <div className="space-y-2">
+            {slottyRequests.map(req => (
+              <div key={req.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{req.client_name}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={req.status === "completed" ? "default" : req.status === "failed" ? "destructive" : "secondary"}>
+                    {req.status || "pending"}
+                  </Badge>
+                  {req.workspace_id && (
+                    <span className="text-xs font-mono text-muted-foreground">{req.workspace_id}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Webhook Log */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Webhook Log</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Webhook Log</h3>
+        <p className="text-xs text-muted-foreground mb-4">Últimos 20 webhooks enviados o recibidos. Útil para debug.</p>
         {webhookLogs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No hay registros.</p>
         ) : (
@@ -165,33 +194,6 @@ export function IntegrationsTab() {
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </section>
-
-      {/* Slotty Integration Status */}
-      <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Slotty Integration</h3>
-        {slottyRequests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay solicitudes de workspace.</p>
-        ) : (
-          <div className="space-y-2">
-            {slottyRequests.map(req => (
-              <div key={req.id} className="bg-card rounded-xl border border-border p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">{req.client_name}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={req.status === "completed" ? "default" : req.status === "failed" ? "destructive" : "secondary"}>
-                    {req.status || "pending"}
-                  </Badge>
-                  {req.workspace_id && (
-                    <span className="text-xs font-mono text-muted-foreground">{req.workspace_id}</span>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         )}
       </section>
