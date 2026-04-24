@@ -28,6 +28,7 @@ import {
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
+import { BriefEnrichmentPanel } from "@/components/admin/BriefEnrichmentPanel";
 
 
 // ─── Types ──────────────────────────────────────────────
@@ -696,9 +697,38 @@ function AssetCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generatingVariations, setGeneratingVariations] = useState(false);
   const hasContent = asset.content && Object.keys(asset.content).length > 0;
   const isArchived = asset.production_status === "archived";
   const isSelected = asset.production_status === "selected_for_client";
+  const isApproved = asset.status === "approved";
+
+  const generateVariations = async () => {
+    setGeneratingVariations(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-asset-variations", {
+        body: { asset_id: asset.id, count: 3, force: true },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const created = (data as any)?.created || [];
+      const errs = (data as any)?.errors || [];
+      if (created.length > 0) {
+        toast.success(`${created.length} variante${created.length > 1 ? "s" : ""} A/B generadas.`, {
+          description: created.map((c: any) => `• ${c.label}`).join("\n"),
+        });
+        onChanged?.();
+      } else {
+        toast.error("No se pudieron generar variantes.", {
+          description: errs[0]?.error || "Revisa los logs.",
+        });
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Generación de variantes fallida");
+    } finally {
+      setGeneratingVariations(false);
+    }
+  };
 
   const statusBadgeClass =
     asset.status === "approved"
@@ -904,6 +934,16 @@ function AssetCard({
                 <Star className={`w-3.5 h-3.5 mr-2 ${isSelected ? "fill-primary text-primary" : ""}`} />
                 {isSelected ? "Rimuovi selezione" : "Seleziona per cliente"}
               </DropdownMenuItem>
+              {isApproved && hasContent && (
+                <DropdownMenuItem onClick={generateVariations} disabled={generatingVariations}>
+                  {generatingVariations ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5 mr-2" />
+                  )}
+                  {generatingVariations ? "Generando variantes…" : "Generar 3 variantes A/B"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={toggleArchive}>
                 {isArchived ? (
                   <><ArchiveRestore className="w-3.5 h-3.5 mr-2" /> Ripristina</>
@@ -1857,6 +1897,17 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                           <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} placeholder="Target audience" className="min-h-[50px]" />
                           <Textarea value={keyMessage} onChange={(e) => setKeyMessage(e.target.value)} placeholder="Key message" className="min-h-[50px]" />
                           <Input value={timeline} onChange={(e) => setTimeline(e.target.value)} placeholder="Timeline" />
+                          <BriefEnrichmentPanel
+                            clientId={clientId}
+                            campaignId={campaign.id}
+                            brief={{ name, objective, target_audience: targetAudience, key_message: keyMessage, timeline, description: campaign.description }}
+                            onApply={(field, value) => {
+                              if (field === "objective") setObjective(value);
+                              else if (field === "target_audience") setTargetAudience(value);
+                              else if (field === "key_message") setKeyMessage(value);
+                              else if (field === "timeline") setTimeline(value);
+                            }}
+                          />
                           <div className="flex gap-2">
                             <Button size="sm" onClick={() => updateCampaign(campaign)}>Save</Button>
                             <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
