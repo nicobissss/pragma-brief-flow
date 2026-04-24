@@ -90,18 +90,21 @@ export default function AdminSettings() {
     <div className="p-8 max-w-6xl">
       <h1 className="text-2xl font-bold text-foreground mb-2">Configuración</h1>
       <p className="text-muted-foreground mb-6">
-        Gestiona la base de conocimiento, flows, offerings e integraciones.
+        Configura las guías que la IA usa para generar contenidos, los tools disponibles, el catálogo de ofertas y las integraciones externas.
       </p>
 
       <Tabs defaultValue="knowledge">
         <TabsList>
-          <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
-          <TabsTrigger value="flows">Flows & Reglas</TabsTrigger>
-          <TabsTrigger value="offerings">Offerings Catalog</TabsTrigger>
+          <TabsTrigger value="knowledge">Guías para la IA</TabsTrigger>
+          <TabsTrigger value="flows">Tools & Reglas</TabsTrigger>
+          <TabsTrigger value="offerings">Catálogo de ofertas</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="knowledge" className="mt-6 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Texto narrativo que se inyecta como contexto en los prompts de la IA (propuestas, kickoff, generación de assets). No define ofertas ni precios.
+          </p>
           {kbRows.map((row) => (
             <KBBlock key={row.id} row={row} onSaved={fetchAll} />
           ))}

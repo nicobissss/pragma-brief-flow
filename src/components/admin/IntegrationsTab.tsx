@@ -95,9 +95,17 @@ export function IntegrationsTab() {
 
   return (
     <div className="space-y-10">
+      <div className="bg-secondary/30 rounded-xl p-4">
+        <p className="text-sm text-foreground mb-1"><strong>Integraciones externas</strong></p>
+        <p className="text-sm text-muted-foreground">
+          Conexiones con servicios fuera de PRAGMA. Si no usas Make ni Slotty puedes ignorar esta sección — el Webhook Log seguirá registrando los eventos del sistema Forge para debug.
+        </p>
+      </div>
+
       {/* Make.com Webhook */}
       <section>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Make.com Webhook</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-1">Make.com Webhook</h3>
+        <p className="text-xs text-muted-foreground mb-4">Envía eventos de PRAGMA (cliente creado, asset aprobado…) a un escenario de Make para automatizaciones externas.</p>
         <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block">URL del webhook de Make</label>
