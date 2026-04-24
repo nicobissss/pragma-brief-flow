@@ -28,6 +28,7 @@ import {
 import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
+import { AssetQABadge } from "@/components/admin/AssetQABadge";
 
 // ─── Types ──────────────────────────────────────────────
 type Campaign = {
@@ -731,10 +732,11 @@ function AssetCard({
             <Badge variant="outline" className="text-[10px] shrink-0">v{asset.version || 1}</Badge>
             {isArchived && <Badge variant="outline" className="text-[10px] shrink-0">Archiviato</Badge>}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <Badge variant="outline" className={`text-[10px] ${statusBadgeClass}`}>
               {assetStatusIcon(asset.status)} {assetStatusLabel(asset.status)}
             </Badge>
+            <AssetQABadge assetId={asset.id} clientId={clientId} />
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">
             Caricato {formatDistanceToNow(new Date(asset.created_at), { addSuffix: true })}
