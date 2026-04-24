@@ -142,17 +142,41 @@ export default function AdminDataDashboard() {
     setGeneratingReview(true);
     setReviewContent(null);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-monthly-review");
-      if (error) throw error;
-      if (data?.review) {
-        setReviewContent(data.review);
+      // Use raw fetch so we can read the JSON body even on non-2xx (invoke throws and hides it)
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-monthly-review`;
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const payload = await resp.json().catch(() => ({}));
+
+      if (resp.status === 402) {
+        toast.error("Sin créditos de IA. Recarga en Settings → Workspace → Usage para generar la review.");
+        return;
+      }
+      if (resp.status === 429) {
+        toast.error("Demasiadas solicitudes a la IA. Espera unos segundos e inténtalo de nuevo.");
+        return;
+      }
+      if (!resp.ok) {
+        toast.error(`Error: ${payload?.error || `HTTP ${resp.status}`}`);
+        return;
+      }
+      if (payload?.review) {
+        setReviewContent(payload.review);
         toast.success("Review mensual generada");
       } else {
         toast.error("La función no devolvió contenido");
       }
     } catch (e: any) {
-      toast.error(`Error: ${e.message || "fallo desconocido"}`);
       console.error("generate-monthly-review error", e);
+      toast.error(`Error: ${e?.message || "fallo desconocido"}`);
     } finally {
       setGeneratingReview(false);
     }
