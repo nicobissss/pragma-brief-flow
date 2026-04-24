@@ -8,6 +8,7 @@ import { ProposalView, type ProposalData } from "@/components/proposal/ProposalV
 import { ProposalSummaryView } from "@/components/proposal/ProposalSummaryView";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import KickoffStructuredInfo from "@/components/admin/KickoffStructuredInfo";
+import { ProposalCritiquePanel } from "@/components/admin/ProposalCritiquePanel";
 
 type Props = {
   client: any;
@@ -74,6 +75,11 @@ export default function ProspectInfoTab({
             </CollapsibleContent>
           </div>
         </Collapsible>
+      )}
+
+      {/* 3b. Crítica IA de la propuesta */}
+      {prospect && (
+        <ProposalCritiquePanel prospectId={prospect.id} />
       )}
 
       {/* 4. Notas internas */}
