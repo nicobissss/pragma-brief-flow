@@ -179,15 +179,26 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
       },
     };
 
+    const callWithRetry = (model: string) => callAIWithTool({
+      system: systemPrompt,
+      prompt: userPrompt,
+      tool: toolDef,
+      max_tokens: 4096,
+      model,
+    });
+
     let aiData;
     try {
-      aiData = await callAIWithTool({
-        system: systemPrompt,
-        prompt: userPrompt,
-        tool: toolDef,
-        max_tokens: 4096,
-        model: "google/gemini-2.5-pro",
-      });
+      try {
+        aiData = await callWithRetry("google/gemini-2.5-pro");
+      } catch (e: any) {
+        if (e.code === "NO_TOOL_CALL") {
+          console.warn("Retrying with gemini-2.5-flash after NO_TOOL_CALL");
+          aiData = await callWithRetry("google/gemini-2.5-flash");
+        } else {
+          throw e;
+        }
+      }
     } catch (e: any) {
       if (e.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
@@ -195,9 +206,16 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
         });
       }
       if (e.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Add funds in Lovable settings." }), {
+        return new Response(JSON.stringify({ error: "Sin créditos en Lovable AI. Recarga el workspace." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+      if (e.code === "NO_TOOL_CALL") {
+        return new Response(JSON.stringify({
+          error: "El modelo no devolvió una propuesta estructurada (posible sobrecarga). Reintenta en unos segundos.",
+          code: "NO_TOOL_CALL",
+          finish_reason: e.finishReason,
+        }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       throw e;
     }

@@ -135,7 +135,18 @@ export async function callAIWithTool(opts: {
 
   const data = await res.json();
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  if (!toolCall) throw new Error("No tool_call in Lovable AI response");
+  if (!toolCall) {
+    const finishReason = data.choices?.[0]?.finish_reason;
+    const textContent = data.choices?.[0]?.message?.content || "";
+    console.error("No tool_call in response. finish_reason:", finishReason, "content:", textContent);
+    const err: any = new Error(
+      `AI did not return structured output (finish_reason: ${finishReason || "unknown"}). ` +
+      `This often happens when the model is overloaded or response was filtered. Try again.`
+    );
+    err.code = "NO_TOOL_CALL";
+    err.finishReason = finishReason;
+    throw err;
+  }
 
   let input: any = {};
   try {
