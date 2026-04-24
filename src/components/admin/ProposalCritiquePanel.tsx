@@ -13,6 +13,8 @@ import {
   ChevronUp,
   Wand2,
   RefreshCw,
+  Plus,
+  Telescope,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -93,6 +95,8 @@ export function ProposalCritiquePanel({
   const [editingRec, setEditingRec] = useState<{ idx: number; rec: Recommendation } | null>(null);
   const [editedValue, setEditedValue] = useState<string>("");
   const [regenerating, setRegenerating] = useState(false);
+  const [extending, setExtending] = useState(false);
+  const [deepDivingIdx, setDeepDivingIdx] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
