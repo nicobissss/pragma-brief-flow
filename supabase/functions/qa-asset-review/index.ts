@@ -214,8 +214,17 @@ Evalúa el asset y devuelve, además de los scores, un set de recomendaciones lo
             },
             recommendations: {
               type: "array",
-              items: { type: "string" },
-              description: "Acciones concretas para mejorar el asset.",
+              description: "Instrucciones precisas de re-generación, priorizadas (las más impactantes primero).",
+              items: {
+                type: "object",
+                properties: {
+                  section: { type: "string", description: "Parte concreta del asset (ej: 'Hero', 'CTA', 'Email 2 - subject', 'Bullet 3')." },
+                  change: { type: "string", description: "Qué cambiar (1 frase)." },
+                  how: { type: "string", description: "Cómo hacerlo: instrucción ejecutable, idealmente con ejemplo de texto, longitud o tono concreto." },
+                  priority: { type: "string", enum: ["low", "medium", "high"] },
+                },
+                required: ["section", "change", "how", "priority"],
+              },
             },
             summary: {
               type: "string",
