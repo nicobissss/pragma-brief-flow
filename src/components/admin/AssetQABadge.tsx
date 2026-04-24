@@ -69,15 +69,25 @@ export function AssetQABadge({ assetId, clientId, compact = true }: Props) {
         }
         return;
       }
+      if (data?.error === "PAYMENT_REQUIRED") {
+        toast.error("Sin créditos en Lovable AI", {
+          description: "Recarga el workspace para usar la IA.",
+        });
+        return;
+      }
+      if (data?.error === "RATE_LIMITED") {
+        toast.error("Demasiadas peticiones, reintenta en unos segundos.");
+        return;
+      }
       if (data?.skipped) {
-        toast.info(`QA omitida: ${data.reason}`);
+        toast.info(`QA omitida: ${data.reason || data.error || ""}`);
         return;
       }
       if (data?.error) {
         toast.error(data.error);
         return;
       }
-      toast.success(`QA completada — Score ${data?.overall_score ?? "?"}/100`);
+      toast.success(`QA completada — Score ${data?.report?.overall_score ?? "?"}/100`);
       await fetchReport();
     } finally {
       setRunning(false);
