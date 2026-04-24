@@ -1,58 +1,121 @@
+# Review AI: Cosa abbiamo, cosa manca
 
-# Settings — chiarezza e rinaming
+## 1. Mappa di cosa già fa l'AI oggi
 
-Modifiche solo a 4 file. Nessuna migration, nessun cambiamento di logica IA. Tutto in spagnolo (segue la convenzione UI).
+**Pre-vendita / Briefer**
+- `generate-proposal` — propuesta strategica + pricing (Gemini 2.5 Pro)
+- `analyze-local-competitors` — competitive scan locale
+- `analyze-winning-patterns` — pattern di proposte che hanno chiuso
+- `extract-voice-of-customer` — estrazione voice dal briefing
+- `fetch-website-context` + `extract-pdf-text` — context ingestion
 
-## 1. `src/pages/admin/AdminSettings.tsx`
+**Onboarding / Kickoff**
+- `analyze-kickoff-transcript` — estrae voice_reference, preferred_tone, client_rules
+- `generate-kickoff-prompts` — prompt per Slotty/Forge per vertical
+- `generate-campaign-brief` — auto-bozza del brief
+- `generate-project-plan` — timeline progetto
+- `suggest-client-rule` — suggerisce regole dal feedback
 
-Rinomino i tab e aggiorno il sottotitolo della pagina:
+**Produzione / Revisione**
+- `generate-asset-internal` — generazione asset interna
+- `generate-correction-prompt` — riscrittura prompt dal feedback cliente
+- `select-campaign-materials` — match materiali → campagna
+- `trigger-forge-generation` — orchestra Forge
 
-- "Knowledge Base" → **"Guías para la IA"**
-- "Flows & Reglas" → **"Tools & Reglas"**
-- "Offerings Catalog" → **"Catálogo de ofertas"**
-- "Integraciones" → invariato
+**Strategico**
+- `generate-monthly-review` — review mensile performance
 
-Sotto-titolo aggiornato:
-> Configura las guías que la IA usa para generar contenidos, los tools disponibles, el catálogo de ofertas y las integraciones externas.
+**Verdetto:** la copertura è buona sui flussi *generativi*. I gap grossi sono su **QA pre-consegna**, **loop di apprendimento**, e **proattività del briefer**.
 
-Aggiungo un microtesto sotto ogni tab per spiegare a cosa serve (1 riga, `text-xs text-muted-foreground`).
+---
 
-## 2. `src/components/admin/FlowsRulesTab.tsx`
+## 2. Dove l'AI NON è (e dovrebbe essere)
 
-- **Rimuovo** il banner grigio "Los flows ya no se gestionan aquí…" (ridondante, ormai è chiaro).
-- Aggiungo un blocco introduttivo in cima che spiega in 2 righe:
-  - **Tools disponibles** = lista de automatizaciones que la IA puede proponer en contenidos y prompts. Si desactivas uno, la IA dejará de mencionarlo.
-  - **Reglas globales** = restricciones que la IA debe respetar en cada generación (ej. tono, claims prohibidos).
-- Sezione "Tools disponibles" con sottotitolo: *"La IA elige entre estos tools cuando recomienda automatizaciones al cliente."*
-- Sezione "Reglas globales" con sottotitolo: *"Reglas siempre activas que filtran las generaciones por vertical."*
-- Bottone "Probar configuración actual" → tooltip o subtitle: *"Simula los prompts que la IA generaría con la configuración actual, sin crear un cliente."*
+### A. QA Agent sugli asset prima della consegna al cliente — **PRIORITÀ ALTA**
+Oggi quando Forge/Slotty/Nicolò/Karla generano un asset, va direttamente a `pending_review` umano. Manca un check automatico che intercetti errori prima che arrivino al cliente.
 
-## 3. `src/components/admin/OfferingsCatalogTab.tsx`
+**Proposta:** edge function `qa-asset-review` che gira ad ogni nuovo asset e produce uno **score 0-100 + flag** su:
+- **Brand consistency:** colori, tone, voice_reference dal kickoff
+- **Client rules compliance:** verifica esplicita contro `client_rules` (no claim medici, no prezzi inventati, etc.)
+- **Brief alignment:** l'asset risponde all'obiettivo del campaign brief?
+- **Errori oggettivi:** typo, claim non supportati, CTA mancante, dimensioni sbagliate per la piattaforma
+- **Approvazione predetta:** in base a `analyze-winning-patterns` storico, probabilità che il cliente approvi
 
-Aggiungo in cima un blocco esplicativo (`bg-secondary/30 rounded-xl p-4`):
+Output mostrato in `AssetReviewPanel` come **"AI QA: 87/100 — 2 warning"** con dettaglio espandibile. L'admin decide se inviare al cliente o richiedere revisione interna. Asset con score <60 vengono bloccati automaticamente in `internal_review`.
 
-> **Catálogo de ofertas** — Estos son los paquetes comerciales que PRAGMA vende. La IA usa este catálogo para **recomendar ofertas** a cada cliente y para **generar el plan de tareas**. Es independiente de las "Guías para la IA" (que solo son contexto narrativo).
+**Beneficio business:** meno cicli di `change_requested` dal cliente → +velocità + percezione di qualità.
 
-Etichette tier già chiare, non tocco le card.
+### B. Pre-mortem AI sulla proposta prima dell'invio — **PRIORITÀ ALTA**
+Oggi `generate-proposal` produce, l'admin manda. Manca un agente "avvocato del diavolo".
 
-## 4. `src/components/admin/IntegrationsTab.tsx`
+**Proposta:** funzione `critique-proposal` che gira sulla proposta generata e risponde:
+- Quali obiezioni farà il prospect in call?
+- Il pricing è coerente con vertical/market storico?
+- Mancano elementi che hanno funzionato in proposte vinte simili (`analyze-winning-patterns`)?
+- Il customer journey narrative ha buchi logici?
 
-Aggiungo blocco intro:
+Output nella sezione **Call Preparation** della proposta come "Anticipated objections + suggested rebuttals". Già hai l'hook + journey lì, manca il debate.
 
-> **Integraciones externas** — Conexiones con servicios fuera de PRAGMA. Si no usas Make ni Slotty, puedes ignorar esta sección — el Webhook Log seguirá registrando los eventos del sistema Forge para debug.
+### C. Briefer più proattivo: agente conversazionale post-form — **PRIORITÀ MEDIA**
+Oggi il briefer è form statico. Dopo il submit, manca un follow-up intelligente.
 
-Per ogni sottosezione aggiungo 1 riga descrittiva:
+**Proposta:**
+1. **Auto-enrichment agent**: dopo submit del briefing, parte un job che (a) fa scrape del sito, (b) cerca competitor locali, (c) estrae voice dal sito del prospect, (d) scrive 3-5 *"smart questions"* personalizzate che il prospect riceve via email per completare i gap → arrivano alla call con più contesto.
+2. **Qualification score AI**: oltre alla pre-cualificación basata su regole, un AI score 0-100 di "fit" con Pragma (vertical compatibility, budget realismo, timeline, red flags). Aiuta a prioritizzare la call queue.
 
-- **Make.com Webhook** — *"Envía eventos de PRAGMA (cliente creado, asset aprobado…) a un escenario de Make para automatizaciones externas."*
-- **Webhook Log** — *"Últimos 20 webhooks enviados o recibidos. Útil para debug."*
-- **Slotty Integration** — *"Estado de creación de workspaces Slotty (sistema de booking) para cada cliente."*
+### D. Feedback Loop Agent — **PRIORITÀ MEDIA**
+`suggest-client-rule` esiste ma è reattivo singolo-feedback. Manca il loop sistemico.
 
-Riordino: metto **Webhook Log** in fondo (è l'ultimo perché è un log, non una configurazione). Ordine finale: Make → Slotty → Webhook Log.
+**Proposta:** agente settimanale `learn-from-rejections` che:
+- Analizza tutti i `change_requested` della settimana per cliente
+- Trova pattern ricorrenti (es. "il cliente cambia sempre la CTA da imperativo a domanda")
+- Aggiorna automaticamente `client_rules` con suggerimenti pendenti per approvazione admin
+- Aggiorna il `voice_reference` se il pattern è stilistico
+- Genera un report "Cosa abbiamo imparato sul cliente X questa settimana"
 
-## Cosa NON faccio
+### E. Conversational AI assistant per admin — **PRIORITÀ MEDIA**
+Hai una marea di dati (clienti, asset, prospects, regole). Manca un'interfaccia conversazionale.
 
-- Non rimuovo niente dalla DB (`pragma_rules`, `knowledge_base` restano com'è).
-- Non tocco le edge functions (la logica di iniezione nei prompt è già corretta).
-- Non collego KB e Offerings Catalog (restano sistemi separati, come deciso).
-- Non rimuovo Integraciones anche se non la usi attivamente — il Webhook Log serve per debug del sistema Forge.
+**Proposta:** chat assistant in `/admin` con accesso via tool-calling a:
+- Query sui clienti ("quali clienti hanno asset bloccati da >7 giorni?")
+- Drafting ("scrivi un follow-up per il prospect X considerando la sua call")
+- Summary ("riassumimi cosa è successo questa settimana con cliente Y")
+- Action ("genera il brief per la campagna di Natale di Z")
 
+Usa Lovable AI con tool-calling sui dati del DB.
+
+### F. Asset variation generator — **PRIORITÀ BASSA**
+Quando un asset viene approvato, agente che propone automaticamente 2-3 varianti (formato diverso, hook diverso, A/B test) prima ancora che il cliente le chieda. Aumenta il valore percepito.
+
+---
+
+## 3. Come priorizzerei (mia raccomandazione)
+
+**Fase 1 (impatto immediato sul business):**
+1. **QA Agent sugli asset** — riduce cicli di revisione, alza qualità percepita
+2. **Pre-mortem proposta** — alza tasso di conversione in call
+
+**Fase 2 (efficienza interna):**
+3. **Feedback Loop Agent settimanale** — il sistema impara solo
+4. **Briefer auto-enrichment + smart questions** — call meglio preparate
+
+**Fase 3 (nice-to-have):**
+5. **Admin conversational assistant**
+6. **Asset variation generator**
+
+---
+
+## 4. Considerazioni tecniche
+
+- Tutto passa già per `_shared/ai.ts` su Lovable AI Gateway → zero nuove dipendenze
+- Modello consigliato per QA e critique: `google/gemini-2.5-pro` (serve reasoning, ha già accesso visivo per gli asset immagine)
+- Per il QA visivo degli asset immagine usiamo Gemini 2.5 Pro multimodale (analizza l'immagine generata vs brief)
+- Feedback loop settimanale: cron edge function via `pg_cron` + funzione esistente `analyze-winning-patterns` come template
+- L'admin assistant usa **tool-calling** del gateway (pattern già descritto in best practices)
+- Tutti i nuovi agenti scrivono i loro output in tabelle dedicate (`asset_qa_reports`, `proposal_critiques`, `learning_reports`) per audit + UI
+
+---
+
+## 5. Domanda per te
+
+Dimmi quali di questi vuoi che attacchiamo (anche solo Fase 1) e parto. Se vuoi, posso anche solo fare **uno** dei due della Fase 1 prima per validarlo prima di scalare.
