@@ -9,6 +9,7 @@ import { Loader2, Pencil, Save } from "lucide-react";
 import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
 import OfferingsCatalogTab from "@/components/admin/OfferingsCatalogTab";
+import AIAgentsControlTab from "@/components/admin/AIAgentsControlTab";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Procesos" },
@@ -99,6 +100,7 @@ export default function AdminSettings() {
           <TabsTrigger value="flows">Tools & Reglas</TabsTrigger>
           <TabsTrigger value="offerings">Catálogo de ofertas</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
+          <TabsTrigger value="agents">Agentes IA</TabsTrigger>
         </TabsList>
 
         <TabsContent value="knowledge" className="mt-6 space-y-4">
