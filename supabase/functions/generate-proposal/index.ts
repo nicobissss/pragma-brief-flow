@@ -112,7 +112,9 @@ Vertical: ${prospect.vertical}
 Sub-niche: ${prospect.sub_niche}
 
 Respuestas del briefing:
-${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
+${JSON.stringify(prospect.briefing_answers || {}, null, 2)}
+
+${extra_instructions ? `\n\n# INSTRUCCIONES ADICIONALES (CRÍTICAS DE IA A INCORPORAR)\n${extra_instructions}\n` : ""}`;
 
     const toolDef = {
       name: "create_proposal",
