@@ -202,8 +202,8 @@ ${JSON.stringify(prospect.briefing_answers || {}, null, 2)}`;
       throw e;
     }
 
-    const toolUseBlock = aiData.content?.find((b: any) => b.type === "tool_use");
-    if (!toolUseBlock) throw new Error("No tool_use block in AI response");
+    const toolUseBlock = aiData.content?.find((b) => b.type === "tool_use");
+    if (!toolUseBlock || toolUseBlock.type !== "tool_use") throw new Error("No tool_use block in AI response");
 
     const proposal = toolUseBlock.input;
     const summary = proposal.summary || {};

@@ -141,7 +141,8 @@ Devuelve SOLO un objeto JSON con esta forma exacta:
       throw e;
     }
 
-    const text = result.content?.find((b: any) => b.type === "text")?.text || "";
+    const textBlock = result.content?.find((b) => b.type === "text");
+    const text = (textBlock && textBlock.type === "text" ? textBlock.text : "") || "";
 
     const extractJson = (raw: string): any => {
       let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();

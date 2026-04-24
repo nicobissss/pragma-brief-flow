@@ -54,7 +54,8 @@ Return ONLY valid JSON:
       max_tokens: 2000,
       model: "google/gemini-2.5-pro",
     });
-    const text = data.content?.find((b: any) => b.type === "text")?.text || "{}";
+    const textBlock = data.content?.find((b) => b.type === "text");
+    const text = (textBlock && textBlock.type === "text" ? textBlock.text : "") || "{}";
     const cleaned = text.replace(/^```json?\s*/i, "").replace(/```\s*$/, "").trim();
     const result = JSON.parse(cleaned);
 
@@ -68,7 +69,7 @@ Return ONLY valid JSON:
     });
   } catch (e) {
     console.error("analyze-kickoff-transcript error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

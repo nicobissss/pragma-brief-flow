@@ -18,7 +18,8 @@ Deno.serve(async (req) => {
       prompt: `Based on this client feedback: "${feedback_text}"\n\nSuggest ONE specific rule for the AI (max 15 words). Just the rule, nothing else.`,
     });
 
-    const suggestedRule = data.content?.find((b: any) => b.type === "text")?.text?.trim() || "";
+    const textBlock = data.content?.find((b) => b.type === "text");
+    const suggestedRule = (textBlock && textBlock.type === "text" ? textBlock.text : "")?.trim() || "";
 
     return new Response(JSON.stringify({ suggested_rule: suggestedRule }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

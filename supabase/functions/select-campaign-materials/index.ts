@@ -115,7 +115,8 @@ SÃ© selectivo: solo marca selected=true los que aporten valor real a esta campaÃ
       throw e;
     }
 
-    const text = result.content?.find((b: any) => b.type === "text")?.text || "";
+    const textBlock = result.content?.find((b) => b.type === "text");
+    const text = (textBlock && textBlock.type === "text" ? textBlock.text : "") || "";
     let parsed: any = {};
     try {
       const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();

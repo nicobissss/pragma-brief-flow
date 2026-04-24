@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
     throw new Error(`Unknown notification type: ${type}`);
   } catch (e) {
     console.error("send-notification error:", e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -305,7 +305,8 @@ Only include tools that are relevant for this client based on their vertical, su
       throw e;
     }
 
-    const textContent = aiData.content?.find((b: any) => b.type === "text")?.text || "";
+    const textBlock = aiData.content?.find((b) => b.type === "text");
+    const textContent = (textBlock && textBlock.type === "text" ? textBlock.text : "") || "";
 
     let result;
     try {
@@ -373,7 +374,7 @@ Only include tools that are relevant for this client based on their vertical, su
   } catch (e) {
     console.error("generate-kickoff-prompts error:", e);
     return new Response(
-      JSON.stringify({ error: e.message }),
+      JSON.stringify({ error: (e as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
