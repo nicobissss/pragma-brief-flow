@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { OfferingDetails } from "@/components/shared/OfferingDetails";
 import { Textarea } from "@/components/ui/textarea";
+import { ProposalCritiquePanel } from "@/components/admin/ProposalCritiquePanel";
 
 type Offering = {
   id: string;
