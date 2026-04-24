@@ -72,7 +72,16 @@ export function AssetQABadge({ assetId, clientId, compact = true }: Props) {
       if (data?.error === "PAYMENT_REQUIRED") {
         toast.error("Sin créditos en Lovable AI", {
           description: "Recarga el workspace para usar la IA.",
+          action: {
+            label: "Recargar",
+            onClick: () =>
+              window.open("https://lovable.dev/settings/workspace", "_blank"),
+          },
         });
+        return;
+      }
+      if (data?.error === "RATE_LIMITED") {
+        toast.error("Demasiadas peticiones, reintenta en unos segundos.");
         return;
       }
       if (data?.error === "RATE_LIMITED") {
