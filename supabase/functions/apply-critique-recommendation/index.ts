@@ -64,7 +64,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    const newValue = override_value !== undefined ? override_value : rec.new_value;
+    let newValue: any = override_value !== undefined ? override_value : rec.new_value;
+    // AI sometimes returns objects serialized as JSON strings; parse defensively
+    if (typeof newValue === "string") {
+      const trimmed = newValue.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          newValue = JSON.parse(trimmed);
+        } catch {
+          // keep as string
+        }
+      }
+    }
     if (newValue === undefined || newValue === null) {
       return new Response(
         JSON.stringify({ error: "no new_value provided in recommendation or override" }),
