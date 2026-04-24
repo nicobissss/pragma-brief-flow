@@ -696,9 +696,38 @@ function AssetCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [generatingVariations, setGeneratingVariations] = useState(false);
   const hasContent = asset.content && Object.keys(asset.content).length > 0;
   const isArchived = asset.production_status === "archived";
   const isSelected = asset.production_status === "selected_for_client";
+  const isApproved = asset.status === "approved";
+
+  const generateVariations = async () => {
+    setGeneratingVariations(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-asset-variations", {
+        body: { asset_id: asset.id, count: 3, force: true },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const created = (data as any)?.created || [];
+      const errs = (data as any)?.errors || [];
+      if (created.length > 0) {
+        toast.success(`${created.length} variante${created.length > 1 ? "s" : ""} A/B generadas.`, {
+          description: created.map((c: any) => `• ${c.label}`).join("\n"),
+        });
+        onChanged?.();
+      } else {
+        toast.error("No se pudieron generar variantes.", {
+          description: errs[0]?.error || "Revisa los logs.",
+        });
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Generación de variantes fallida");
+    } finally {
+      setGeneratingVariations(false);
+    }
+  };
 
   const statusBadgeClass =
     asset.status === "approved"
