@@ -138,6 +138,63 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agent_settings: {
+        Row: {
+          agent_key: string
+          category: string
+          config: Json
+          created_at: string
+          description: string | null
+          display_name: string
+          enabled: boolean
+          id: string
+          last_cost_estimate_eur: number | null
+          last_run_at: string | null
+          last_run_status: string | null
+          sort_order: number
+          total_cost_estimate_eur: number
+          total_runs: number
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          agent_key: string
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_name: string
+          enabled?: boolean
+          id?: string
+          last_cost_estimate_eur?: number | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          sort_order?: number
+          total_cost_estimate_eur?: number
+          total_runs?: number
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_key?: string
+          category?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          enabled?: boolean
+          id?: string
+          last_cost_estimate_eur?: number | null
+          last_run_at?: string | null
+          last_run_status?: string | null
+          sort_order?: number
+          total_cost_estimate_eur?: number
+          total_runs?: number
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: string
@@ -156,6 +213,72 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      asset_qa_reports: {
+        Row: {
+          asset_id: string
+          blocked: boolean
+          brand_score: number | null
+          brief_alignment_score: number | null
+          client_id: string
+          cost_estimate_eur: number | null
+          created_at: string
+          id: string
+          model_used: string | null
+          overall_score: number
+          predicted_approval_score: number | null
+          recommendations: Json
+          reviewed_by_admin: boolean
+          rules_score: number | null
+          rules_violated: Json
+          summary: string | null
+          tokens_used: number | null
+          version: number
+          warnings: Json
+        }
+        Insert: {
+          asset_id: string
+          blocked?: boolean
+          brand_score?: number | null
+          brief_alignment_score?: number | null
+          client_id: string
+          cost_estimate_eur?: number | null
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          overall_score: number
+          predicted_approval_score?: number | null
+          recommendations?: Json
+          reviewed_by_admin?: boolean
+          rules_score?: number | null
+          rules_violated?: Json
+          summary?: string | null
+          tokens_used?: number | null
+          version?: number
+          warnings?: Json
+        }
+        Update: {
+          asset_id?: string
+          blocked?: boolean
+          brand_score?: number | null
+          brief_alignment_score?: number | null
+          client_id?: string
+          cost_estimate_eur?: number | null
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          overall_score?: number
+          predicted_approval_score?: number | null
+          recommendations?: Json
+          reviewed_by_admin?: boolean
+          rules_score?: number | null
+          rules_violated?: Json
+          summary?: string | null
+          tokens_used?: number | null
+          version?: number
+          warnings?: Json
         }
         Relationships: []
       }
@@ -1974,6 +2097,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_ai_agent_enabled: { Args: { _agent_key: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
