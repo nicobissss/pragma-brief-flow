@@ -9,6 +9,7 @@ import {
   Bot,
   Calendar,
   Cog,
+  CreditCard,
   Loader2,
   PlayCircle,
   Sparkles,
@@ -127,7 +128,86 @@ export default function AIAgentsControlTab() {
         </div>
       </div>
 
-      {/* Master switch */}
+      {/* AI credits status banner */}
+      {(() => {
+        const noCreditsAgent = agents.find(
+          (a) => a.last_run_status === "no_credits"
+        );
+        const rateLimitedAgent = agents.find(
+          (a) => a.last_run_status === "rate_limited"
+        );
+        if (noCreditsAgent) {
+          return (
+            <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="w-5 h-5 text-destructive mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      Sin créditos en Lovable AI
+                      <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
+                        Bloqueado
+                      </Badge>
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+                      El último intento de <strong>{noCreditsAgent.display_name}</strong> falló
+                      con un error 402 (créditos insuficientes). Los agentes
+                      seguirán pausados hasta que recargues el workspace.
+                    </p>
+                    {noCreditsAgent.last_run_at && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Detectado: {new Date(noCreditsAgent.last_run_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={fetchAgents}>
+                    Reintentar
+                  </Button>
+                  <Button
+                    size="sm"
+                    asChild
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    <a
+                      href="https://lovable.dev/settings/workspace"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Recargar créditos
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        if (rateLimitedAgent) {
+          return (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <div className="text-sm">
+                <span className="font-semibold text-foreground">Rate limit alcanzado.</span>{" "}
+                <span className="text-muted-foreground">
+                  Espera unos segundos antes de reintentar la IA.
+                </span>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-center gap-3">
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <div className="text-sm">
+              <span className="font-semibold text-foreground">Créditos OK.</span>{" "}
+              <span className="text-muted-foreground">
+                No se han detectado errores de pago en las últimas ejecuciones.
+              </span>
+            </div>
+          </div>
+        );
+      })()}
       {master && (
         <div
           className={`rounded-2xl border-2 p-6 transition-colors ${
