@@ -218,10 +218,10 @@ Deno.serve(async (req) => {
         .order("order_index", { ascending: true });
       const target_task = (tasks || [])[idx - 1] || (tasks || [])[idx];
       if (!target_task) throw new Error("task not found at index " + idx);
-      const v = newValue || {};
+      const v = (newValue && typeof newValue === "object") ? newValue : {};
       const update: any = {};
       ["title", "description", "category", "assignee", "estimated_hours", "due_date", "status"].forEach((k) => {
-        if (k in v) update[k] = v[k];
+        if (k in v) update[k] = (v as any)[k];
       });
       const { error: upErr } = await supabase
         .from("action_plan_tasks")
