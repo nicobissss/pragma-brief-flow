@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ProposalView, type ProposalData } from "@/components/proposal/ProposalView";
+import { ProposalSummaryView } from "@/components/proposal/ProposalSummaryView";
 import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import KickoffStructuredInfo from "@/components/admin/KickoffStructuredInfo";
 
