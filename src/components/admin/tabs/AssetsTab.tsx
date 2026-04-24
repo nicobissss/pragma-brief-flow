@@ -2,6 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CampaignManager } from "@/components/admin/CampaignManager";
 import { supabase } from "@/integrations/supabase/client";
+import { AIAgentBadge } from "@/components/admin/AIAgentBadge";
+import { useAIAgentStatus } from "@/hooks/useAIAgentStatus";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Sparkles, Loader2 } from "lucide-react";
 
 type Props = {
   client: any;
