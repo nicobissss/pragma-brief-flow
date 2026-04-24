@@ -10,7 +10,7 @@
  */
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.5-pro";
+const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 
 export type AIMessage = { role: "system" | "user" | "assistant"; content: string };
 
@@ -109,13 +109,16 @@ export async function callAIWithTool(opts: {
   }
 
   const primaryModel = opts.model || DEFAULT_MODEL;
-  // Build fallback chain: if primary is pro, fall back to flash; always try flash-lite as last resort
-  const fallbackChain: string[] = [primaryModel];
-  if (primaryModel.includes("gemini-2.5-pro")) {
-    fallbackChain.push("google/gemini-2.5-flash");
-  } else if (primaryModel.includes("gemini-2.5-flash") && !primaryModel.includes("lite")) {
-    fallbackChain.push("google/gemini-2.5-pro");
-  }
+  const fallbackCandidates = [
+    primaryModel,
+    "google/gemini-3-flash-preview",
+    "google/gemini-2.5-flash",
+    "google/gemini-2.5-flash-lite",
+    "google/gemini-2.5-pro",
+  ];
+  const fallbackChain = [...new Set(fallbackCandidates.filter(Boolean))].filter(
+    (model) => model !== ""
+  );
 
   const tools = [
     {
@@ -139,7 +142,7 @@ export async function callAIWithTool(opts: {
         const res = await postGateway({
           model,
           messages,
-          max_tokens: opts.max_tokens || 4096,
+          max_tokens: Math.max(opts.max_tokens || 4096, 4096),
           tools,
           tool_choice: { type: "function", function: { name: opts.tool.name } },
         });
@@ -160,7 +163,7 @@ export async function callAIWithTool(opts: {
 
         const data = await res.json();
         const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) {
+          if (!toolCall) {
           const finishReason = data.choices?.[0]?.finish_reason;
           const textContent = data.choices?.[0]?.message?.content || "";
           console.error(
@@ -169,11 +172,11 @@ export async function callAIWithTool(opts: {
             "content:",
             textContent.slice(0, 200)
           );
-          lastError = Object.assign(
+            lastError = Object.assign(
             new Error(
               `AI did not return structured output (model=${model}, finish_reason: ${finishReason || "unknown"})`
             ),
-            { code: "NO_TOOL_CALL", finishReason }
+              { code: "NO_TOOL_CALL", finishReason, model }
           );
           continue; // retry / fallback
         }
