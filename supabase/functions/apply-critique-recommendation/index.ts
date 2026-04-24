@@ -114,16 +114,24 @@ Deno.serve(async (req) => {
       const update: any = {};
 
       if (path === "timeline" || path === "pragma_notes" || path === "recommended_flow") {
+        beforeValue = (proposal as any)[path];
         update[path] = String(newValue);
+        afterValue = update[path];
       } else if (path === "recommended_tools" || path === "pricing") {
+        beforeValue = (proposal as any)[path];
         update[path] = newValue;
+        afterValue = newValue;
       } else if (path.startsWith("full_proposal_content.")) {
         const sectionKey = path.slice("full_proposal_content.".length);
         const fpc = (proposal.full_proposal_content as any) || {};
+        beforeValue = fpc[sectionKey] ?? null;
         fpc[sectionKey] = newValue;
         update.full_proposal_content = fpc;
+        afterValue = newValue;
       } else if (path === "full_proposal_content") {
+        beforeValue = proposal.full_proposal_content;
         update.full_proposal_content = newValue;
+        afterValue = newValue;
       } else {
         return new Response(
           JSON.stringify({ error: `unsupported proposal target: ${path}` }),
@@ -139,7 +147,7 @@ Deno.serve(async (req) => {
         .update(update)
         .eq("id", report.proposal_id);
       if (upErr) throw upErr;
-      applied = { entity: "proposal", id: report.proposal_id, fields: Object.keys(update) };
+      applied = { entity: "proposal", id: report.proposal_id, fields: Object.keys(update), before: beforeValue, after: afterValue };
     }
 
     // OFFERING fields ------------------------------------------------------
