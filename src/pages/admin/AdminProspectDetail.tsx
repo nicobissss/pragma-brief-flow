@@ -343,6 +343,8 @@ export default function AdminProspectDetail() {
                 <ProposalView data={proposal} editable={true} onSave={handleSaveProposal} />
               )}
 
+              <ProposalCritiquePanel prospectId={prospect.id} />
+
               <SalesCallCard
                 prospectId={prospect.id}
                 callStatus={prospect.call_status as any}
