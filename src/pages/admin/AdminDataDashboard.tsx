@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -334,8 +334,8 @@ export default function AdminDataDashboard() {
                     {generations.length === 0 ? (
                       <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Sin prompts generados.</TableCell></TableRow>
                     ) : generations.map((g) => (
-                      <>
-                        <TableRow key={g.id}>
+                      <Fragment key={g.id}>
+                        <TableRow>
                           <TableCell className="text-sm">{g.clients?.name || "—"}</TableCell>
                           <TableCell className="text-xs font-mono">{g.tool_name}</TableCell>
                           <TableCell><Badge variant="outline" className="text-[10px]">{g.status}</Badge></TableCell>
@@ -347,7 +347,7 @@ export default function AdminDataDashboard() {
                           </TableCell>
                         </TableRow>
                         {expandedGen === g.id && (
-                          <TableRow key={`${g.id}-x`}>
+                          <TableRow>
                             <TableCell colSpan={5}>
                               <pre className="bg-secondary/40 p-3 rounded text-xs overflow-auto max-h-80 whitespace-pre-wrap">
                                 {JSON.stringify(g.prompt, null, 2)}
@@ -355,7 +355,7 @@ export default function AdminDataDashboard() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
