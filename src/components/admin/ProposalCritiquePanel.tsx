@@ -48,19 +48,29 @@ export function ProposalCritiquePanel({ prospectId }: { prospectId: string }) {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [hasProposal, setHasProposal] = useState<boolean>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("proposal_critique_reports")
-      .select("*")
-      .eq("prospect_id", prospectId)
-      .order("created_at", { ascending: false });
+    const [{ data: reportsData, error }, { data: propData }] = await Promise.all([
+      supabase
+        .from("proposal_critique_reports")
+        .select("*")
+        .eq("prospect_id", prospectId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("proposals")
+        .select("id")
+        .eq("prospect_id", prospectId)
+        .limit(1)
+        .maybeSingle(),
+    ]);
     if (error) {
       toast.error("No se pudo cargar el historial de crítica");
     } else {
-      setReports((data as any) || []);
+      setReports((reportsData as any) || []);
     }
+    setHasProposal(!!propData);
     setLoading(false);
   }, [prospectId]);
 
