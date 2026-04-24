@@ -25,6 +25,52 @@ const ASSET_LABELS: Record<string, string> = {
 const statusIcon = (s: string) => s === "approved" ? "✅" : s === "pending_review" ? "⏳" : s === "change_requested" ? "💬" : "—";
 
 export default function AssetsTab({ client, assets, setAssets, campaigns, setCampaigns, onApproveStrategicNote, promptsTabContent }: Props) {
+  const qaStatus = useAIAgentStatus("qa_asset_review", client?.id);
+  const [qaReports, setQaReports] = useState<Record<string, any>>({});
+  const [runningQa, setRunningQa] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!client?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("asset_qa_reports")
+        .select("asset_id, overall_score, blocked, summary, created_at")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false });
+      const map: Record<string, any> = {};
+      for (const r of data || []) {
+        if (!map[r.asset_id]) map[r.asset_id] = r; // latest first
+      }
+      setQaReports(map);
+    })();
+  }, [client?.id, assets.length]);
+
+  const runQaNow = async (assetId: string) => {
+    setRunningQa(assetId);
+    const { data, error } = await supabase.functions.invoke("qa-asset-review", {
+      body: { asset_id: assetId, force: true },
+    });
+    setRunningQa(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (data?.skipped) {
+      toast.info(`QA omitida: ${data.reason}`);
+      return;
+    }
+    toast.success(`QA completada — Score ${data?.overall_score ?? "?"}/100`);
+    // refresh reports
+    const { data: refreshed } = await supabase
+      .from("asset_qa_reports")
+      .select("asset_id, overall_score, blocked, summary, created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false });
+    const map: Record<string, any> = {};
+    for (const r of refreshed || []) if (!map[r.asset_id]) map[r.asset_id] = r;
+    setQaReports(map);
+  };
+
   const getAssetStatus = (type: string) => {
     const matching = assets.filter((a) => a.asset_type === type);
     if (matching.length === 0) return "none";
@@ -33,6 +79,10 @@ export default function AssetsTab({ client, assets, setAssets, campaigns, setCam
     if (matching.every((a) => a.status === "approved")) return "approved";
     return "pending_review";
   };
+
+  const reviewableAssets = assets.filter(
+    (a) => a.status === "pending_review" || qaReports[a.id]
+  );
 
   return (
     <div className="space-y-6">
