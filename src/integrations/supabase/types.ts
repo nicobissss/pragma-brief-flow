@@ -1536,6 +1536,78 @@ export type Database = {
         }
         Relationships: []
       }
+      proposal_critique_reports: {
+        Row: {
+          brief_alignment_score: number | null
+          clarity_score: number | null
+          cost_estimate_eur: number | null
+          created_at: string
+          id: string
+          missing_elements: Json
+          model_used: string | null
+          objection_handling_score: number | null
+          overall_score: number
+          persuasion_score: number | null
+          pricing_score: number | null
+          proposal_id: string | null
+          prospect_id: string
+          recommendations: Json
+          strengths: Json
+          summary: string | null
+          tokens_used: number | null
+          triggered_by: string
+          triggered_by_user_id: string | null
+          version: number
+          weaknesses: Json
+        }
+        Insert: {
+          brief_alignment_score?: number | null
+          clarity_score?: number | null
+          cost_estimate_eur?: number | null
+          created_at?: string
+          id?: string
+          missing_elements?: Json
+          model_used?: string | null
+          objection_handling_score?: number | null
+          overall_score: number
+          persuasion_score?: number | null
+          pricing_score?: number | null
+          proposal_id?: string | null
+          prospect_id: string
+          recommendations?: Json
+          strengths?: Json
+          summary?: string | null
+          tokens_used?: number | null
+          triggered_by?: string
+          triggered_by_user_id?: string | null
+          version?: number
+          weaknesses?: Json
+        }
+        Update: {
+          brief_alignment_score?: number | null
+          clarity_score?: number | null
+          cost_estimate_eur?: number | null
+          created_at?: string
+          id?: string
+          missing_elements?: Json
+          model_used?: string | null
+          objection_handling_score?: number | null
+          overall_score?: number
+          persuasion_score?: number | null
+          pricing_score?: number | null
+          proposal_id?: string | null
+          prospect_id?: string
+          recommendations?: Json
+          strengths?: Json
+          summary?: string | null
+          tokens_used?: number | null
+          triggered_by?: string
+          triggered_by_user_id?: string | null
+          version?: number
+          weaknesses?: Json
+        }
+        Relationships: []
+      }
       proposals: {
         Row: {
           client_notes: string | null
