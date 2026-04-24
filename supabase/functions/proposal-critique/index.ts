@@ -12,6 +12,21 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 type Scope = "prospect" | "post_kickoff";
 
+function compactJson(value: unknown, maxChars: number) {
+  try {
+    return JSON.stringify(value).slice(0, maxChars);
+  } catch {
+    return String(value ?? "").slice(0, maxChars);
+  }
+}
+
+function compactText(value: unknown, maxChars: number) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxChars);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -111,7 +126,7 @@ Deno.serve(async (req) => {
       .eq("agent_key", "proposal_critique")
       .maybeSingle();
     const config = (agentSettings?.config as any) || {};
-    const model: string = config.model || "google/gemini-2.5-pro";
+    const model: string = config.model || "google/gemini-3-flash-preview";
 
     // Load prospect (optional in post_kickoff if missing)
     let prospect: any = null;
@@ -198,7 +213,7 @@ Deno.serve(async (req) => {
     const briefingFmt = Object.entries(prospect?.briefing_answers || {})
       .map(([k, v]) => `- ${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
       .join("\n")
-      .slice(0, 4000);
+      .slice(0, 2500);
 
     let systemPrompt = "";
     let userPrompt = "";
@@ -238,7 +253,7 @@ Market: ${prospect?.market}
 ${briefingFmt || "(sin briefing)"}
 
 # Propuesta a criticar
-${JSON.stringify(proposalContent, null, 2).slice(0, 8000)}
+        ${compactJson(proposalContent, 4500)}
 
 # Tarea
 Critica esta propuesta como si fueras el responsable de cerrar la venta. ¿Convence? ¿Anticipa objeciones? ¿El pricing está bien justificado? ¿Falta algo crítico?`;
@@ -268,18 +283,16 @@ Critica esta propuesta como si fueras el responsable de cerrar la venta. ¿Conve
               pricing: proposalRow.pricing,
               timeline: proposalRow.timeline,
             },
-            null,
-            2
-          ).slice(0, 3500)}`
+          ).slice(0, 2200)}`
         : "(no hay propuesta original guardada)";
 
       const kickoffSummary = kickoff
-        ? `Transcript (resumen): ${(kickoff.transcript_text || "").slice(0, 2500)}
-Reglas del cliente: ${JSON.stringify(kickoff.client_rules || []).slice(0, 1000)}
+        ? `Transcript (resumen): ${compactText(kickoff.transcript_text, 1400)}
+ Reglas del cliente: ${compactJson(kickoff.client_rules || [], 700)}
 Tono preferido: ${kickoff.preferred_tone || "(no definido)"}
-Voice reference: ${(kickoff.voice_reference || "").slice(0, 500)}
+ Voice reference: ${compactText(kickoff.voice_reference, 280)}
 Context completeness: ${kickoff.context_completeness_score ?? "?"}/100
-Servicios sugeridos en kickoff: ${JSON.stringify(kickoff.suggested_services || []).slice(0, 800)}`
+ Servicios sugeridos en kickoff: ${compactJson(kickoff.suggested_services || [], 500)}`
         : "(no hay kickoff registrado)";
 
       systemPrompt = `Eres un Account Strategist Senior. Después del kickoff con el cliente, tu trabajo es CRITICAR el offering activado y el plan de acción comparándolo con TODO el contexto real (propuesta inicial + kickoff + materiales + reglas).
@@ -323,7 +336,7 @@ ${proposalSummary}
 Nombre: ${tplName}
 Descripción template: ${tplDesc}
 Precio: ${price ? `${price} EUR` : "(no definido)"}
-Deliverables: ${JSON.stringify(tplDeliv, null, 2).slice(0, 2500)}
+ Deliverables: ${compactJson(tplDeliv, 1200)}
 Notas custom: ${offeringRow?.notes || "(ninguna)"}
 Status: ${offeringRow?.status}
 
@@ -341,7 +354,7 @@ Compara offering + action plan con propuesta original y kickoff. Detecta drift, 
       system: systemPrompt,
       prompt: userPrompt,
       model,
-      max_tokens: 3000,
+      max_tokens: 4096,
       tool: {
         name: "submit_proposal_critique",
         description: "Submit the critique.",
@@ -452,10 +465,11 @@ Compara offering + action plan con propuesta original y kickoff. Detecta drift, 
     });
   } catch (e: any) {
     const msg = e?.message || String(e);
+    const isStructuredOutputFailure = e?.code === "NO_TOOL_CALL" || msg.includes("structured output");
     const isPayment = msg.includes("402") || msg.toLowerCase().includes("payment");
     const isRate = msg.includes("429") || msg.toLowerCase().includes("rate");
     return new Response(JSON.stringify({ error: msg }), {
-      status: isPayment ? 402 : isRate ? 429 : 500,
+      status: isPayment ? 402 : isRate ? 429 : isStructuredOutputFailure ? 503 : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
