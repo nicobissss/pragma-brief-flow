@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { callAIWithTool } from "../_shared/ai.ts";
+import { recordAgentRun } from "../_shared/telemetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -301,6 +302,7 @@ Evalúa el asset y devuelve, además de los scores, un set de recomendaciones lo
         .eq("id", asset.id);
     }
 
+    await recordAgentRun(supabase, "qa_asset_review", "success", 0);
     return new Response(
       JSON.stringify({ success: true, blocked, report }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -308,6 +310,10 @@ Evalúa el asset y devuelve, además de los scores, un set de recomendaciones lo
   } catch (e) {
     const msg = (e as Error).message || "Unknown error";
     console.error("qa-asset-review error:", e);
+    try {
+      const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+      await recordAgentRun(sb, "qa_asset_review", "error", 0);
+    } catch {}
 
     // Detect AI gateway billing/rate-limit errors and return 200 with structured payload
     // so the frontend can display a friendly message instead of crashing on a 500.

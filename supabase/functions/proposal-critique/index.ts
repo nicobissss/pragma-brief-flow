@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { callAIWithTool } from "../_shared/ai.ts";
+import { recordAgentRun } from "../_shared/telemetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -451,14 +452,7 @@ Compara offering + action plan con propuesta original y kickoff. Detecta drift, 
       .single();
     if (insertErr) throw insertErr;
 
-    await supabase
-      .from("ai_agent_settings")
-      .update({
-        last_run_at: new Date().toISOString(),
-        last_run_status: "success",
-        last_cost_estimate_eur: costEstimate,
-      })
-      .eq("agent_key", "proposal_critique");
+    await recordAgentRun(supabase, "proposal_critique", "success", costEstimate);
 
     return new Response(JSON.stringify({ ok: true, report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -468,6 +462,10 @@ Compara offering + action plan con propuesta original y kickoff. Detecta drift, 
     const isStructuredOutputFailure = e?.code === "NO_TOOL_CALL" || msg.includes("structured output");
     const isPayment = msg.includes("402") || msg.toLowerCase().includes("payment");
     const isRate = msg.includes("429") || msg.toLowerCase().includes("rate");
+    try {
+      const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
+      await recordAgentRun(sb, "proposal_critique", "error", 0);
+    } catch {}
     return new Response(JSON.stringify({ error: msg }), {
       status: isPayment ? 402 : isRate ? 429 : isStructuredOutputFailure ? 503 : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

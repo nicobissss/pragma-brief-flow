@@ -7,8 +7,22 @@ import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug } from "lucide-react";
+import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug, Activity, Inbox, Bot, FileWarning } from "lucide-react";
 import { toast } from "sonner";
+
+type HealthStats = {
+  pendingEvents: number;
+  pendingEmails: number;
+  staleAssets: number;
+  agents: Array<{
+    agent_key: string;
+    enabled: boolean;
+    last_run_at: string | null;
+    last_run_status: string | null;
+    total_runs: number;
+    total_cost_estimate_eur: number;
+  }>;
+};
 
 type EmailRow = {
   id: string;
@@ -95,17 +109,53 @@ export default function AdminDataDashboard() {
     setLoading(false);
   };
 
+  // Health
+  const [health, setHealth] = useState<HealthStats | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+
+  const loadHealth = async () => {
+    setHealthLoading(true);
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [evRes, emRes, asRes, agRes] = await Promise.all([
+      supabase.from("events").select("id", { count: "exact", head: true }).eq("processed", false),
+      supabase.from("email_send_log").select("id", { count: "exact", head: true }).eq("status", "pending").lt("created_at", thirtyMinAgo),
+      supabase.from("assets").select("id", { count: "exact", head: true }).eq("status", "pending_review").lt("created_at", sevenDaysAgo),
+      supabase.from("ai_agent_settings").select("agent_key, enabled, last_run_at, last_run_status, total_runs, total_cost_estimate_eur").neq("agent_key", "master_switch").order("agent_key"),
+    ]);
+
+    setHealth({
+      pendingEvents: evRes.count ?? 0,
+      pendingEmails: emRes.count ?? 0,
+      staleAssets: asRes.count ?? 0,
+      agents: (agRes.data || []) as any,
+    });
+    setHealthLoading(false);
+  };
+
   const loadGenerations = async () => {
+    // tool_generations table doesn't exist; show recent assets instead as a proxy
     const { data } = await supabase
-      .from("tool_generations")
-      .select("id, tool_name, status, created_at, prompt, clients(name)")
+      .from("assets")
+      .select("id, asset_name, status, created_at, asset_type")
       .order("created_at", { ascending: false })
       .limit(50);
-    setGenerations((data || []) as any);
+    setGenerations(
+      (data || []).map((a: any) => ({
+        id: a.id,
+        tool_name: a.asset_type,
+        status: a.status,
+        created_at: a.created_at,
+        prompt: { asset_name: a.asset_name },
+        clients: null,
+      })) as any
+    );
   };
 
   useEffect(() => {
     loadEmails();
+    loadHealth();
     setPage(0);
   }, [rangeKey]);
 
@@ -198,6 +248,93 @@ export default function AdminDataDashboard() {
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Actualizar
         </Button>
+      </div>
+
+      {/* System health */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Salud del sistema</h2>
+          {healthLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Inbox className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Eventos pendientes</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.pendingEvents ?? 0) > 0 ? "text-amber-700" : "text-foreground"}`}>
+                {health?.pendingEvents ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Mail className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Emails atascados (&gt;30m)</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.pendingEmails ?? 0) > 0 ? "text-red-700" : "text-foreground"}`}>
+                {health?.pendingEmails ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <FileWarning className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Assets bloqueados (&gt;7d)</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.staleAssets ?? 0) > 0 ? "text-amber-700" : "text-foreground"}`}>
+                {health?.staleAssets ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Bot className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Coste IA total (€)</p>
+              <p className="text-2xl font-semibold text-foreground mt-1">
+                {health ? health.agents.reduce((s, a) => s + Number(a.total_cost_estimate_eur || 0), 0).toFixed(3) : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+        {health && health.agents.length > 0 && (
+          <div className="border border-border rounded-2xl bg-card overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agente IA</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Último run</TableHead>
+                  <TableHead>Resultado</TableHead>
+                  <TableHead className="text-right">Runs</TableHead>
+                  <TableHead className="text-right">Coste (€)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {health.agents.map((a) => (
+                  <TableRow key={a.agent_key}>
+                    <TableCell className="font-mono text-xs">{a.agent_key}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.enabled ? "default" : "outline"} className="text-[10px]">
+                        {a.enabled ? "ON" : "OFF"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {a.last_run_at ? new Date(a.last_run_at).toLocaleString("es-ES") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {a.last_run_status ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {a.last_run_status}
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">{a.total_runs}</TableCell>
+                    <TableCell className="text-right text-xs">{Number(a.total_cost_estimate_eur || 0).toFixed(4)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       {/* Stat cards */}

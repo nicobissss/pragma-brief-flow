@@ -2457,6 +2457,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      record_agent_run: {
+        Args: { _agent_key: string; _cost_eur?: number; _status: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "pragma_admin" | "client"

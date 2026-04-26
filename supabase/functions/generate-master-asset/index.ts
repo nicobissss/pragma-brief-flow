@@ -7,6 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithTool } from "../_shared/ai.ts";
 import { buildClientContext } from "../_shared/build-client-context.ts";
+import { recordAgentRun } from "../_shared/telemetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -262,6 +263,7 @@ Diseña el Master Asset.`;
       saved = data;
     }
 
+    await recordAgentRun(supabase, "master_asset_generator", "success", 0);
     return new Response(
       JSON.stringify({ ok: true, master_asset: saved, rationale: out.rationale }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -269,6 +271,10 @@ Diseña el Master Asset.`;
   } catch (err: any) {
     console.error("generate-master-asset error:", err);
     const status = err?.status === 402 || err?.status === 429 ? err.status : 500;
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await recordAgentRun(sb, "master_asset_generator", "error", 0);
+    } catch {}
     return new Response(JSON.stringify({ error: String(err?.message || err) }), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
