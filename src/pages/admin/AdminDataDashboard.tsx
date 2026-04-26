@@ -109,17 +109,53 @@ export default function AdminDataDashboard() {
     setLoading(false);
   };
 
+  // Health
+  const [health, setHealth] = useState<HealthStats | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+
+  const loadHealth = async () => {
+    setHealthLoading(true);
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [evRes, emRes, asRes, agRes] = await Promise.all([
+      supabase.from("events").select("id", { count: "exact", head: true }).eq("processed", false),
+      supabase.from("email_send_log").select("id", { count: "exact", head: true }).eq("status", "pending").lt("created_at", thirtyMinAgo),
+      supabase.from("assets").select("id", { count: "exact", head: true }).eq("status", "pending_review").lt("created_at", sevenDaysAgo),
+      supabase.from("ai_agent_settings").select("agent_key, enabled, last_run_at, last_run_status, total_runs, total_cost_estimate_eur").neq("agent_key", "master_switch").order("agent_key"),
+    ]);
+
+    setHealth({
+      pendingEvents: evRes.count ?? 0,
+      pendingEmails: emRes.count ?? 0,
+      staleAssets: asRes.count ?? 0,
+      agents: (agRes.data || []) as any,
+    });
+    setHealthLoading(false);
+  };
+
   const loadGenerations = async () => {
+    // tool_generations table doesn't exist; show recent assets instead as a proxy
     const { data } = await supabase
-      .from("tool_generations")
-      .select("id, tool_name, status, created_at, prompt, clients(name)")
+      .from("assets")
+      .select("id, asset_name, status, created_at, asset_type")
       .order("created_at", { ascending: false })
       .limit(50);
-    setGenerations((data || []) as any);
+    setGenerations(
+      (data || []).map((a: any) => ({
+        id: a.id,
+        tool_name: a.asset_type,
+        status: a.status,
+        created_at: a.created_at,
+        prompt: { asset_name: a.asset_name },
+        clients: null,
+      })) as any
+    );
   };
 
   useEffect(() => {
     loadEmails();
+    loadHealth();
     setPage(0);
   }, [rangeKey]);
 
