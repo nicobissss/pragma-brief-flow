@@ -1962,6 +1962,11 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                       </TabsContent>
                     )}
 
+                    {/* MASTERS */}
+                    <TabsContent value="masters" className="m-0">
+                      <MasterAssetsTab campaignId={campaign.id} clientId={clientId} />
+                    </TabsContent>
+
                     {/* ASSETS */}
                     <TabsContent value="assets" className="m-0">
                       <div className="p-4 border-b border-border">
