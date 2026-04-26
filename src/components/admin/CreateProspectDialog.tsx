@@ -74,11 +74,12 @@ export default function CreateProspectDialog({ onCreated }: Props) {
         status: "new",
         call_date: form.call_date || null,
         call_status: form.call_date ? "scheduled" : "not_scheduled",
+        is_test: isTest,
         briefing_answers: {
           average_ticket: form.average_ticket,
           ticket_currency: form.ticket_currency,
           description: form.description,
-          source: "manual",
+          source: isTest ? "manual_test" : "manual",
         },
       } as any).select("id").single();
       if (error) throw error;
