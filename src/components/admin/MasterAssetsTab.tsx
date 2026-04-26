@@ -43,6 +43,8 @@ export function MasterAssetsTab({ campaignId, clientId }: { campaignId: string; 
   const [editCta, setEditCta] = useState("");
   const [variationFormats, setVariationFormats] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [renderingId, setRenderingId] = useState<string | null>(null);
+  const [editPrompts, setEditPrompts] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
