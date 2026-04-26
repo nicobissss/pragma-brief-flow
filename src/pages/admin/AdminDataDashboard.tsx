@@ -232,6 +232,12 @@ export default function AdminDataDashboard() {
     }
   };
 
+  // Detect "Emails disabled" failures in current window to surface a clear banner
+  const emailsDisabledCount = useMemo(
+    () => rows.filter((r) => (r.error_message || "").toLowerCase().includes("emails disabled")).length,
+    [rows]
+  );
+
   return (
     <div className="p-6 space-y-6 max-w-7xl">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -249,6 +255,21 @@ export default function AdminDataDashboard() {
           Actualizar
         </Button>
       </div>
+
+      {emailsDisabledCount > 0 && (
+        <div className="border border-red-200 bg-red-50 text-red-900 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 mt-0.5 flex_shrink-0" />
+          <div className="text-sm space-y-1">
+            <p className="font-semibold">Los emails NO se están enviando ({emailsDisabledCount} fallidos en este rango).</p>
+            <p>
+              El dominio de email <code className="font-mono">notify.pragmarketers.com</code> aún no tiene el DNS verificado,
+              por eso Lovable Cloud rechaza cada envío con <em>“Emails disabled for this project”</em>.
+              Completa la configuración DNS en <strong>Cloud → Emails → Manage Domains</strong> para activarlos.
+              Una vez verificado, los emails encolados volverán a procesarse automáticamente.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* System health */}
       <div className="space-y-3">
