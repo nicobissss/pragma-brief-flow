@@ -154,6 +154,26 @@ export function MasterAssetsTab({ campaignId, clientId }: { campaignId: string; 
     finally { setBusyId(null); }
   };
 
+  const renderImage = async (id: string, opts: { regenerate?: boolean; edit_instructions?: string } = {}) => {
+    setRenderingId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("render-master-asset-image", {
+        body: {
+          master_asset_id: id,
+          regenerate: opts.regenerate || false,
+          edit_instructions: opts.edit_instructions || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.skipped) { toast.info(data.reason); return; }
+      toast.success("Mockup actualizado");
+      setEditPrompts(prev => ({ ...prev, [id]: "" }));
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error generando imagen");
+    } finally { setRenderingId(null); }
+  };
+
   return (
     <div className="space-y-4 p-4">
       {/* Generation header */}
