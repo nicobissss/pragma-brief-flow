@@ -30,6 +30,7 @@ import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel"
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
 import { BriefEnrichmentPanel } from "@/components/admin/BriefEnrichmentPanel";
 import { MasterAssetsTab } from "@/components/admin/MasterAssetsTab";
+import { CampaignFlowEditor } from "@/components/admin/CampaignFlowEditor";
 
 
 // ─── Types ──────────────────────────────────────────────

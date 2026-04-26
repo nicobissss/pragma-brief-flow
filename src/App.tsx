@@ -22,6 +22,7 @@ import ClientCollect from "./pages/client/ClientCollect";
 import NotFound from "./pages/NotFound";
 import UpdatePasswordPage from "./pages/UpdatePassword";
 import UnsubscribePage from "./pages/Unsubscribe";
+import PublicFlow from "./pages/PublicFlow";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/update-password" element={<UpdatePasswordPage />} />
             <Route path="/unsubscribe" element={<UnsubscribePage />} />
+            <Route path="/flow/:token" element={<PublicFlow />} />
 
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboard />} />
