@@ -1851,6 +1851,9 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                       <TabsTrigger value="masters" className="data-[state=active]:bg-background">
                         Masters
                       </TabsTrigger>
+                      <TabsTrigger value="flow" className="data-[state=active]:bg-background">
+                        Flow
+                      </TabsTrigger>
                       <TabsTrigger value="assets" className="data-[state=active]:bg-background">
                         Assets ({cAssets.length})
                       </TabsTrigger>
@@ -1966,6 +1969,11 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                     {/* MASTERS */}
                     <TabsContent value="masters" className="m-0">
                       <MasterAssetsTab campaignId={campaign.id} clientId={clientId} />
+                    </TabsContent>
+
+                    {/* FLOW */}
+                    <TabsContent value="flow" className="m-0">
+                      <CampaignFlowEditor campaignId={campaign.id} clientId={clientId} />
                     </TabsContent>
 
                     {/* ASSETS */}
