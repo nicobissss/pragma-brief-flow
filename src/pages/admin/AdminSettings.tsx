@@ -10,6 +10,7 @@ import { IntegrationsTab } from "@/components/admin/IntegrationsTab";
 import { FlowsRulesTab } from "@/components/admin/FlowsRulesTab";
 import OfferingsCatalogTab from "@/components/admin/OfferingsCatalogTab";
 import AIAgentsControlTab from "@/components/admin/AIAgentsControlTab";
+import SubToolRegistryTab from "@/components/admin/SubToolRegistryTab";
 
 const CATEGORIES = [
   { key: "flows_processes", title: "Flows & Procesos" },
@@ -100,6 +101,7 @@ export default function AdminSettings() {
           <TabsTrigger value="flows">Tools & Reglas</TabsTrigger>
           <TabsTrigger value="offerings">Catálogo de ofertas</TabsTrigger>
           <TabsTrigger value="integrations">Integraciones</TabsTrigger>
+          <TabsTrigger value="subtools">Sub-Tools</TabsTrigger>
           <TabsTrigger value="agents">Agentes IA</TabsTrigger>
         </TabsList>
 
@@ -122,6 +124,10 @@ export default function AdminSettings() {
 
         <TabsContent value="integrations" className="mt-6">
           <IntegrationsTab />
+        </TabsContent>
+
+        <TabsContent value="subtools" className="mt-6">
+          <SubToolRegistryTab />
         </TabsContent>
 
         <TabsContent value="agents" className="mt-6">
