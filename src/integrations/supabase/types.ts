@@ -488,6 +488,129 @@ export type Database = {
           },
         ]
       }
+      campaign_flows: {
+        Row: {
+          campaign_id: string
+          client_id: string
+          created_at: string
+          edges: Json
+          generated_from_offering: boolean
+          id: string
+          nodes: Json
+          share_token: string | null
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          campaign_id: string
+          client_id: string
+          created_at?: string
+          edges?: Json
+          generated_from_offering?: boolean
+          id?: string
+          nodes?: Json
+          share_token?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          campaign_id?: string
+          client_id?: string
+          created_at?: string
+          edges?: Json
+          generated_from_offering?: boolean
+          id?: string
+          nodes?: Json
+          share_token?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_flows_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_flows_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_master_assets: {
+        Row: {
+          brand_kit: Json
+          campaign_id: string
+          client_id: string
+          context_used: Json
+          created_at: string
+          id: string
+          is_primary: boolean
+          label: string
+          source_image_url: string | null
+          status: string
+          updated_at: string
+          version: number
+          visual_layout: Json
+          visual_preview_url: string | null
+        }
+        Insert: {
+          brand_kit?: Json
+          campaign_id: string
+          client_id: string
+          context_used?: Json
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          label?: string
+          source_image_url?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+          visual_layout?: Json
+          visual_preview_url?: string | null
+        }
+        Update: {
+          brand_kit?: Json
+          campaign_id?: string
+          client_id?: string
+          context_used?: Json
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          label?: string
+          source_image_url?: string | null
+          status?: string
+          updated_at?: string
+          version?: number
+          visual_layout?: Json
+          visual_preview_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_master_assets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_master_assets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_materials: {
         Row: {
           campaign_id: string
@@ -535,10 +658,100 @@ export type Database = {
           },
         ]
       }
+      campaign_touchpoints: {
+        Row: {
+          brief: string | null
+          campaign_id: string
+          channel: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          dispatched_at: string | null
+          error: string | null
+          flow_id: string | null
+          flow_node_id: string
+          id: string
+          master_asset_id: string | null
+          result_payload: Json
+          status: string
+          sub_tool_key: string | null
+          updated_at: string
+          week: number | null
+        }
+        Insert: {
+          brief?: string | null
+          campaign_id: string
+          channel?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          dispatched_at?: string | null
+          error?: string | null
+          flow_id?: string | null
+          flow_node_id: string
+          id?: string
+          master_asset_id?: string | null
+          result_payload?: Json
+          status?: string
+          sub_tool_key?: string | null
+          updated_at?: string
+          week?: number | null
+        }
+        Update: {
+          brief?: string | null
+          campaign_id?: string
+          channel?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          dispatched_at?: string | null
+          error?: string | null
+          flow_id?: string | null
+          flow_node_id?: string
+          id?: string
+          master_asset_id?: string | null
+          result_payload?: Json
+          status?: string
+          sub_tool_key?: string | null
+          updated_at?: string
+          week?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_touchpoints_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_touchpoints_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_touchpoints_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_touchpoints_master_asset_id_fkey"
+            columns: ["master_asset_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_master_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           brief_updated_at: string | null
           client_id: string
+          client_offering_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -554,6 +767,7 @@ export type Database = {
         Insert: {
           brief_updated_at?: string | null
           client_id: string
+          client_offering_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -569,6 +783,7 @@ export type Database = {
         Update: {
           brief_updated_at?: string | null
           client_id?: string
+          client_offering_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1814,6 +2029,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sub_tool_registry: {
+        Row: {
+          channels: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          payload_schema: Json
+          secret_name: string | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          key: string
+          label: string
+          payload_schema?: Json
+          secret_name?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          payload_schema?: Json
+          secret_name?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
       }
       supported_platforms: {
         Row: {
