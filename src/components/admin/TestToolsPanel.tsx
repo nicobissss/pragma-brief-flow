@@ -133,13 +133,14 @@ export default function TestToolsPanel({ mode, entityId, context, onAfterAction 
 
   const approveAllPending = () =>
     run("approve-all", async () => {
-      const { error, count } = await supabase
+      const { data, error } = await supabase
         .from("assets")
-        .update({ status: "approved" as any }, { count: "exact" })
+        .update({ status: "approved" as any })
         .eq("client_id", entityId)
-        .eq("status", "pending_review");
+        .eq("status", "pending_review")
+        .select("id");
       if (error) throw error;
-      toast.success(`Approvati ${count ?? 0} asset pending`);
+      toast.success(`Approvati ${data?.length ?? 0} asset pending`);
     });
 
   const resetTestClient = () =>
