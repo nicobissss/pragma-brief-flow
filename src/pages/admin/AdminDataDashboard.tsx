@@ -540,3 +540,83 @@ export default function AdminDataDashboard() {
     </div>
   );
 }
+
+function TestDataCleanupCard() {
+  const [counts, setCounts] = useState<{ prospects: number; clients: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const available = isTestModeAvailable();
+
+  const refresh = async () => {
+    setLoading(true);
+    const [{ count: p }, { count: c }] = await Promise.all([
+      supabase.from("prospects").select("*", { count: "exact", head: true }).eq("is_test", true),
+      supabase.from("clients").select("*", { count: "exact", head: true }).eq("is_test", true),
+    ]);
+    setCounts({ prospects: p || 0, clients: c || 0 });
+    setLoading(false);
+  };
+
+  useEffect(() => { if (available) refresh(); }, [available]);
+
+  const cleanup = async () => {
+    if (!confirm("Cancellare TUTTI i prospect e clienti marcati TEST + dati collegati? Operazione irreversibile.")) return;
+    setBusy(true);
+    try {
+      // Get test ids
+      const { data: testClients } = await supabase.from("clients").select("id").eq("is_test", true);
+      const clientIds = (testClients || []).map((c: any) => c.id);
+      if (clientIds.length > 0) {
+        await supabase.from("assets").delete().in("client_id", clientIds);
+        await supabase.from("campaigns").delete().in("client_id", clientIds);
+        await supabase.from("client_asset_requests").delete().in("client_id", clientIds);
+        await supabase.from("kickoff_briefs").delete().in("client_id", clientIds);
+        await supabase.from("client_offerings").delete().in("client_id", clientIds);
+        await supabase.from("client_notes").delete().in("client_id", clientIds);
+        await supabase.from("clients").delete().in("id", clientIds);
+      }
+      const { data: testProspects } = await supabase.from("prospects").select("id").eq("is_test", true);
+      const prospectIds = (testProspects || []).map((p: any) => p.id);
+      if (prospectIds.length > 0) {
+        await supabase.from("proposals").delete().in("prospect_id", prospectIds);
+        await supabase.from("prospects").delete().in("id", prospectIds);
+      }
+      toast.success(`Eliminati ${clientIds.length} clienti e ${prospectIds.length} prospect TEST`);
+      refresh();
+    } catch (e: any) {
+      toast.error(e.message || "Errore cleanup");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!available) return null;
+
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-amber-400 bg-amber-50/40 p-4 flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-2">
+        <FlaskConical className="w-5 h-5 text-amber-700" />
+        <div>
+          <h3 className="text-sm font-semibold text-amber-900">Dati di test</h3>
+          <p className="text-xs text-amber-900/80">
+            {loading ? "Caricamento…" : counts ? `${counts.prospects} prospect TEST · ${counts.clients} clienti TEST` : "—"}
+          </p>
+        </div>
+      </div>
+      <div className="ml-auto flex gap-2">
+        <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw className={`w-3 h-3 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={cleanup}
+          disabled={busy || !counts || (counts.prospects === 0 && counts.clients === 0)}
+        >
+          {busy ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Trash2 className="w-3 h-3 mr-1" />}
+          🧪 TEST – Cancella tutti i dati di test
+        </Button>
+      </div>
+    </div>
+  );
+}
