@@ -258,7 +258,7 @@ export default function AdminDataDashboard() {
 
       {emailsDisabledCount > 0 && (
         <div className="border border-red-200 bg-red-50 text-red-900 rounded-2xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex_shrink-0" />
+          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
           <div className="text-sm space-y-1">
             <p className="font-semibold">Los emails NO se están enviando ({emailsDisabledCount} fallidos en este rango).</p>
             <p>
