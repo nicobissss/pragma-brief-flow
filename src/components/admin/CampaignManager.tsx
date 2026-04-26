@@ -29,6 +29,7 @@ import { AssetFeedbackPanel } from "@/components/admin/AssetFeedbackPanel";
 import { CorrectionPromptPanel } from "@/components/admin/CorrectionPromptPanel";
 import { AssetVisualPreview } from "@/components/admin/AssetVisualPreview";
 import { BriefEnrichmentPanel } from "@/components/admin/BriefEnrichmentPanel";
+import { MasterAssetsTab } from "@/components/admin/MasterAssetsTab";
 
 
 // ─── Types ──────────────────────────────────────────────
@@ -1846,6 +1847,9 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                       {promptsTabContent && (
                         <TabsTrigger value="prompts" className="data-[state=active]:bg-background">Prompts AI</TabsTrigger>
                       )}
+                      <TabsTrigger value="masters" className="data-[state=active]:bg-background">
+                        Masters
+                      </TabsTrigger>
                       <TabsTrigger value="assets" className="data-[state=active]:bg-background">
                         Assets ({cAssets.length})
                       </TabsTrigger>
@@ -1957,6 +1961,11 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                         {promptsTabContent}
                       </TabsContent>
                     )}
+
+                    {/* MASTERS */}
+                    <TabsContent value="masters" className="m-0">
+                      <MasterAssetsTab campaignId={campaign.id} clientId={clientId} />
+                    </TabsContent>
 
                     {/* ASSETS */}
                     <TabsContent value="assets" className="m-0">
