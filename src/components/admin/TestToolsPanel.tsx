@@ -73,12 +73,12 @@ export default function TestToolsPanel({ mode, entityId, context, onAfterAction 
         preferred_tone: brief.preferred_tone,
         client_rules: brief.client_rules,
         transcript_text: transcript,
-        transcript_status: "completed" as const,
+        transcript_status: "ready" as const,
         transcript_quality: "good",
       };
       const { error } = existing
-        ? await supabase.from("kickoff_briefs").update(payload).eq("id", existing.id)
-        : await supabase.from("kickoff_briefs").insert(payload);
+        ? await supabase.from("kickoff_briefs").update(payload as any).eq("id", existing.id)
+        : await supabase.from("kickoff_briefs").insert(payload as any);
       if (error) throw error;
       toast.success("🧪 TEST – Kickoff brief compilato");
     });
