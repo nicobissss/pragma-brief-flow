@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, FlaskConical } from "lucide-react";
+import { generateFakeProspect } from "@/lib/test-fixtures";
+import { isTestModeAvailable } from "@/lib/test-mode";
 
 const VERTICALS: Record<string, string[]> = {
   "Salud & Estética": ["Clínica dental", "Medicina estética", "Fisioterapia", "Psicología", "Nutrición", "Dermatología"],
@@ -22,6 +24,8 @@ interface Props {
 export default function CreateProspectDialog({ onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isTest, setIsTest] = useState(false);
+  const testAvailable = isTestModeAvailable();
   const [form, setForm] = useState({
     name: "",
     company_name: "",
@@ -37,10 +41,20 @@ export default function CreateProspectDialog({ onCreated }: Props) {
 
   const subNiches = form.vertical ? VERTICALS[form.vertical] || [] : [];
 
-  const resetForm = () => setForm({
-    name: "", company_name: "", email: "", market: "", vertical: "",
-    sub_niche: "", average_ticket: "", ticket_currency: "EUR", description: "", call_date: "",
-  });
+  const resetForm = () => {
+    setForm({
+      name: "", company_name: "", email: "", market: "", vertical: "",
+      sub_niche: "", average_ticket: "", ticket_currency: "EUR", description: "", call_date: "",
+    });
+    setIsTest(false);
+  };
+
+  const fillFakeData = () => {
+    const fake = generateFakeProspect({ emailOverride: form.email || undefined });
+    setForm(fake);
+    setIsTest(true);
+    toast.success("🧪 TEST – Form riempito con dati fake. Cambia l'email per ricevere le notifiche.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
