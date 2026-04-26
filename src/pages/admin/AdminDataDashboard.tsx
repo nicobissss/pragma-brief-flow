@@ -250,6 +250,93 @@ export default function AdminDataDashboard() {
         </Button>
       </div>
 
+      {/* System health */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Salud del sistema</h2>
+          {healthLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Inbox className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Eventos pendientes</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.pendingEvents ?? 0) > 0 ? "text-amber-700" : "text-foreground"}`}>
+                {health?.pendingEvents ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Mail className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Emails atascados (&gt;30m)</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.pendingEmails ?? 0) > 0 ? "text-red-700" : "text-foreground"}`}>
+                {health?.pendingEmails ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <FileWarning className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Assets bloqueados (&gt;7d)</p>
+              <p className={`text-2xl font-semibold mt-1 ${(health?.staleAssets ?? 0) > 0 ? "text-amber-700" : "text-foreground"}`}>
+                {health?.staleAssets ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-start gap-3">
+            <Bot className="w-4 h-4 text-muted-foreground mt-1" />
+            <div>
+              <p className="text-xs text-muted-foreground">Coste IA total (€)</p>
+              <p className="text-2xl font-semibold text-foreground mt-1">
+                {health ? health.agents.reduce((s, a) => s + Number(a.total_cost_estimate_eur || 0), 0).toFixed(3) : "—"}
+              </p>
+            </div>
+          </div>
+        </div>
+        {health && health.agents.length > 0 && (
+          <div className="border border-border rounded-2xl bg-card overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Agente IA</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Último run</TableHead>
+                  <TableHead>Resultado</TableHead>
+                  <TableHead className="text-right">Runs</TableHead>
+                  <TableHead className="text-right">Coste (€)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {health.agents.map((a) => (
+                  <TableRow key={a.agent_key}>
+                    <TableCell className="font-mono text-xs">{a.agent_key}</TableCell>
+                    <TableCell>
+                      <Badge variant={a.enabled ? "default" : "outline"} className="text-[10px]">
+                        {a.enabled ? "ON" : "OFF"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {a.last_run_at ? new Date(a.last_run_at).toLocaleString("es-ES") : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {a.last_run_status ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {a.last_run_status}
+                        </Badge>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">{a.total_runs}</TableCell>
+                    <TableCell className="text-right text-xs">{Number(a.total_cost_estimate_eur || 0).toFixed(4)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-card rounded-2xl border border-border p-4">
