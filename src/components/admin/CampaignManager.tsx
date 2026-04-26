@@ -2029,9 +2029,7 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
 
                       <div className="p-4">
                         {(() => {
-                          const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
-                          const uploadedTypes = types.filter((t) => cAssets.some((a) => a.asset_type === t));
-                          const missingTypes = types.filter((t) => !cAssets.some((a) => a.asset_type === t));
+                          const presentTypes = Array.from(new Set(cAssets.map((a) => a.asset_type)));
                           const hasAnyAsset = cAssets.length > 0;
                           const lastNotified = (campaign as any).last_notified_at;
                           const hasNewSinceNotify = lastNotified && cAssets.some(
@@ -2041,22 +2039,25 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                           return (
                             <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
                               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Campaign assets status</p>
-                              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                                {types.map((t) => {
-                                  const uploaded = cAssets.some((a) => a.asset_type === t);
-                                  return (
-                                    <span key={t} className={`text-xs ${uploaded ? "text-foreground" : "text-muted-foreground"}`}>
-                                      {ASSET_TYPE_FULL[t]} {uploaded ? "✅ uploaded" : "⚪ missing"}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-
-                              {missingTypes.length > 0 && hasAnyAsset && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3 text-[hsl(var(--status-pending-review))]" />
-                                  {missingTypes.map((t) => ASSET_TYPE_FULL[t]).join(" and ")} not uploaded yet. You can still notify client with available assets.
+                              {presentTypes.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Sin assets aún. Define el flow desde la pestaña <strong>Flow</strong> y luego genera los touchpoints.
                                 </p>
+                              ) : (
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                  {presentTypes.map((t) => {
+                                    const typeAssets = cAssets.filter((a) => a.asset_type === t);
+                                    const allApproved = typeAssets.every((a) => a.status === "approved");
+                                    const hasPending = typeAssets.some((a) => a.status === "pending_review");
+                                    const icon = allApproved ? "✅" : hasPending ? "⏳" : "📝";
+                                    const label = ASSET_TYPE_FULL[t] || t;
+                                    return (
+                                      <span key={t} className="text-xs text-foreground">
+                                        {label} ({typeAssets.length}) {icon}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
                               )}
 
                               {lastNotified && !hasNewSinceNotify && (
@@ -2323,7 +2324,6 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
             <DialogTitle>Send campaign review to client?</DialogTitle>
           </DialogHeader>
           {notifyConfirm && (() => {
-            const types = ["landing_page", "email_flow", "social_post", "blog_article"] as const;
             const includedAssets = notifyConfirm.assets;
 
             return (
@@ -2331,23 +2331,14 @@ export function CampaignManager({ clientId, campaigns, assets, promptsTabContent
                 <div>
                   <p className="text-sm text-muted-foreground mb-3">Assets included in this notification:</p>
                   <div className="space-y-1.5">
-                    {types.map((t) => {
-                      const typeAssets = includedAssets.filter((a) => a.asset_type === t);
-                      if (typeAssets.length > 0) {
-                        return typeAssets.map((a) => (
-                          <div key={a.id} className="flex items-center gap-2 text-sm">
-                            <span>✅</span>
-                            <span className="text-foreground">{ASSET_TYPE_FULL[t]} — {a.asset_name}</span>
-                          </div>
-                        ));
-                      }
-                      return (
-                        <div key={t} className="flex items-center gap-2 text-sm">
-                          <span>⚪</span>
-                          <span className="text-muted-foreground">{ASSET_TYPE_FULL[t]} — not included (not uploaded)</span>
-                        </div>
-                      );
-                    })}
+                    {includedAssets.map((a) => (
+                      <div key={a.id} className="flex items-center gap-2 text-sm">
+                        <span>✅</span>
+                        <span className="text-foreground">
+                          {ASSET_TYPE_FULL[a.asset_type] || a.asset_type} — {a.asset_name}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
