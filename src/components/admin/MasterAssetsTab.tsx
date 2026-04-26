@@ -43,6 +43,8 @@ export function MasterAssetsTab({ campaignId, clientId }: { campaignId: string; 
   const [editCta, setEditCta] = useState("");
   const [variationFormats, setVariationFormats] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [renderingId, setRenderingId] = useState<string | null>(null);
+  const [editPrompts, setEditPrompts] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -150,6 +152,26 @@ export function MasterAssetsTab({ campaignId, clientId }: { campaignId: string; 
       await load();
     } catch (e: any) { toast.error(e.message); }
     finally { setBusyId(null); }
+  };
+
+  const renderImage = async (id: string, opts: { regenerate?: boolean; edit_instructions?: string } = {}) => {
+    setRenderingId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke("render-master-asset-image", {
+        body: {
+          master_asset_id: id,
+          regenerate: opts.regenerate || false,
+          edit_instructions: opts.edit_instructions || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.skipped) { toast.info(data.reason); return; }
+      toast.success("Mockup actualizado");
+      setEditPrompts(prev => ({ ...prev, [id]: "" }));
+      await load();
+    } catch (e: any) {
+      toast.error(e.message || "Error generando imagen");
+    } finally { setRenderingId(null); }
   };
 
   return (
@@ -298,6 +320,75 @@ export function MasterAssetsTab({ campaignId, clientId }: { campaignId: string; 
                 ) : (
                   <Button size="sm" variant="ghost" onClick={() => startEdit(m)}>Editar</Button>
                 )}
+
+                {/* Visual mockup */}
+                <div className="rounded-md border border-dashed border-border p-3 space-y-2 bg-secondary/10">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-xs font-medium flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5" /> Mockup visual
+                    </p>
+                    <div className="flex items-center gap-1">
+                      {m.visual_preview_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={renderingId === m.id}
+                          onClick={() => renderImage(m.id, { regenerate: true })}
+                        >
+                          {renderingId === m.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
+                          Regenerar imagen
+                        </Button>
+                      )}
+                      {!m.visual_preview_url && (
+                        <Button
+                          size="sm"
+                          disabled={renderingId === m.id}
+                          onClick={() => renderImage(m.id)}
+                        >
+                          {renderingId === m.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                          Generar mockup
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {m.visual_preview_url ? (
+                    <a href={m.visual_preview_url} target="_blank" rel="noreferrer" className="block">
+                      <img
+                        src={m.visual_preview_url}
+                        alt={`Mockup ${m.label}`}
+                        className="w-full max-h-96 object-contain rounded border border-border bg-background"
+                      />
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Aún no se ha generado un mockup visual. La IA usará el Strategic DNA (paleta, tipografía, hero, CTA) para producir un PNG fotorealista.
+                    </p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground">
+                      {m.visual_preview_url
+                        ? "Indica al AI cómo modificarla (ej: 'fondo más oscuro', 'mover el CTA abajo', 'usar foto en lugar de ilustración')."
+                        : "Instrucciones iniciales (opcional)."}
+                    </p>
+                    <Textarea
+                      placeholder={m.visual_preview_url ? "Ej: cambia el fondo a azul oscuro y agranda el CTA" : "Ej: estilo editorial, hero centrado"}
+                      value={editPrompts[m.id] || ""}
+                      onChange={(e) => setEditPrompts(prev => ({ ...prev, [m.id]: e.target.value }))}
+                      rows={2}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={renderingId === m.id || !(editPrompts[m.id] || "").trim()}
+                      onClick={() => renderImage(m.id, { edit_instructions: editPrompts[m.id] })}
+                    >
+                      {renderingId === m.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                      {m.visual_preview_url ? "Aplicar cambios" : "Generar con instrucciones"}
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Variations */}
                 {m.status === "approved" && !m.label.includes("—") && (
