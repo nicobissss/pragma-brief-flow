@@ -7,8 +7,22 @@ import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug } from "lucide-react";
+import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug, Activity, Inbox, Bot, FileWarning } from "lucide-react";
 import { toast } from "sonner";
+
+type HealthStats = {
+  pendingEvents: number;
+  pendingEmails: number;
+  staleAssets: number;
+  agents: Array<{
+    agent_key: string;
+    enabled: boolean;
+    last_run_at: string | null;
+    last_run_status: string | null;
+    total_runs: number;
+    total_cost_estimate_eur: number;
+  }>;
+};
 
 type EmailRow = {
   id: string;
