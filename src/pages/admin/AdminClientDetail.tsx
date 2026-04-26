@@ -17,6 +17,8 @@ import KickoffTab from "@/components/admin/tabs/KickoffTab";
 import PromptsTab from "@/components/admin/tabs/PromptsTab";
 import AssetsTab from "@/components/admin/tabs/AssetsTab";
 import ClientAIAgentsPanel from "@/components/admin/ClientAIAgentsPanel";
+import TestToolsPanel from "@/components/admin/TestToolsPanel";
+import TestModeBadge from "@/components/admin/TestModeBadge";
 
 import { type ProposalData } from "@/components/proposal/ProposalView";
 import { type ClientMaterialsData } from "@/components/kickoff/ClientMaterials";
@@ -49,6 +51,7 @@ type Client = {
   max_revision_rounds: number | null;
   project_plan: any;
   project_plan_shared: boolean | null;
+  is_test?: boolean | null;
 };
 
 export default function AdminClientDetail() {
@@ -461,7 +464,14 @@ ${context}`
           Client since {new Date(client.created_at).toLocaleDateString()}
         </span>
         {contractType && <Badge variant="secondary" className="text-xs">{contractType}</Badge>}
+        {client.is_test && <TestModeBadge />}
       </div>
+
+      <TestToolsPanel
+        mode="client"
+        entityId={client.id}
+        context={{ name: client.name, company_name: client.company_name, vertical: client.vertical }}
+      />
 
       {/* Status & pipeline */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
