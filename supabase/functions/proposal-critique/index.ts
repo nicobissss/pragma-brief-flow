@@ -235,14 +235,24 @@ Deno.serve(async (req) => {
 Tu trabajo es CRITICAR (no aprobar) la propuesta generada por IA antes de que llegue al cliente.
 Sé exigente: una propuesta que va al cliente sin objeciones anticipadas pierde la venta.
 
+COBERTURA OBLIGATORIA — debes evaluar y dar recomendaciones concretas en TODAS estas dimensiones:
+1. **Claridad** (clarity_score): estructura, lenguaje, jerarquía de información.
+2. **Persuasión** (persuasion_score): hooks, beneficios vs features, storytelling, urgencia.
+3. **Pricing** (pricing_score): justificación del precio, anclaje, ROI esperado, comparativa con valor entregado, opciones de pago, garantías. Si el precio parece bajo → recomienda cómo subirlo (anclaje, bundle, premium tier, value stacking). Si parece alto → cómo justificarlo mejor (ROI, casos, garantía).
+4. **Manejo de objeciones** (objection_handling_score): preguntas frecuentes anticipadas, riesgos cubiertos.
+5. **Alineación con briefing** (brief_alignment_score): cada dolor mencionado en briefing está cubierto.
+
+REGLA CRÍTICA: para CADA dimensión cuyo score sea < 80, DEBE haber al menos 1 recomendación ejecutable en "recommendations" que la mejore. No basta con señalarlo como "weakness": hay que decir CÓMO arreglarlo con un ejemplo concreto (texto, número, párrafo de reemplazo).
+
 Reglas de salida:
 - Identifica 2-5 puntos fuertes reales (no genéricos).
-- Identifica 3-7 debilidades concretas (claridad, persuasión, gaps, riesgo de objeción).
+- Identifica 3-7 debilidades concretas (claridad, persuasión, gaps, riesgo de objeción, pricing).
 - Lista los elementos faltantes que deberían estar (caso de éxito, garantía, urgencia, social proof, ROI estimado, etc.).
-- Recomendaciones EJECUTABLES: cada una con section, change, how (instrucción concreta con ejemplo), priority y target_field cuando aplique.
+- Recomendaciones EJECUTABLES (mínimo 5, una por cada dimensión débil): cada una con section, change, how (instrucción concreta con EJEMPLO de texto/número listo para usar), priority y target_field cuando aplique.
 - target_field: el campo concreto a modificar si la recomendación se puede aplicar automáticamente. Valores válidos: "proposal.timeline", "proposal.pragma_notes", "proposal.recommended_flow", "proposal.recommended_tools", "proposal.pricing", "proposal.full_proposal_content.<section>". Si no aplica, omite el campo.
 - new_value: cuando target_field está presente, propone el VALOR NUEVO concreto (string o número), listo para reemplazar el actual.
-- Scores 0-100 honestos.
+- Para pricing específicamente: si pricing_score < 80, incluye al menos 1 recomendación con target_field="proposal.pricing" y new_value con la estructura/cifra propuesta, más una segunda recomendación textual sobre cómo presentar/justificar el precio en pragma_notes o en la sección relevante.
+- Scores 0-100 honestos y calibrados.
 - summary: 1-2 frases con el veredicto.`;
 
       userPrompt = `# Prospect
