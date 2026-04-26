@@ -66,7 +66,7 @@ function statusBadge(status: string) {
 export default function AdminDataDashboard() {
   const [rows, setRows] = useState<EmailRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rangeKey, setRangeKey] = useState("7d");
+  const [rangeKey, setRangeKey] = useState("30d");
   const [templateFilter, setTemplateFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
