@@ -5,6 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithTool } from "../_shared/ai.ts";
+import { recordAgentRun } from "../_shared/telemetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -202,6 +203,7 @@ Analiza y extrae los patrones.`;
       });
     } catch (_) { /* non-blocking */ }
 
+    await recordAgentRun(supabase, "feedback_loop_weekly", "success", 0);
     return new Response(
       JSON.stringify({ ok: true, pattern_id: row?.id, patterns }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -209,6 +211,10 @@ Analiza y extrae los patrones.`;
   } catch (err: any) {
     console.error("feedback-loop-extract error:", err);
     const status = err?.status === 402 || err?.status === 429 ? err.status : 500;
+    try {
+      const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      await recordAgentRun(sb, "feedback_loop_weekly", "error", 0);
+    } catch {}
     return new Response(JSON.stringify({ error: String(err?.message || err) }), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
