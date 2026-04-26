@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug, Activity, Inbox, Bot, FileWarning } from "lucide-react";
+import { Mail, RefreshCw, Loader2, Sparkles, ChevronDown, AlertCircle, CheckCircle2, Ban, Bug, Activity, Inbox, Bot, FileWarning, FlaskConical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { isTestModeAvailable } from "@/lib/test-mode";
 
 type HealthStats = {
   pendingEvents: number;
@@ -270,6 +271,8 @@ export default function AdminDataDashboard() {
           </div>
         </div>
       )}
+
+      <TestDataCleanupCard />
 
       {/* System health */}
       <div className="space-y-3">
