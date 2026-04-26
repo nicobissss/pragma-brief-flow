@@ -1,47 +1,84 @@
-## Piano operativo — Migliorie E2E (escluso accensione agenti)
+## Obiettivo
 
-In base ai risultati dell'audit, eseguo questi 4 step. **Niente** verrà attivato sui dati live (master_switch resta OFF).
+Strumenti per popolare velocemente prospect/cliente con dati realistici e testare il flusso end-to-end (incluse le email vere).
 
----
-
-### Step 1 — Migration sicurezza DB
-**File**: `supabase/migrations/20260426_security_telemetry.sql`
-
-- Aggiunge `SET search_path = public, pg_temp` alle 4 funzioni pgmq (`enqueue_email`, `read_email_batch`, `delete_email`, `move_to_dlq`) → risolve i 4 warning "Function Search Path Mutable".
-- Esegue `REVOKE SELECT ... FROM anon` su 33 tabelle interne (clienti, prospect, kickoff, asset, ecc.) → risolve i 49 warning "pg_graphql Anon Role Exposes Objects". Tabelle pubbliche (`campaign_flows`, `campaigns`, `briefing_questions`, `email_unsubscribe_tokens`, `offering_templates`) restano accessibili dove serve via RLS.
-- Crea funzione `record_agent_run(agent_key, status, cost_eur)` per la telemetria.
-
-### Step 2 — Drenaggio eventi pending (data update)
-- Una `UPDATE events SET processed = true WHERE processed = false` per chiudere i 15 eventi `prospect.*` legacy. Nessun consumer attivo li sta drenando, restano come rumore.
-- (Non droppo la tabella per non rompere insert futuri da trigger; se vuoi la togliamo dopo.)
-
-### Step 3 — Telemetria AI agents
-**Nuovo file**: `supabase/functions/_shared/telemetry.ts` con `recordAgentRun(supabase, agentKey, status, costEur)` + `estimateCostEur(model, tokensIn, tokensOut)`.
-
-Wiring in 6 edge function principali (success + error path):
-- `qa-asset-review`
-- `proposal-critique`
-- `generate-master-asset`
-- `generate-campaign-flow`
-- `enrich-master-asset-brief`
-- `feedback-loop-extract`
-
-Risultato: dopo qualche run i campi `total_runs`, `last_run_status`, `last_run_at`, `total_cost_estimate_eur` di `ai_agent_settings` mostrano dati reali.
-
-### Step 4 — Health dashboard `/admin/data`
-Aggiungo in cima alla pagina `AdminDataDashboard.tsx` una sezione **"Salud del sistema"** con 4 card:
-- **Eventos pendientes**: count da `events.processed = false`.
-- **Cola de emails**: count `email_send_log` con `status='pending'` oltre 30 min.
-- **Agentes IA**: tabella compatta con `agent_key`, ultimo run, status, costo totale (da `ai_agent_settings`).
-- **Assets bloqueados**: count assets con `status='pending_review'` da > 7 giorni.
-
-Inoltre fix bug minore: la query attuale a `tool_generations` fallisce silenziosamente perché la tabella non esiste — la rimuovo o sostituisco con `assets` recenti.
+**Regola naming:**
+- Bottoni che **iniettano dati finti** → label inizia con **"🧪 TEST –"**
+- Bottoni che **eseguono azioni reali del flusso** (creano cliente vero, mandano email vere) → label normale, sono solo shortcut
 
 ---
 
-### Cosa NON tocco
-- `master_switch` e tutti i 12 agent restano `enabled=false`.
-- Nessun trigger AI viene attivato.
-- Nessun cliente reale riceve email/notifiche.
+## Cosa aggiungiamo
 
-Ti chiedo solo di approvare per procedere — la migration verrà mostrata in un blocco separato che potrai rivedere prima dell'apply.
+### 1. Dentro `CreateProspectDialog`
+- **🧪 TEST – Riempi dati fake** → genera nome/azienda/email/vertical/sub_niche/ticket/descrizione/call date casuali (set di ~6 personaggi per ognuno dei 3 verticali approvati). L'email la puoi modificare a mano (consigliato usare `tuonome+test1@gmail.com`).
+
+### 2. Dettaglio prospect (`/admin/prospects/:id`) — pannello "Test tools"
+
+| Bottone | Cosa fa | Tipo |
+|---|---|---|
+| 🧪 TEST – Genera trascrizione fake | Inserisce ~800 parole di trascrizione realistica (discovery, pain, budget, obiettivi) coerente col vertical | Inietta dati |
+| 🧪 TEST – Compila kickoff brief | Riempie `structured_info`, `voice_reference`, `client_rules`, `preferred_tone` con valori plausibili | Inietta dati |
+| Genera proposta | Triggera la generazione proposta (azione reale) | Shortcut |
+| Marca proposta come accepted | Update `proposals.shared_with_client=true` + status prospect | Shortcut |
+| Accetta come cliente | Invoca `accept-prospect` (crea cliente + welcome email vera) | Shortcut |
+
+### 3. Dettaglio cliente (`/admin/clients/:id`) — pannello "Test tools"
+
+| Bottone | Cosa fa | Tipo |
+|---|---|---|
+| 🧪 TEST – Popola asset requests fake | Crea entry in `client_asset_requests` già "completed" con URL placeholder | Inietta dati |
+| 🧪 TEST – Genera asset di review fake | Crea 2-3 record `assets` in `pending_review` con contenuto dummy | Inietta dati |
+| 🧪 TEST – Compila campaign brief fake | Riempie obiettivo/audience/key message di una campagna | Inietta dati |
+| Approva tutti gli asset pending | Bulk update status='approved' (azione reale) | Shortcut |
+| Reset cliente test | Cancella asset/campagne/feedback (solo se `is_test=true`) | Cleanup |
+
+### 4. Marcatura e cleanup
+
+- Colonna `is_test boolean default false` in `prospects` e `clients`
+- Tutti i record creati via "🧪 TEST – Riempi dati fake" sono `is_test=true`
+- Badge **🧪 TEST** accanto al nome nelle liste
+- Filtro "Solo TEST" nei filtri esistenti
+- In `/admin/data`: card **"🧪 TEST – Cancella tutti i dati di test"** (cancella in cascata tutto ciò che è `is_test=true` + dipendenze)
+
+---
+
+## Gating visibilità
+
+I pannelli "Test tools" sono visibili solo:
+- Agli admin (già garantito da RLS)
+- Su preview/staging: `import.meta.env.DEV || hostname.includes("lovable.app")`
+- **Mai** sul dominio custom di produzione (`pragmarketers.com`)
+
+---
+
+## Dettagli tecnici
+
+### Migrazione DB
+```sql
+ALTER TABLE prospects ADD COLUMN is_test boolean NOT NULL DEFAULT false;
+ALTER TABLE clients   ADD COLUMN is_test boolean NOT NULL DEFAULT false;
+CREATE INDEX idx_prospects_is_test ON prospects(is_test) WHERE is_test;
+CREATE INDEX idx_clients_is_test   ON clients(is_test)   WHERE is_test;
+```
+
+### Nuovi file
+- `src/lib/test-fixtures.ts` — fixtures personaggi/aziende/trascrizioni/briefs per i 3 verticali + helpers `generateFakeProspect()`, `generateFakeTranscript(vertical)`, `generateFakeBrief(vertical)`
+- `src/components/admin/TestToolsPanel.tsx` — pannello collapsible riusabile (`mode: "prospect" | "client"`, `entityId`)
+- `src/components/admin/TestModeBadge.tsx` — badge "🧪 TEST"
+- `src/lib/test-mode.ts` — helper `isTestModeAvailable()` per il gating
+
+### File modificati
+- `CreateProspectDialog.tsx` — bottone "🧪 TEST – Riempi dati fake" in alto
+- `AdminProspects.tsx` — badge + filtro test
+- `AdminProspectDetail.tsx` — monta `TestToolsPanel` in cima
+- `AdminClients.tsx` — badge + filtro test
+- `AdminClientDetail.tsx` — monta `TestToolsPanel` in cima
+- `AdminDataDashboard.tsx` — card cleanup massivo
+
+### Cosa NON faccio
+- Non bypass RLS o validazioni
+- Non tocco gli AI agents (restano OFF)
+- Non aggiungo "TEST" ai bottoni di azione reale (Approva proposta, Accetta cliente, ecc.) — sono solo shortcut, il dato che producono è vero
+
+Pronto a implementare?
