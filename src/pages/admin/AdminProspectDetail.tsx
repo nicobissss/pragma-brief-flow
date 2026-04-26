@@ -26,6 +26,8 @@ import ProspectInfoTable from "@/components/admin/ProspectInfoTable";
 import ProspectInternalNotes from "@/components/admin/ProspectInternalNotes";
 import { AIAgentBadge } from "@/components/admin/AIAgentBadge";
 import { ProposalCritiquePanel } from "@/components/admin/ProposalCritiquePanel";
+import TestToolsPanel from "@/components/admin/TestToolsPanel";
+import TestModeBadge from "@/components/admin/TestModeBadge";
 
 type Prospect = {
   id: string;
@@ -43,6 +45,7 @@ type Prospect = {
   call_scheduled_at: string | null;
   call_notes: string | null;
   follow_up_date: string | null;
+  is_test?: boolean | null;
 };
 
 
@@ -256,6 +259,7 @@ export default function AdminProspectDetail() {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={prospect.status} />
+          {prospect.is_test && <TestModeBadge />}
           {prospect.status !== "archived" && (
             <Button variant="outline" size="sm" onClick={() => setArchiveDialogOpen(true)}>
               <Archive className="w-4 h-4 mr-1" /> Archivar
@@ -263,6 +267,12 @@ export default function AdminProspectDetail() {
           )}
         </div>
       </div>
+
+      <TestToolsPanel
+        mode="prospect"
+        entityId={prospect.id}
+        context={{ name: prospect.name, company_name: prospect.company_name, vertical: prospect.vertical }}
+      />
 
       <Tabs defaultValue="briefing">
         <TabsList>

@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import CreateProspectDialog from "@/components/admin/CreateProspectDialog";
+import TestModeBadge from "@/components/admin/TestModeBadge";
 
 type Prospect = {
   id: string;
@@ -26,6 +27,7 @@ type Prospect = {
   status: string;
   call_status: string;
   call_scheduled_at: string | null;
+  is_test?: boolean | null;
 };
 
 function CallStatusIcon({ status, scheduledAt }: { status: string; scheduledAt: string | null }) {
@@ -235,7 +237,9 @@ export default function AdminProspects() {
                     className="cursor-pointer hover:bg-secondary/50"
                     onClick={() => navigate(`/admin/prospect/${p.id}`)}
                   >
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-2">{p.name}{p.is_test && <TestModeBadge />}</span>
+                    </TableCell>
                     <TableCell>{p.company_name}</TableCell>
                     <TableCell>{p.vertical}</TableCell>
                     <TableCell>{p.sub_niche}</TableCell>

@@ -1158,6 +1158,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          is_test: boolean
           market: Database["public"]["Enums"]["market"]
           max_revision_rounds: number | null
           name: string
@@ -1179,6 +1180,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          is_test?: boolean
           market: Database["public"]["Enums"]["market"]
           max_revision_rounds?: number | null
           name: string
@@ -1200,6 +1202,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_test?: boolean
           market?: Database["public"]["Enums"]["market"]
           max_revision_rounds?: number | null
           name?: string
@@ -1898,6 +1901,7 @@ export type Database = {
           email: string
           follow_up_date: string | null
           id: string
+          is_test: boolean
           market: Database["public"]["Enums"]["market"]
           name: string
           phone: string | null
@@ -1917,6 +1921,7 @@ export type Database = {
           email: string
           follow_up_date?: string | null
           id?: string
+          is_test?: boolean
           market: Database["public"]["Enums"]["market"]
           name: string
           phone?: string | null
@@ -1936,6 +1941,7 @@ export type Database = {
           email?: string
           follow_up_date?: string | null
           id?: string
+          is_test?: boolean
           market?: Database["public"]["Enums"]["market"]
           name?: string
           phone?: string | null

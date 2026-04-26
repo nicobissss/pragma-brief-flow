@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { differenceInDays } from "date-fns";
+import TestModeBadge from "@/components/admin/TestModeBadge";
 
 type Client = {
   id: string;
@@ -17,6 +18,7 @@ type Client = {
   status: string;
   pipeline_status: string | null;
   created_at: string;
+  is_test?: boolean | null;
 };
 
 type AssetRow = {
@@ -137,7 +139,9 @@ export default function AdminClients() {
                     <td className="p-3 text-center" title={health.label}>
                       <span className="text-base">{health.emoji}</span>
                     </td>
-                    <td className="p-3 font-medium text-foreground">{c.name}</td>
+                    <td className="p-3 font-medium text-foreground">
+                      <span className="inline-flex items-center gap-2">{c.name}{c.is_test && <TestModeBadge />}</span>
+                    </td>
                     <td className="p-3 text-muted-foreground">{c.company_name}</td>
                     <td className="p-3 text-muted-foreground">{c.vertical}</td>
                     <td className="p-3"><StatusBadge status={c.status} /></td>

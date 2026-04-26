@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, FlaskConical } from "lucide-react";
+import { generateFakeProspect } from "@/lib/test-fixtures";
+import { isTestModeAvailable } from "@/lib/test-mode";
 
 const VERTICALS: Record<string, string[]> = {
   "Salud & Estética": ["Clínica dental", "Medicina estética", "Fisioterapia", "Psicología", "Nutrición", "Dermatología"],
@@ -22,6 +24,8 @@ interface Props {
 export default function CreateProspectDialog({ onCreated }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isTest, setIsTest] = useState(false);
+  const testAvailable = isTestModeAvailable();
   const [form, setForm] = useState({
     name: "",
     company_name: "",
@@ -37,10 +41,20 @@ export default function CreateProspectDialog({ onCreated }: Props) {
 
   const subNiches = form.vertical ? VERTICALS[form.vertical] || [] : [];
 
-  const resetForm = () => setForm({
-    name: "", company_name: "", email: "", market: "", vertical: "",
-    sub_niche: "", average_ticket: "", ticket_currency: "EUR", description: "", call_date: "",
-  });
+  const resetForm = () => {
+    setForm({
+      name: "", company_name: "", email: "", market: "", vertical: "",
+      sub_niche: "", average_ticket: "", ticket_currency: "EUR", description: "", call_date: "",
+    });
+    setIsTest(false);
+  };
+
+  const fillFakeData = () => {
+    const fake = generateFakeProspect({ emailOverride: form.email || undefined });
+    setForm(fake);
+    setIsTest(true);
+    toast.success("🧪 TEST – Form riempito con dati fake. Cambia l'email per ricevere le notifiche.");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,11 +74,12 @@ export default function CreateProspectDialog({ onCreated }: Props) {
         status: "new",
         call_date: form.call_date || null,
         call_status: form.call_date ? "scheduled" : "not_scheduled",
+        is_test: isTest,
         briefing_answers: {
           average_ticket: form.average_ticket,
           ticket_currency: form.ticket_currency,
           description: form.description,
-          source: "manual",
+          source: isTest ? "manual_test" : "manual",
         },
       } as any).select("id").single();
       if (error) throw error;
@@ -116,6 +131,17 @@ export default function CreateProspectDialog({ onCreated }: Props) {
           <DialogTitle>Crear prospect manualmente</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          {testAvailable && (
+            <div className="flex items-center justify-between p-2 rounded-md border-2 border-dashed border-amber-400 bg-amber-50/60">
+              <span className="text-xs text-amber-900 flex items-center gap-1">
+                <FlaskConical className="w-3.5 h-3.5" />
+                {isTest ? "Marcato come TEST" : "Modalità test disponibile"}
+              </span>
+              <Button type="button" size="sm" variant="outline" className="border-amber-400 h-7" onClick={fillFakeData}>
+                <FlaskConical className="w-3 h-3 mr-1" /> 🧪 TEST – Riempi dati fake
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm">Nombre *</Label>

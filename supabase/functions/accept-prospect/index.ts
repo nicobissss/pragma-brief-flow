@@ -95,6 +95,7 @@ serve(async (req) => {
       prospect_id: prospect.id,
       user_id: userId,
       status: "active",
+      is_test: prospect.is_test === true,
     }).select("id").single();
 
     if (clientErr) throw new Error(`Failed to create client: ${clientErr.message}`);
