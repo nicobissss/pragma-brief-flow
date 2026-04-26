@@ -131,6 +131,17 @@ export default function CreateProspectDialog({ onCreated }: Props) {
           <DialogTitle>Crear prospect manualmente</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          {testAvailable && (
+            <div className="flex items-center justify-between p-2 rounded-md border-2 border-dashed border-amber-400 bg-amber-50/60">
+              <span className="text-xs text-amber-900 flex items-center gap-1">
+                <FlaskConical className="w-3.5 h-3.5" />
+                {isTest ? "Marcato come TEST" : "Modalità test disponibile"}
+              </span>
+              <Button type="button" size="sm" variant="outline" className="border-amber-400 h-7" onClick={fillFakeData}>
+                <FlaskConical className="w-3 h-3 mr-1" /> 🧪 TEST – Riempi dati fake
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-sm">Nombre *</Label>
