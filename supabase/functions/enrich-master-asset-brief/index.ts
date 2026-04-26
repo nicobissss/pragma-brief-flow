@@ -160,7 +160,7 @@ Analiza y propone mejoras.`;
       });
     }
 
-    await recordAgentRun(supabase, "master_asset_enrichment", "success", 0);
+    await recordAgentRun(supabase, "master_asset_brief_enrichment", "success", 0);
     return new Response(
       JSON.stringify({ ok: true, ...out.input, master_asset_id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -170,7 +170,7 @@ Analiza y propone mejoras.`;
     const status = err?.status === 402 || err?.status === 429 ? err.status : 500;
     try {
       const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await recordAgentRun(sb, "master_asset_enrichment", "error", 0);
+      await recordAgentRun(sb, "master_asset_brief_enrichment", "error", 0);
     } catch {}
     return new Response(JSON.stringify({ error: String(err?.message || err) }), {
       status,
